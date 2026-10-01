@@ -1,0 +1,552 @@
+{
+  "evaluatedAt": "2026-09-07T00:55:03.797Z",
+  "evaluationType": "agent_scenarios_not_user_usefulness",
+  "labels": "Set before this run after inspecting the existing matcher and papers; not blinded, statistically representative, or founder-validated. Expected means a plausible research lead, not proof of the proposed application.",
+  "storage": "Fresh in-memory PGlite; no real participant data or usefulness writes",
+  "noMatcherTuning": true,
+  "hashes": {
+    "evals/resources/scenarios.json": "fd910586081e02f2aaf3c89e814fb8f61bdb6f38470dc58c55be8d1eec93f176",
+    "scripts/resources/social-sample.json": "0f59249d0b7311149935f54f6a058af0ed929f4c9eb1cdb7913b747dcb7aea24",
+    "src/resources/matching.ts": "123ab884e87b17f8bcaf7e7a3bb76fbe9e63e87882f551d7aecec9567d5a4351",
+    "src/resources/service.ts": "56f4bf50bd81aca94d8e723d4954708d496c2c1b696be7c2af20b1a3e10eba2e",
+    "src/resources/suggestions.ts": "9c7e0d09c29d2b14519146d6125e1001c175f598220498de715a379834095f64",
+    "src/resources/refresh-runs.ts": "e650617ee083419b9749fe62dd96aea819b3cb553f1d0608cb8e7b8346a99a80",
+    "evals/resources/evaluate.mts": "6fccb978d3d49bba1f296377b73bafe519368daeb6ac93a104da32fc37f97c18"
+  },
+  "sources": [
+    {
+      "id": "SC01",
+      "url": "https://faculty.wharton.upenn.edu/wp-content/uploads/2020/05/The-Liking-Gap-in-Conversations.pdf",
+      "identifier": "10.1177/0956797618783714 · selected excerpts, pp. 1–2"
+    },
+    {
+      "id": "SC06",
+      "url": "https://journals.sagepub.com/doi/10.1177/0146167220949003",
+      "identifier": "10.1177/0146167220949003 · selected abstract excerpts"
+    },
+    {
+      "id": "SC09",
+      "url": "https://www.kumar-amit.com/s/Kumar-Gilovich-in-press-Some-Thing-to-Talk-About-PSPB.pdf",
+      "identifier": "10.1177/0146167215594591 · selected excerpts, pp. 1, 3"
+    }
+  ],
+  "metrics": {
+    "exactCases": 6,
+    "totalCases": 16,
+    "relevantReturned": 8,
+    "totalReturned": 15,
+    "totalExpected": 14,
+    "positiveCasesWithRelevantResult": 6,
+    "positiveCases": 10,
+    "correctlyEmpty": 2,
+    "negativeCases": 6
+  },
+  "operations": {
+    "firstRun": {
+      "checked": 16,
+      "resources": 3,
+      "created": 15,
+      "updated": 0
+    },
+    "repeatCreated": 0,
+    "feedbackPersists": true,
+    "pausedHidden": true,
+    "staleHiddenUntilRefresh": true,
+    "resumeRestores": true
+  },
+  "changedNeedFeedback": {
+    "title": "Help people schedule company meetings",
+    "currentNeedRevision": 4,
+    "recommendationNeedRevision": 4,
+    "outcome": "helped",
+    "note": "AGENT TEST ONLY: ask an organizer about mutual follow-up.",
+    "feedbackHasRecordedNeedRevision": false
+  },
+  "results": [
+    {
+      "id": "S01",
+      "group": "prepared_control",
+      "idea": "A local group that helps people build lasting friendships",
+      "title": "Help people reconnect after their first conversation",
+      "criteria": "People feel comfortable starting a conversation, giving a compliment, and talking about shared experiences. Success is a second meeting within two weeks.",
+      "expected": [
+        "SC01",
+        "SC06",
+        "SC09"
+      ],
+      "reason": "The explicit example spans the three proposed applications.",
+      "returned": [
+        "SC01",
+        "SC06",
+        "SC09"
+      ],
+      "missing": [],
+      "unexpected": [],
+      "exact": true,
+      "details": [
+        {
+          "source": "SC01",
+          "score": 0.15,
+          "terms": [
+            "conversation",
+            "people",
+            "two"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        },
+        {
+          "source": "SC09",
+          "score": 0.1,
+          "terms": [
+            "people",
+            "talking"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        },
+        {
+          "source": "SC06",
+          "score": 0.1,
+          "terms": [
+            "compliment",
+            "feel"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S02",
+      "group": "natural_wording",
+      "idea": "A recurring neighborhood activity club",
+      "title": "Newcomers assume nobody wants to see them again",
+      "criteria": "Help attendees recognize reciprocal interest after meeting for the first time.",
+      "expected": [
+        "SC01"
+      ],
+      "reason": "Reciprocal-interest uncertainty is a plausible liking-gap lead, with transfer to attendance untested.",
+      "returned": [],
+      "missing": [
+        "SC01"
+      ],
+      "unexpected": [],
+      "exact": false,
+      "details": []
+    },
+    {
+      "id": "S03",
+      "group": "natural_wording",
+      "idea": "A local friendship group",
+      "title": "People attend a group once but do not form connections that bring them back",
+      "criteria": "A second meeting within two weeks.",
+      "expected": [
+        "SC01",
+        "SC06",
+        "SC09"
+      ],
+      "reason": "Original hypothetical need; generous exploratory relevance accepts all three previously proposed leads, not demonstrated retention effects.",
+      "returned": [
+        "SC01"
+      ],
+      "missing": [
+        "SC06",
+        "SC09"
+      ],
+      "unexpected": [],
+      "exact": false,
+      "details": [
+        {
+          "source": "SC01",
+          "score": 0.1875,
+          "terms": [
+            "people",
+            "them",
+            "two"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "group": "literal_wording",
+      "idea": "A conversation practice group",
+      "title": "Do conversation partners underestimate how much others liked them?",
+      "criteria": "Compare how people judge an interaction with their partner's report.",
+      "expected": [
+        "SC01"
+      ],
+      "reason": "Direct research question of the liking-gap paper.",
+      "returned": [
+        "SC01"
+      ],
+      "missing": [],
+      "unexpected": [],
+      "exact": true,
+      "details": [
+        {
+          "source": "SC01",
+          "score": 0.5,
+          "terms": [
+            "conversation",
+            "how",
+            "liked",
+            "much",
+            "partners",
+            "people",
+            "them"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "group": "natural_wording",
+      "idea": "A volunteer group welcoming new members",
+      "title": "Members hesitate to praise each other's contributions",
+      "criteria": "Make sincere appreciation feel less awkward.",
+      "expected": [
+        "SC06"
+      ],
+      "reason": "Praise and appreciation are ordinary paraphrases of the compliment finding.",
+      "returned": [],
+      "missing": [
+        "SC06"
+      ],
+      "unexpected": [],
+      "exact": false,
+      "details": []
+    },
+    {
+      "id": "S06",
+      "group": "literal_wording",
+      "idea": "A volunteer group welcoming new members",
+      "title": "Would a compliment make the person receiving it feel awkward?",
+      "criteria": "Compare the sender's expected reaction with the recipient's reported reaction.",
+      "expected": [
+        "SC06"
+      ],
+      "reason": "Direct prediction-versus-reception research lead.",
+      "returned": [
+        "SC06"
+      ],
+      "missing": [],
+      "unexpected": [],
+      "exact": true,
+      "details": [
+        {
+          "source": "SC06",
+          "score": 0.33333334,
+          "terms": [
+            "compliment",
+            "feel",
+            "person",
+            "receiving"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "group": "inflection_pair",
+      "idea": "A group appreciation prompt",
+      "title": "Will a compliment help?",
+      "criteria": "Make people feel appreciated.",
+      "expected": [
+        "SC06"
+      ],
+      "reason": "Singular wording of the appreciation need; paired with S08.",
+      "returned": [
+        "SC06"
+      ],
+      "missing": [],
+      "unexpected": [],
+      "exact": true,
+      "details": [
+        {
+          "source": "SC06",
+          "score": 0.33333334,
+          "terms": [
+            "compliment",
+            "feel"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S08",
+      "group": "inflection_pair",
+      "idea": "A group appreciation prompt",
+      "title": "Will compliments help?",
+      "criteria": "Make people feel appreciated.",
+      "expected": [
+        "SC06"
+      ],
+      "reason": "Same need as S07 with plural wording; relevance should not depend on that inflection.",
+      "returned": [],
+      "missing": [
+        "SC06"
+      ],
+      "unexpected": [],
+      "exact": false,
+      "details": []
+    },
+    {
+      "id": "S09",
+      "group": "natural_wording",
+      "idea": "An outdoor activity club",
+      "title": "Help members swap stories about shared activities",
+      "criteria": "Give newcomers an enjoyable icebreaker after a hike.",
+      "expected": [
+        "SC09"
+      ],
+      "reason": "Exploratory adaptation of experience-related storytelling; the paper did not test this group intervention.",
+      "returned": [],
+      "missing": [
+        "SC09"
+      ],
+      "unexpected": [],
+      "exact": false,
+      "details": []
+    },
+    {
+      "id": "S10",
+      "group": "literal_wording",
+      "idea": "A discussion group about spending and experiences",
+      "title": "Do experiential purchases give people more happiness when talking about them?",
+      "criteria": "Understand the reported value of discussing experiences rather than possessions.",
+      "expected": [
+        "SC09"
+      ],
+      "reason": "Direct subject of the purchase-storytelling study.",
+      "returned": [
+        "SC01",
+        "SC09"
+      ],
+      "missing": [],
+      "unexpected": [
+        "SC01"
+      ],
+      "exact": false,
+      "details": [
+        {
+          "source": "SC09",
+          "score": 0.3529412,
+          "terms": [
+            "experiential",
+            "happiness",
+            "more",
+            "people",
+            "purchases",
+            "talking"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        },
+        {
+          "source": "SC01",
+          "score": 0.11764706,
+          "terms": [
+            "people",
+            "them"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "group": "negative_control",
+      "idea": "Recover lithium from discarded batteries",
+      "title": "Battery recycling",
+      "criteria": "Recover lithium using low energy.",
+      "expected": [],
+      "reason": "No relevant research in the current collection.",
+      "returned": [],
+      "missing": [],
+      "unexpected": [],
+      "exact": true,
+      "details": []
+    },
+    {
+      "id": "S12",
+      "group": "word_collision",
+      "idea": "An invoice approval tool",
+      "title": "Two people must review company invoices",
+      "criteria": "Prevent payment fraud with dual approval.",
+      "expected": [],
+      "reason": "People, two and company refer to finance operations, not reciprocal liking.",
+      "returned": [
+        "SC01"
+      ],
+      "missing": [],
+      "unexpected": [
+        "SC01"
+      ],
+      "exact": false,
+      "details": [
+        {
+          "source": "SC01",
+          "score": 0.27272728,
+          "terms": [
+            "company",
+            "people",
+            "two"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S13",
+      "group": "word_collision",
+      "idea": "A workforce budgeting dashboard",
+      "title": "Five studies before deciding staffing budgets",
+      "criteria": "Compare cost forecasts and labor demand.",
+      "expected": [],
+      "reason": "A study count supplies no topical connection to compliments.",
+      "returned": [
+        "SC06"
+      ],
+      "missing": [],
+      "unexpected": [
+        "SC06"
+      ],
+      "exact": false,
+      "details": [
+        {
+          "source": "SC06",
+          "score": 0.18181819,
+          "terms": [
+            "five",
+            "studies"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S14",
+      "group": "negation",
+      "idea": "A neighborhood club with travel barriers",
+      "title": "No compliment or conversation prompts",
+      "criteria": "People need transport, not talking activities, to attend.",
+      "expected": [],
+      "reason": "The need explicitly rejects conversation interventions and asks about transport.",
+      "returned": [
+        "SC01",
+        "SC09"
+      ],
+      "missing": [],
+      "unexpected": [
+        "SC01",
+        "SC09"
+      ],
+      "exact": false,
+      "details": [
+        {
+          "source": "SC09",
+          "score": 0.22222222,
+          "terms": [
+            "people",
+            "talking"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        },
+        {
+          "source": "SC01",
+          "score": 0.22222222,
+          "terms": [
+            "conversation",
+            "people"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    },
+    {
+      "id": "S15",
+      "group": "negative_control",
+      "idea": "A recurring meetup",
+      "title": "Adjust meetup times around work and childcare",
+      "criteria": "Raise attendance through practical scheduling.",
+      "expected": [],
+      "reason": "Social setting alone does not make these three papers relevant to scheduling.",
+      "returned": [],
+      "missing": [],
+      "unexpected": [],
+      "exact": true,
+      "details": []
+    },
+    {
+      "id": "S16",
+      "group": "word_collision",
+      "idea": "An employee finance assistant",
+      "title": "People need financial advice",
+      "criteria": "Help people choose company pensions and manage purchases.",
+      "expected": [],
+      "reason": "Company and purchases occur in the papers but do not support pension or financial advice.",
+      "returned": [
+        "SC01",
+        "SC09"
+      ],
+      "missing": [],
+      "unexpected": [
+        "SC01",
+        "SC09"
+      ],
+      "exact": false,
+      "details": [
+        {
+          "source": "SC09",
+          "score": 0.22222222,
+          "terms": [
+            "people",
+            "purchases"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        },
+        {
+          "source": "SC01",
+          "score": 0.22222222,
+          "terms": [
+            "company",
+            "people"
+          ],
+          "nextAction": "Compare the source's conditions and limitations with your acceptance criteria before trying the method.",
+          "hasConditionEvidence": false,
+          "hasLimitationEvidence": false
+        }
+      ]
+    }
+  ]
+}

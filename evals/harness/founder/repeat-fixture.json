@@ -1,0 +1,25 @@
+{
+  "_note": "The two pairs REPEAT_THRESHOLD has to separate. `same` is the same claim in different words and must read as a repeat; `different` shares a domain and a vocabulary but makes a different claim, and must not. Design.md D3 starts the threshold at 0.92 on Voyage 3.5 and says these pairs are what set it — so the cosine half of the test needs VOYAGE_API_KEY and is skipped without one. The text-equality half always runs.",
+  "threshold": 0.92,
+  "pairs": [
+    {
+      "label": "same",
+      "note": "One founder, one capability, two turns' worth of wording.",
+      "a": "ran dental procurement for four years",
+      "b": "spent four years running procurement for dental practices"
+    },
+    {
+      "label": "different",
+      "note": "Same domain, same nouns, a different claim — procurement is not scheduling.",
+      "a": "ran dental procurement for four years",
+      "b": "built scheduling software for dental practices"
+    }
+  ],
+  "equal": [
+    {
+      "note": "Normalization is the contract's: NFC, invisibles out, whitespace collapsed. Case is ours.",
+      "a": "shipped three iOS apps",
+      "b": "Shipped   three iOS apps"
+    }
+  ]
+}

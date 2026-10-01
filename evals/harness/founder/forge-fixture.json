@@ -1,0 +1,158 @@
+{
+  "_note": "The Forge projection tables of forge-idea-bridge design.md D11, applied to one idea. `document` is a forge-idea/2 export as Forge renders it; `expected` is the exact set of assertions projectForgeIdea() must write on a first import into an empty ledger, and `report` the counts it must print. Written before the adapter. The fixture tests that the tables are applied, not that they are right.",
+  "document": {
+    "format": "forge-idea/2",
+    "id": "5f0c2d8e9a7b4c1d8e2f3a4b5c6d7e8f",
+    "title": "Flat Fare",
+    "line": "A ride-hail with no surge pricing.",
+    "seed": { "starter": "packaged_problem", "snapshot_id": "prob-surge" },
+    "profile": {
+      "favourite_colour": "green",
+      "location_home": "Columbus, Ohio",
+      "skill_dispatch": "Ran a taxi dispatch desk for six years"
+    },
+    "workspaces": [
+      {
+        "framework": "business_model",
+        "grade": null,
+        "segments": [
+          { "name": "Drivers", "origin": "confirmed" },
+          { "name": "Riders", "origin": "confirmed" }
+        ],
+        "canvas": [
+          {
+            "key": "k-vp-drivers",
+            "block": "value_proposition",
+            "text": "Drivers keep 90% of each fare",
+            "origin": "confirmed",
+            "evidence": "Drivers keep ninety percent of every fare.",
+            "segment": "Drivers",
+            "run_id": "run-a"
+          },
+          {
+            "key": "k-vp-riders",
+            "block": "value_proposition",
+            "text": "No surge pricing for riders",
+            "origin": "draft",
+            "evidence": "Riders hate surge pricing.",
+            "segment": "Riders",
+            "run_id": "run-a"
+          },
+          {
+            "key": "k-revenue",
+            "block": "revenue_streams",
+            "text": "Flat booking fee per ride",
+            "origin": "draft",
+            "evidence": "We charge riders a flat booking fee.",
+            "segment": null,
+            "run_id": "run-b"
+          },
+          {
+            "key": "k-channels",
+            "block": "channels",
+            "text": "Driver referral bonuses",
+            "origin": "draft",
+            "evidence": "Referral bonuses drove 60% of sign-ups in the pilot.",
+            "segment": "Drivers",
+            "run_id": "run-intake"
+          },
+          {
+            "key": "k-cost",
+            "block": "cost_structure",
+            "text": "Who carries the insurance?",
+            "origin": "open",
+            "evidence": null,
+            "segment": null,
+            "run_id": "run-b"
+          },
+          {
+            "key": "k-resources",
+            "block": "key_resources",
+            "text": "A fleet-insurance broker license",
+            "origin": "confirmed",
+            "evidence": null,
+            "segment": null,
+            "run_id": null
+          },
+          {
+            "key": "k-segments",
+            "block": "customer_segments",
+            "text": "Part-time drivers in mid-size US cities",
+            "origin": "draft",
+            "evidence": null,
+            "segment": "Drivers",
+            "run_id": "run-a"
+          }
+        ],
+        "thread": [
+          { "role": "you", "text": "Drivers keep ninety percent of every fare. Riders hate surge pricing.", "at": "2026-09-01T10:00:00Z" },
+          { "role": "forge", "text": "Who pays for insurance, and how do riders pay you?", "at": "2026-09-01T10:00:05Z" },
+          { "role": "you", "text": "We charge riders a flat booking fee. Riders hate surge pricing.", "at": "2026-09-01T10:01:00Z" }
+        ]
+      },
+      {
+        "framework": "value_proposition",
+        "grade": null,
+        "segments": [],
+        "canvas": [
+          {
+            "key": "k-job",
+            "block": "customer_jobs",
+            "text": "Get to work at a predictable cost",
+            "origin": "draft",
+            "evidence": "Commuters want a ride that costs the same every day.",
+            "segment": null,
+            "run_id": "run-c"
+          },
+          {
+            "key": "k-pain",
+            "block": "pains",
+            "text": "Unpredictable surge fares",
+            "origin": "draft",
+            "evidence": null,
+            "segment": null,
+            "run_id": "run-c"
+          },
+          {
+            "key": "k-gain-creator",
+            "block": "gain_creators",
+            "text": "Fixed-price weekly ride pass",
+            "origin": "confirmed",
+            "evidence": null,
+            "segment": null,
+            "run_id": "run-c"
+          }
+        ],
+        "thread": [
+          { "role": "you", "text": "Commuters want a ride that costs the same every day.", "at": "2026-09-02T09:00:00Z" },
+          { "role": "forge", "text": "What do they do today when a fare spikes?", "at": "2026-09-02T09:00:04Z" }
+        ]
+      }
+    ]
+  },
+  "expected": [
+    { "framework": "business_model", "key": "k-vp-drivers", "facet": "purpose", "level": "specific", "subject": "idea", "text": "Drivers keep 90% of each fare", "confidence": "confirmed", "source_type": "subject_edit", "segment": "Drivers", "anchor": "anchored" },
+    { "framework": "business_model", "key": "k-vp-riders", "facet": "purpose", "level": "specific", "subject": "idea", "text": "No surge pricing for riders", "confidence": "extracted", "source_type": "canvas", "segment": "Riders", "anchor": "ambiguous" },
+    { "framework": "business_model", "key": "k-revenue", "facet": "mechanism.revenue", "level": null, "subject": "idea", "text": "Flat booking fee per ride", "confidence": "extracted", "source_type": "canvas", "segment": null, "anchor": "anchored" },
+    { "framework": "business_model", "key": "k-channels", "facet": "mechanism.distribution", "level": null, "subject": "idea", "text": "Driver referral bonuses", "confidence": "extracted", "source_type": "canvas", "segment": "Drivers", "anchor": "unanchored" },
+    { "framework": "business_model", "key": "k-cost", "facet": "constraint", "level": null, "subject": "idea", "text": "Who carries the insurance?", "confidence": "extracted", "source_type": "canvas", "segment": null, "anchor": "unanchored", "free_endpoint": true },
+    { "framework": "business_model", "key": "k-resources", "facet": "mechanism_commanded", "level": null, "subject": "person", "text": "A fleet-insurance broker license", "confidence": "confirmed", "source_type": "subject_edit", "segment": null, "anchor": "unanchored" },
+    { "framework": "business_model", "key": "k-segments", "facet": "domain", "level": null, "subject": "idea", "text": "Part-time drivers in mid-size US cities", "confidence": "extracted", "source_type": "canvas", "segment": "Drivers", "anchor": "unanchored" },
+    { "framework": "value_proposition", "key": "k-job", "facet": "purpose", "level": "abstract", "subject": "idea", "text": "Get to work at a predictable cost", "confidence": "extracted", "source_type": "canvas", "segment": null, "anchor": "anchored" },
+    { "framework": "value_proposition", "key": "k-pain", "facet": "constraint", "level": null, "subject": "idea", "text": "Unpredictable surge fares", "confidence": "extracted", "source_type": "canvas", "segment": null, "anchor": "unanchored" },
+    { "framework": "value_proposition", "key": "k-gain-creator", "facet": "mechanism.product", "level": null, "subject": "idea", "text": "Fixed-price weekly ride pass", "confidence": "confirmed", "source_type": "subject_edit", "segment": null, "anchor": "unanchored" },
+    { "framework": "profile", "key": "profile:location_home", "facet": "domain", "level": null, "subject": "person", "text": "Columbus, Ohio", "confidence": "extracted", "source_type": "conversation", "segment": null, "anchor": "unanchored" },
+    { "framework": "profile", "key": "profile:skill_dispatch", "facet": "mechanism_commanded", "level": null, "subject": "person", "text": "Ran a taxi dispatch desk for six years", "confidence": "extracted", "source_type": "conversation", "segment": null, "anchor": "unanchored" }
+  ],
+  "report": {
+    "written": 12,
+    "superseded": 0,
+    "retired": 0,
+    "unchanged": 0,
+    "anchored": 3,
+    "ambiguous": 1,
+    "unanchored": 6,
+    "profile_skipped": 1,
+    "unmapped_frameworks": []
+  }
+}

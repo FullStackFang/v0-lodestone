@@ -1,0 +1,12 @@
+{
+  "note": "One abstract carrying every hazard NORMALIZATION.md names: CRLF, a double space, a soft hyphen inside a word, a combining acute, a zero-width space, a byte-order mark, and an astral emoji before the recorded span. Regenerating this file is a change to the normalization rule and needs a new parser name.",
+  "raw": "🧪 Rapid Triage\r\n\r\nWe  present a system that cuts the time to a diag­nosis in rural clinics.\r\nThe caféteria trial​ ran for six weeks, and﻿ the system held.",
+  "canonical": "🧪 Rapid Triage We present a system that cuts the time to a diagnosis in rural clinics. The caféteria trial ran for six weeks, and the system held.",
+  "text_hash": "660ba8b31905aae32495c25ce9c8b93f4a8a1a8b3371197038e43a8ce3f01bf9",
+  "span": {
+    "start": 41,
+    "end": 69,
+    "quote": "cuts the time to a diagnosis"
+  },
+  "astral_before_span": true
+}

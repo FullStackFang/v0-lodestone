@@ -1,0 +1,94 @@
+/* Lodestone surfaces: the card grid, the match rows, the map panels.
+   Forge tokens from globals.css; nothing new is invented here. */
+
+.ls-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 28px; }
+.ls-header h1 { font-size: 28px; line-height: 1.15; }
+.ls-header p { margin: 8px 0 0; max-width: 68ch; }
+.ls-line { font-family: var(--font-serif), Georgia, serif; font-size: 18px; line-height: 1.35; color: var(--ink); margin: 8px 0 0; max-width: 68ch; }
+
+.ls-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 760px) { .ls-grid { grid-template-columns: 1fr; } }
+.ls-block { background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; padding: 14px 15px; min-height: 120px; display: grid; align-content: start; gap: 8px; }
+.ls-block .k { font-size: 9.5px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--taupe); }
+.ls-entry { color: var(--ink); line-height: 1.45; }
+.ls-entry.draft, .ls-entry.open { font-family: var(--font-serif), Georgia, serif; font-style: italic; font-size: 14.5px; }
+.ls-entry.open { color: var(--body); }
+.ls-entry .o { display: block; font-family: var(--font-sans), system-ui, sans-serif; font-style: normal; font-size: 11px; color: var(--taupe); margin-top: 3px; }
+.ls-entry.draft .o { color: var(--amber); }
+.ls-entry.open .o { color: var(--oxblood); }
+.ls-empty { font-family: var(--font-serif), Georgia, serif; font-style: italic; color: var(--taupe); }
+.ls-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--body); margin-top: 12px; }
+.ls-legend i { font-family: var(--font-serif), Georgia, serif; }
+
+.ls-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; margin-top: 34px; }
+@media (max-width: 900px) { .ls-two { grid-template-columns: 1fr; } }
+.ls-section h2 { font-size: 20px; margin-bottom: 4px; }
+.ls-section > p { margin: 0 0 14px; color: var(--body); }
+.ls-rows { display: grid; gap: 8px; }
+.ls-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; }
+.ls-row .t { font-family: var(--font-serif), Georgia, serif; font-size: 17px; line-height: 1.2; color: var(--ink); }
+.ls-row .t a { text-decoration: none; }
+.ls-row .n { font-variant-numeric: tabular-nums; font-family: var(--font-serif), Georgia, serif; font-size: 19px; color: var(--oxblood); }
+.ls-row .why { grid-column: 1 / -1; font-size: 12.5px; color: var(--body); }
+.ls-row .why b { color: var(--oxblood); font-weight: 500; }
+.ls-row .meta { grid-column: 1 / -1; font-size: 11.5px; color: var(--taupe); }
+.ls-row .bar { grid-column: 1 / -1; height: 4px; background: var(--wash); border-radius: 999px; overflow: hidden; }
+.ls-row .bar i { display: block; height: 100%; background: var(--oxblood); }
+.ls-quiet { padding: 18px 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; }
+.ls-quiet p { margin: 0; font-family: var(--font-serif), Georgia, serif; font-style: italic; font-size: 16px; color: var(--body); }
+.ls-quiet span { display: block; margin-top: 6px; font-size: 12.5px; color: var(--taupe); }
+
+.ls-publish { margin-top: 34px; border-top: 1px solid var(--rule); padding-top: 22px; }
+.ls-publish h2 { font-size: 20px; margin-bottom: 4px; }
+.ls-choices { display: grid; gap: 8px; margin: 14px 0; }
+.ls-choice { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 2px 12px; align-items: baseline; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 2px; background: var(--surface); cursor: pointer; }
+.ls-choice input { margin: 0; accent-color: var(--oxblood); }
+.ls-choice .nm { color: var(--ink); font-weight: 500; }
+.ls-choice .ex { grid-column: 2; font-size: 12.5px; color: var(--body); }
+.ls-leaves { display: grid; gap: 4px; margin: 14px 0; font-size: 12.5px; }
+.ls-leaves div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px dotted var(--rule); }
+.ls-leaves span { color: var(--taupe); }
+.ls-leaves .no span { color: var(--oxblood); font-weight: 500; }
+.ls-state { display: inline-block; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; background: var(--wash); color: var(--body); }
+.ls-state.cohort { background: color-mix(in oklab, var(--forest) 12%, var(--pill-face)); color: var(--forest); }
+
+.ls-import { display: grid; gap: 12px; max-width: 520px; padding: 20px; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; }
+.ls-import label { display: grid; gap: 6px; color: var(--ink); font-size: 13px; }
+.ls-import p { margin: 0; font-size: 12.5px; color: var(--body); }
+.ls-list { list-style: none; margin: 0; padding: 0; }
+.ls-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--rule); }
+.ls-list h2 { font-size: 19px; line-height: 1.3; }
+.ls-list h2 a { text-decoration: none; }
+.ls-list p { margin: 0; grid-column: 1; }
+.ls-list .meta { grid-column: 1 / -1; font-size: 11.5px; color: var(--taupe); }
+
+.ls-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 18px; margin: 24px 0 30px; }
+.ls-fig b { display: block; font-family: var(--font-serif), Georgia, serif; font-size: 44px; line-height: 0.9; letter-spacing: -0.03em; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ls-fig b.accent { color: var(--oxblood); }
+.ls-fig span { display: block; margin-top: 8px; font-size: 12px; color: var(--taupe); }
+.ls-region { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; }
+.ls-region .nm { color: var(--ink); font-size: 15px; }
+.ls-region .ct { font-size: 12.5px; color: var(--taupe); font-variant-numeric: tabular-nums; }
+.ls-region .bar { grid-column: 1 / -1; height: 4px; background: var(--wash); border-radius: 999px; overflow: hidden; }
+.ls-region .bar i { display: block; height: 100%; background: var(--ink); opacity: 0.35; }
+.ls-region .who { grid-column: 1 / -1; font-size: 12.5px; color: var(--body); }
+.ls-region .who a { text-decoration: none; }
+.ls-region .ip { grid-column: 1 / -1; font-size: 11.5px; color: var(--taupe); }
+.ls-profile { display: grid; gap: 5px; }
+.ls-prow { display: grid; grid-template-columns: 54px minmax(0, 1fr) 40px; gap: 12px; align-items: center; font-size: 12px; color: var(--taupe); font-variant-numeric: tabular-nums; }
+.ls-prow .lab { text-align: right; }
+.ls-prow .track { height: 14px; background: var(--wash); border-radius: 3px; overflow: hidden; }
+.ls-prow .track i { display: block; height: 100%; background: var(--oxblood); opacity: 0.25; }
+.ls-prow.close { color: var(--ink); }
+.ls-prow.close .track i { opacity: 0.7; }
+
+.ls-digest { display: grid; gap: 28px; }
+.ls-digest h2 { font-size: 20px; }
+.ls-drow { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 14px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+@media (max-width: 640px) { .ls-drow { grid-template-columns: 1fr; gap: 4px; } }
+.ls-drow .k { font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--oxblood); }
+.ls-drow .t { font-family: var(--font-serif), Georgia, serif; font-size: 17px; line-height: 1.2; color: var(--ink); }
+.ls-drow .t a { text-decoration: none; }
+.ls-drow .why { font-size: 12.5px; color: var(--body); margin-top: 2px; }
+.ls-drow .ct { font-size: 11.5px; color: var(--taupe); white-space: nowrap; }
+.ls-note { font-size: 12px; color: var(--taupe); margin-top: 14px; max-width: 68ch; }

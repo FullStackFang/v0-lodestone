@@ -1,0 +1,21 @@
+# The seed set: five abstracts, five genres, four OpenAlex fields.
+#
+# Chosen so the domain filter has something to do. The materials paper and
+# the civil-engineering paper are both `Engineering` in OpenAlex's coarse
+# taxonomy — that pair is what a same-field exclusion has to catch, and what
+# `prior_art` has to keep. The other three sit in three fields of their own.
+
+# CSCW — Computer Science
+10.1145/1031607.1031626
+
+# Materials — Engineering
+10.1126/science.aat8235
+
+# Civil engineering — Engineering
+10.12989/sss.2010.6.5_6.439
+
+# Business — Business, Management and Accounting
+10.3390/su10072346
+
+# Biomedicine — Medicine
+10.3390/diagnostics7010003

@@ -1,0 +1,41 @@
+[
+  {
+    "kind": "paper",
+    "title": "The Liking Gap in Conversations: Do People Like Us More Than We Think?",
+    "sourceUrl": "https://faculty.wharton.upenn.edu/wp-content/uploads/2020/05/The-Liking-Gap-in-Conversations.pdf",
+    "identifier": "10.1177/0956797618783714 · selected excerpts, pp. 1–2",
+    "sourceDate": "2026-09-06",
+    "rawText": "We recruited two people to have a conversation.\npeople systematically underestimated how much their conversation partners liked them and enjoyed their company",
+    "claims": [
+      { "facet": "method", "text": "Compare reciprocal liking after a conversation", "quote": "We recruited two people to have a conversation." },
+      { "facet": "result", "text": "Participants underestimated partners' liking", "quote": "people systematically underestimated how much their conversation partners liked them and enjoyed their company" }
+    ],
+    "proposals": ["Consider optional mutual follow-up after a real conversation. Ask a group organizer whether uncertainty prevents newcomers from reconnecting. The study did not test this adaptation or return attendance."]
+  },
+  {
+    "kind": "paper",
+    "title": "Why a Simple Act of Kindness Is Not as Simple as It Seems",
+    "sourceUrl": "https://journals.sagepub.com/doi/10.1177/0146167220949003",
+    "identifier": "10.1177/0146167220949003 · selected abstract excerpts",
+    "sourceDate": "2026-09-06",
+    "rawText": "Five studies explored this possibility.\ncompliment givers underestimated how positively the person receiving their compliment would feel",
+    "claims": [
+      { "facet": "method", "text": "Five studies of predicted compliment reception", "quote": "Five studies explored this possibility." },
+      { "facet": "result", "text": "Givers underestimated positive reception", "quote": "compliment givers underestimated how positively the person receiving their compliment would feel" }
+    ],
+    "proposals": ["Consider an optional prompt to appreciate someone's observed contribution. First ask newcomers whether this would feel welcome. Evidence here is abstract-only; durable friendship and return attendance were not established."]
+  },
+  {
+    "kind": "paper",
+    "title": "Some Thing to Talk About? Differential Story Utility From Experiential and Material Purchases",
+    "sourceUrl": "https://www.kumar-amit.com/s/Kumar-Gilovich-in-press-Some-Thing-to-Talk-About-PSPB.pdf",
+    "identifier": "10.1177/0146167215594591 · selected excerpts, pp. 1, 3",
+    "sourceDate": "2026-09-06",
+    "rawText": "In eight studies\npeople believe they derive more happiness from talking about experiential purchases",
+    "claims": [
+      { "facet": "method", "text": "Eight studies of experiential and material purchases", "quote": "In eight studies" },
+      { "facet": "result", "text": "Reported value of talking about experiential purchases", "quote": "people believe they derive more happiness from talking about experiential purchases" }
+    ],
+    "proposals": ["Consider a memorable-moment conversation prompt after a shared activity. Ask the organizer if this gives newcomers something useful to discuss. This is an extrapolation from purchase-related ratings, not a demonstrated friendship or retention intervention."]
+  }
+]

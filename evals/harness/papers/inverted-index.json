@@ -1,0 +1,26 @@
+{
+  "why": "The reconstruction fixture. It carries the three cases that break a naive rebuild: a word listed at two positions (`the` at 3 and 5), a gap no word claims (position 6), and an astral character (U+1F9EA) before every span the offset tests use. `text_hash` is recorded here and asserted byte for byte, so a normalization change cannot pass unnoticed.",
+  "work": {
+    "id": "https://openalex.org/W9999999999",
+    "doi": "https://doi.org/10.5555/fixture.2026",
+    "title": "A fixture abstract for the offset walk",
+    "publication_year": 2026,
+    "primary_topic": { "field": { "display_name": "Engineering" } },
+    "primary_location": { "source": { "display_name": "Journal of Fixtures" } },
+    "authorships": [
+      { "author": { "display_name": "A. Reader" } },
+      { "author": { "display_name": "B. Writer" } }
+    ],
+    "abstract_inverted_index": {
+      "We": [0],
+      "measure": [1],
+      "🧪": [2],
+      "the": [3, 5],
+      "cost": [4],
+      "clinic": [7],
+      "pays": [8]
+    }
+  },
+  "expected_abstract": "We measure 🧪 the cost the clinic pays",
+  "text_hash": "5b237ffa810ee702035e4b29bf17f7305620a7a7fb462c6aea525458b77127a6"
+}

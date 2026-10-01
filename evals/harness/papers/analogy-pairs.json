@@ -1,0 +1,80 @@
+{
+  "why": "Labelled pairs for `npm run bench -- pairs --edge paper_analogy|prior_art`. Each entry is a query a reader could plausibly carry, the paper that should come back for it, and a paper from the same seed set that should not. Written by hand against the five seed abstracts before any ordering was tuned, so the fixture is a claim about what a good answer looks like rather than a record of what the scorer already does. Papers are named by DOI; the bench resolves them through `artifact_texts.provenance.doi`.",
+  "corpus": "evals/harness/papers/seed.txt",
+  "edges": {
+    "paper_analogy": [
+      {
+        "query": "How would we know a clinic's turnaround time is drifting, without auditing charts every month?",
+        "kind": "question",
+        "asked_on": "10.3390/diagnostics7010003",
+        "should": ["10.12989/sss.2010.6.5_6.439"],
+        "should_not": ["10.3390/su10072346"],
+        "note": "The bridge paper's answer to a power budget it cannot meet — let the environment decide when to record — is the same shape as watching a slow clinical drift on a budget that cannot afford continuous audit. The startup-failure paper shares the word 'fail' and nothing else."
+      },
+      {
+        "query": "What makes something that works in a pilot fall over when it is scaled to a real deployment?",
+        "kind": "question",
+        "asked_on": "10.3390/diagnostics7010003",
+        "should": ["10.1126/science.aat8235"],
+        "should_not": ["10.1145/1031607.1031626"],
+        "note": "Perovskite cells are the canonical case of a headline metric outrunning durability; the gap between laboratory efficiency and a sellable lifetime is exactly the pilot-to-deployment gap. The CSCW evaluation paper is about how to measure, not about what breaks at scale."
+      },
+      {
+        "query": "How do you evaluate something whose benefit is a relationship between people rather than a number one person produces?",
+        "kind": "question",
+        "asked_on": "10.3390/su10072346",
+        "should": ["10.1145/1031607.1031626"],
+        "should_not": ["10.1126/science.aat8235"],
+        "note": "Decomposing a phenomenon into the relationships that constitute it, and measuring each, is the CSCW paper's whole answer. A materials paper has a single scalar outcome and cannot speak to this."
+      },
+      {
+        "query": "Where should we look for the causes of failure that the successful cases hide from us?",
+        "kind": "question",
+        "asked_on": "10.3390/diagnostics7010003",
+        "should": ["10.3390/su10072346"],
+        "should_not": ["10.12989/sss.2010.6.5_6.439"],
+        "note": "Mining the record of failures rather than studying survivors, because the selection that hides the failures is the one that biases the successes. The bridge paper is about instrumentation, not about selection."
+      },
+      {
+        "query": "How can a trial that lasts weeks support a claim about how something behaves over years?",
+        "kind": "question",
+        "asked_on": "10.12989/sss.2010.6.5_6.439",
+        "should": ["10.1126/science.aat8235"],
+        "should_not": ["10.3390/su10072346"],
+        "note": "Standardized tests that separate a thing's inherent failure modes from its environment's are what make a short trial extrapolable. The startup paper has no notion of accelerated testing."
+      },
+      {
+        "query": "no power budget at the site for anything that records continuously",
+        "kind": "constraint",
+        "asked_on": "10.3390/diagnostics7010003",
+        "should": ["10.12989/sss.2010.6.5_6.439"],
+        "should_not": ["10.1145/1031607.1031626"],
+        "note": "A constraint, not a question: the paper that hands you a measurement strategy for the bound you are stuck on should beat the one that shares your vocabulary. This is the pair the constraint query source exists for."
+      },
+      {
+        "query": "cannot afford an evaluation that needs a controlled comparison group",
+        "kind": "constraint",
+        "asked_on": "10.3390/su10072346",
+        "should": ["10.1145/1031607.1031626"],
+        "should_not": ["10.1126/science.aat8235"],
+        "note": "The CSCW paper's decomposition is what you reach for when the aggregate comparison is out of reach."
+      }
+    ],
+    "prior_art": [
+      {
+        "query": "make a perovskite cell survive long enough to be worth selling",
+        "asked_on": "10.1126/science.aat8235",
+        "should": [],
+        "should_not": ["10.1145/1031607.1031626", "10.3390/su10072346", "10.3390/diagnostics7010003"],
+        "note": "The seed set holds no true prior-art pair: `should` is deliberately empty. Its two Engineering papers share OpenAlex's coarse field and nothing else, so the only claim this fixture can make honestly is a negative one — no cross-field paper may appear here, whatever it scores. A real positive needs a second perovskite-durability abstract ingested beside this one, and that is the next thing to add to `seed.txt`."
+      },
+      {
+        "query": "instrument a bridge densely enough to catch damage, on a power budget",
+        "asked_on": "10.12989/sss.2010.6.5_6.439",
+        "should": [],
+        "should_not": ["10.3390/diagnostics7010003", "10.3390/su10072346", "10.1145/1031607.1031626"],
+        "note": "Same shape as the entry above, from the other side of the shared field. The `paper_analogy` fixture asserts that the clinic question reaches this paper; this one asserts that the reverse is never prior art, because prior art is same-field by construction."
+      }
+    ]
+  }
+}

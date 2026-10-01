@@ -1,0 +1,276 @@
+{
+  "_note": "Twelve founders we wrote. This is a regression instrument over authored data, not a claim about a real cohort: it exists so a change to the weights, the prompts or the adapters shows up as a number that moved, and for nothing else. Every founder is built to make some pair in pairs.json have an obvious right answer — the `note` on each says which. Clusters: A (dental operations, the same specific problem), B (the same abstract verb in different fields), C (finance operations), plus a competitor, two mentors and two unrelated founders.",
+  "founders": [
+    {
+      "email": "maya@synthetic.edu",
+      "name": "Maya Okonkwo",
+      "note": "A1. Dental cancellations, commands operations, seeks engineering. The query founder in most cofounder pairs.",
+      "commitment": "I can go full-time from January 2027, once my consulting contract ends.",
+      "available_from": "2027-01",
+      "resume": "Ran dental procurement for four years at a twelve-practice group in Oregon. Negotiated supplier contracts covering 40 operatories. Built the group's chair-utilisation reporting in spreadsheets. Managed a front-desk team of nine.",
+      "turns": [
+        "DentalKeep fills cancelled dental slots from an SMS waitlist. I ran dental procurement for four years so I know how these practices think about a lost hour.",
+        "I've talked to eleven owner-dentists this spring and two said they would pay $349 a month for it. What I do not have is anyone who can build the thing.",
+        "I can go full-time from January 2027, once my consulting contract ends. The person I need would have shipped a scheduling or messaging product before."
+      ],
+      "fields": {
+        "idea_text": "DentalKeep fills cancelled dental appointment slots from an SMS waitlist.",
+        "offering": "a $349/mo SaaS that fills cancelled slots from an SMS waitlist",
+        "value_proposition": "recovers about $2,800 a month in no-show revenue",
+        "segment": { "description": "owner-dentists at single-location US practices", "findability_evidence": "state dental license registry", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "SMS waitlist for cancelled dental slots", "offering_type": "saas", "business_model": "subscription", "segment": { "industry": "dental practice", "industry_group": "healthcare", "buyer_role": "owner_founder", "org_size": "smb", "geography": "united states" }, "jtbd": { "verb": "reduce", "object": "empty chair time", "context": "single-location practices" }, "quadrant": "painkiller", "founder_intent": ["seeking_cofounder"], "keywords": ["dental", "waitlist", "cancellation", "sms"] },
+        "evidence": [
+          { "text": "talked to 11 owner-dentists in March", "evidence_type": "observed_behavior", "source": "founder's notes", "date": "2026-03" },
+          { "text": "two practices said they would pay $349", "evidence_type": "stated_opinion", "source": null, "date": null }
+        ],
+        "founder_context": { "background": "dental group operations and procurement in Oregon", "unfair_advantages": ["ran dental procurement for four years", "knows every supplier rep in Oregon"] }
+      }
+    },
+    {
+      "email": "omar@synthetic.edu",
+      "name": "Omar Haddad",
+      "note": "A2. The same specific problem as Maya with the opposite skills — the pair the cofounder query must rank first.",
+      "commitment": "I can start full-time in March 2027 when my notice period ends.",
+      "available_from": "2027-03",
+      "resume": "Shipped three iOS apps, one with 400k installs. Built the messaging stack at a scheduling startup: SMS delivery, retries, quiet hours. Six years of mobile and backend engineering. No healthcare experience.",
+      "turns": [
+        "I want to kill the empty chair problem in dental offices — the slot that goes unfilled when someone cancels at 8am.",
+        "I have shipped three iOS apps and I built the messaging stack at a scheduling startup, so the hard part for me is not the software. I have never sold to a dental practice in my life.",
+        "I can start full-time in March 2027 when my notice period ends. I need someone who actually knows how a practice buys."
+      ],
+      "fields": {
+        "idea_text": "ChairFill texts a practice's waitlist the moment an appointment is cancelled.",
+        "offering": "an SMS waitlist app for dental practices",
+        "value_proposition": "turns a cancelled slot into a filled one within the hour",
+        "segment": { "description": "dental practice managers in mid-size US cities", "findability_evidence": "dental practice management software directories", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "waitlist texting for dental cancellations", "offering_type": "saas", "business_model": "subscription", "segment": { "industry": "dental practice", "industry_group": "healthcare", "buyer_role": "functional_manager", "org_size": "smb", "geography": "united states" }, "jtbd": { "verb": "reduce", "object": "empty chair time", "context": "dental practices" }, "quadrant": "painkiller", "founder_intent": ["seeking_cofounder"], "keywords": ["dental", "scheduling", "sms", "mobile"] },
+        "evidence": [{ "text": "built and shipped the messaging stack at a scheduling startup", "evidence_type": "incurred_cost", "source": null, "date": null }],
+        "founder_context": { "background": "mobile and backend engineering at consumer scheduling startups", "unfair_advantages": ["shipped three iOS apps", "built an SMS delivery stack that handles retries and quiet hours"] }
+      }
+    },
+    {
+      "email": "lena@synthetic.edu",
+      "name": "Lena Fischer",
+      "note": "A3. Maya's domain, a different problem. Close enough to be a plausible wrong answer for the cofounder query, which is the point.",
+      "commitment": "Full-time whenever — I left my job in June.",
+      "available_from": "2026-06",
+      "resume": "Eight years in dental revenue-cycle management. Ran insurance claims reconciliation for a 30-practice DSO. Recovered $1.2M in denied claims in one year.",
+      "turns": [
+        "Practices write off denied insurance claims they could have won. I want to fix that.",
+        "I ran revenue-cycle for a thirty-practice group and recovered $1.2 million in denials in one year. I need someone technical.",
+        "Full-time whenever — I left my job in June."
+      ],
+      "fields": {
+        "idea_text": "ClaimBack finds dental insurance claims a practice wrote off and should have appealed.",
+        "offering": "a service that audits denied dental claims and files the appeals",
+        "value_proposition": "recovers denied claims a practice had already written off",
+        "segment": { "description": "office managers at multi-location dental groups", "findability_evidence": "DSO membership lists", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "denied dental claim recovery", "offering_type": "service", "business_model": "services_fees", "segment": { "industry": "dental practice", "industry_group": "healthcare", "buyer_role": "functional_manager", "org_size": "mid_market", "geography": "united states" }, "jtbd": { "verb": "increase", "object": "collected revenue", "context": "dental groups" }, "quadrant": "jet_fuel", "founder_intent": ["seeking_cofounder"], "keywords": ["dental", "insurance", "claims", "revenue cycle"] },
+        "evidence": [{ "text": "recovered $1.2M in denied claims in one year", "evidence_type": "observed_behavior", "source": "employer records", "date": "2025" }],
+        "founder_context": { "background": "dental revenue-cycle management", "unfair_advantages": ["ran insurance claims reconciliation for a thirty-practice group"] }
+      }
+    },
+    {
+      "email": "priya@synthetic.edu",
+      "name": "Priya Raman",
+      "note": "B1. Shares Maya's abstract verb (reduce a wait) in a different field. Tests whether the fit prefers the shared verb or the shared specific problem.",
+      "commitment": "I could go full-time in February 2027.",
+      "available_from": "2027-02",
+      "resume": "Civil engineer, nine years. Ran permitting for a mid-size municipality. Sat on the review board that approves residential plans. Knows every plan reviewer in three counties.",
+      "turns": [
+        "Residential permits take eleven weeks in my county and most of that is waiting for a reviewer to open the file.",
+        "I ran permitting for a municipality for nine years and I sat on the review board. I have never written software and I need someone who has.",
+        "I could go full-time in February 2027."
+      ],
+      "fields": {
+        "idea_text": "PermitPath cuts the wait on residential building permits.",
+        "offering": "software that routes permit applications to the next free reviewer",
+        "value_proposition": "cuts an eleven-week permit wait to under four",
+        "segment": { "description": "permitting departments in mid-size US municipalities", "findability_evidence": "state municipal directories", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "permit routing for municipalities", "offering_type": "saas", "business_model": "licensing", "segment": { "industry": "municipal government", "industry_group": "government_nonprofit", "buyer_role": "institution_admin", "org_size": "institution", "geography": "united states" }, "jtbd": { "verb": "reduce", "object": "waiting time", "context": "permit review" }, "quadrant": "painkiller", "founder_intent": ["seeking_cofounder"], "keywords": ["permitting", "municipal", "construction", "workflow"] },
+        "evidence": [{ "text": "ran permitting for a municipality for nine years", "evidence_type": "incurred_cost", "source": null, "date": null }],
+        "founder_context": { "background": "municipal permitting and civil engineering", "unfair_advantages": ["knows every plan reviewer in three counties", "sat on the residential plan review board"] }
+      }
+    },
+    {
+      "email": "tom@synthetic.edu",
+      "name": "Tom Alvarez",
+      "note": "B2. Priya's complement by skill and her verb-mate, but his commitment is fifteen months from hers — the pair that tests commitment_compatible = 0.",
+      "commitment": "Realistically I am not free until June 2028; I have a visa tied to my job.",
+      "available_from": "2028-06",
+      "resume": "Machine-learning engineer, seven years. Built queue-prioritisation models for a logistics company. Shipped an on-call triage system that cut median response time by half.",
+      "turns": [
+        "Radiology reads sit in a queue for days when the urgent ones should jump it. I want to fix the queue, not the reading.",
+        "I have built queue-prioritisation models before and shipped a triage system that halved response time. I do not know how a hospital buys anything.",
+        "Realistically I am not free until June 2028; I have a visa tied to my job."
+      ],
+      "fields": {
+        "idea_text": "ReadFirst reorders the radiology reading queue so urgent scans are read first.",
+        "offering": "a prioritisation layer over a hospital's radiology worklist",
+        "value_proposition": "cuts the wait on an urgent scan from days to hours",
+        "segment": { "description": "radiology department heads at community hospitals", "findability_evidence": "hospital association directories", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "urgency-aware radiology worklist", "offering_type": "saas", "business_model": "licensing", "segment": { "industry": "hospital radiology", "industry_group": "healthcare", "buyer_role": "institution_admin", "org_size": "institution", "geography": "united states" }, "jtbd": { "verb": "reduce", "object": "waiting time", "context": "radiology reads" }, "quadrant": "painkiller", "founder_intent": ["seeking_cofounder"], "keywords": ["radiology", "triage", "queue", "machine learning"] },
+        "evidence": [{ "text": "shipped an on-call triage system that halved median response time", "evidence_type": "observed_behavior", "source": null, "date": null }],
+        "founder_context": { "background": "machine learning for logistics and healthcare queues", "unfair_advantages": ["built queue-prioritisation models in production"] }
+      }
+    },
+    {
+      "email": "sam@synthetic.edu",
+      "name": "Sam Whitfield",
+      "note": "C1. The `thin` scenario's real idea. Commands bookkeeping, seeks engineering.",
+      "commitment": "I can be full-time in January 2027.",
+      "available_from": "2027-01",
+      "resume": "Six years as a bookkeeper, then ran a four-person bookkeeping practice. Closed books for 40 small-business clients a month. Built the firm's document-chasing checklist by hand.",
+      "turns": [
+        "Bookkeepers lose hours every month chasing clients for receipts and bank statements. I did it myself for six years.",
+        "I ran a four-person practice and closed forty clients a month, so I know exactly where the hours go. I cannot build the product.",
+        "I can be full-time in January 2027."
+      ],
+      "fields": {
+        "idea_text": "An app that chases missing receipts and statements from bookkeeping clients.",
+        "offering": "a $49/seat tool that requests missing documents and nags on a schedule",
+        "value_proposition": "gives a bookkeeper back six hours a month at close",
+        "segment": { "description": "solo bookkeepers and firms of one to five people", "findability_evidence": "state CPA and bookkeeper association lists", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "document chasing for small bookkeeping firms", "offering_type": "saas", "business_model": "subscription", "segment": { "industry": "bookkeeping", "industry_group": "professional_services", "buyer_role": "owner_founder", "org_size": "solo", "geography": "united states" }, "jtbd": { "verb": "reduce", "object": "chasing time", "context": "monthly close" }, "quadrant": "painkiller", "founder_intent": ["seeking_cofounder"], "keywords": ["bookkeeping", "documents", "close", "accounting"] },
+        "evidence": [{ "text": "closed books for 40 clients a month for six years", "evidence_type": "incurred_cost", "source": null, "date": null }],
+        "founder_context": { "background": "small-firm bookkeeping and practice management", "unfair_advantages": ["closed books for forty small businesses a month", "ran a four-person bookkeeping practice"] }
+      }
+    },
+    {
+      "email": "iris@synthetic.edu",
+      "name": "Iris Nakamura",
+      "note": "C2. Sam's complement: document-ingest engineering, no accounting. The second unambiguous cofounder pair.",
+      "commitment": "I am free from February 2027.",
+      "available_from": "2027-02",
+      "resume": "Built document-ingest pipelines at two companies: OCR, classification, and a human-review queue handling 2M pages a year. Five years of backend and ML engineering.",
+      "turns": [
+        "I want to work on the paperwork that small firms drown in — the receipts, the statements, the chasing.",
+        "I have built document-ingest pipelines twice, OCR and classification and a review queue at two million pages a year. I have never done a bookkeeping close.",
+        "I am free from February 2027."
+      ],
+      "fields": {
+        "idea_text": "A pipeline that files a small firm's incoming documents automatically.",
+        "offering": "OCR and classification that files client documents into the right folder",
+        "value_proposition": "removes the manual filing step at month end",
+        "segment": { "description": "small accounting and bookkeeping firms", "findability_evidence": "accounting software marketplaces", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "automatic document filing for accounting firms", "offering_type": "api_infra", "business_model": "usage_based", "segment": { "industry": "bookkeeping", "industry_group": "professional_services", "buyer_role": "owner_founder", "org_size": "smb", "geography": "united states" }, "jtbd": { "verb": "automate", "object": "document filing", "context": "monthly close" }, "quadrant": "painkiller", "founder_intent": ["seeking_cofounder"], "keywords": ["documents", "ocr", "accounting", "pipeline"] },
+        "evidence": [{ "text": "ran a document pipeline handling 2M pages a year", "evidence_type": "observed_behavior", "source": null, "date": null }],
+        "founder_context": { "background": "backend and ML engineering on document pipelines", "unfair_advantages": ["built OCR and classification pipelines at two companies", "ran a human-review queue at two million pages a year"] }
+      }
+    },
+    {
+      "email": "dev@synthetic.edu",
+      "name": "Dev Sharma",
+      "note": "The competitor. Maya's problem and Maya's skills — a should_not for cofounder and a should for competitor.",
+      "commitment": "Full-time from January 2027.",
+      "available_from": "2027-01",
+      "resume": "Practice manager at two dental offices for five years. Ran the front desk, the recall list and the supplier accounts. No engineering background.",
+      "turns": [
+        "We fill cancelled dental appointments from a text waitlist. Same problem everyone in this space is looking at.",
+        "I managed two dental offices for five years, so I ran the recall list by hand. I am not an engineer either.",
+        "Full-time from January 2027."
+      ],
+      "fields": {
+        "idea_text": "SlotSaver fills cancelled dental appointments from a text waitlist.",
+        "offering": "a $299/mo SMS waitlist for dental practices",
+        "value_proposition": "recovers revenue lost to same-day cancellations",
+        "segment": { "description": "owner-dentists at single-location practices", "findability_evidence": "state dental license registry", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "SMS waitlist for dental cancellations", "offering_type": "saas", "business_model": "subscription", "segment": { "industry": "dental practice", "industry_group": "healthcare", "buyer_role": "owner_founder", "org_size": "smb", "geography": "united states" }, "jtbd": { "verb": "reduce", "object": "empty chair time", "context": "single-location practices" }, "quadrant": "painkiller", "founder_intent": ["seeking_feedback"], "keywords": ["dental", "waitlist", "cancellation", "sms"] },
+        "evidence": [{ "text": "ran the recall list by hand at two practices", "evidence_type": "incurred_cost", "source": null, "date": null }],
+        "founder_context": { "background": "dental front-office management", "unfair_advantages": ["managed two dental practices for five years", "ran supplier accounts and the recall list"] }
+      }
+    },
+    {
+      "email": "grace@synthetic.edu",
+      "name": "Grace Adeyemi",
+      "note": "The mentor with receipts: commands what Maya seeks and has three tier-3 evidence rows. Must outrank Victor for mentor.",
+      "commitment": "Not looking to join anything; happy to advise.",
+      "available_from": null,
+      "resume": "Founded and sold a dental scheduling SaaS. Shipped the product, sold the first 60 practices herself, and ran it to $2M ARR before the acquisition. Built the SMS stack in-house.",
+      "turns": [
+        "I built and sold a dental scheduling product, so I have run this exact play.",
+        "I sold the first sixty practices myself and took it to two million in ARR before we were acquired. I shipped the messaging stack too.",
+        "Not looking to join anything; happy to advise."
+      ],
+      "fields": {
+        "idea_text": "Advising founders selling software into dental practices.",
+        "offering": "advice, from having built and sold a dental scheduling SaaS",
+        "value_proposition": "shortens the path to the first sixty practices",
+        "segment": { "description": "founders selling software to dental practices", "findability_evidence": "accelerator cohorts", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "operator advice for dental software", "offering_type": "service", "business_model": "services_fees", "segment": { "industry": "dental practice", "industry_group": "healthcare", "buyer_role": "owner_founder", "org_size": "smb", "geography": "united states" }, "jtbd": { "verb": "sell", "object": "software", "context": "dental practices" }, "quadrant": "vitamin", "founder_intent": ["exploring"], "keywords": ["dental", "sales", "scheduling", "saas"] },
+        "evidence": [
+          { "text": "sold the first 60 dental practices herself", "evidence_type": "observed_behavior", "source": null, "date": null },
+          { "text": "ran a dental scheduling SaaS to $2M ARR", "evidence_type": "observed_behavior", "source": null, "date": null },
+          { "text": "spent four years building the company before the acquisition", "evidence_type": "incurred_cost", "source": null, "date": null }
+        ],
+        "founder_context": { "background": "founded and sold a dental scheduling SaaS", "unfair_advantages": ["shipped a scheduling and messaging product end to end", "sold sixty dental practices in person", "built an SMS stack in-house"] }
+      }
+    },
+    {
+      "email": "victor@synthetic.edu",
+      "name": "Victor Brandt",
+      "note": "The mentor without receipts: says similar things, all stated_opinion. The control that makes evidence_t3 mean something.",
+      "commitment": "Not available; advising only.",
+      "available_from": null,
+      "resume": "Consultant to healthcare practices. Advises on go-to-market for clinical software. Speaks at practice-management conferences.",
+      "turns": [
+        "I advise healthcare software companies on how to reach practices.",
+        "I would say I know the dental channel as well as anyone, though I have not run a product myself.",
+        "Not available; advising only."
+      ],
+      "fields": {
+        "idea_text": "Advising clinical software companies on go-to-market.",
+        "offering": "go-to-market consulting for clinical software",
+        "value_proposition": "a shortcut to the practice channel",
+        "segment": { "description": "clinical software companies selling to practices", "findability_evidence": "conference attendee lists", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "go-to-market consulting for clinical software", "offering_type": "service", "business_model": "services_fees", "segment": { "industry": "dental practice", "industry_group": "healthcare", "buyer_role": "exec", "org_size": "smb", "geography": "united states" }, "jtbd": { "verb": "sell", "object": "software", "context": "healthcare practices" }, "quadrant": "vitamin", "founder_intent": ["exploring"], "keywords": ["healthcare", "sales", "consulting", "channel"] },
+        "evidence": [{ "text": "says he knows the dental channel as well as anyone", "evidence_type": "stated_opinion", "source": null, "date": null }],
+        "founder_context": { "background": "consulting to healthcare practices", "unfair_advantages": ["advises clinical software companies on the practice channel"] }
+      }
+    },
+    {
+      "email": "nina@synthetic.edu",
+      "name": "Nina Larsen",
+      "note": "Unrelated: grid storage. A should_not for every dental and finance pair — the noise floor.",
+      "commitment": "Full-time from September 2027.",
+      "available_from": "2027-09",
+      "resume": "Power systems engineer. Designed battery storage installations for three utilities. Ran grid interconnection studies.",
+      "turns": [
+        "Grid operators cannot see what their behind-the-meter batteries are doing.",
+        "I have designed storage installations for three utilities and run interconnection studies. I need a software person eventually.",
+        "Full-time from September 2027."
+      ],
+      "fields": {
+        "idea_text": "Visibility into behind-the-meter battery storage for grid operators.",
+        "offering": "telemetry and forecasting for distributed battery fleets",
+        "value_proposition": "shows an operator what their distributed storage will do tomorrow",
+        "segment": { "description": "distribution planners at regional utilities", "findability_evidence": "utility regulatory filings", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "battery fleet visibility for utilities", "offering_type": "api_infra", "business_model": "licensing", "segment": { "industry": "electric utility", "industry_group": "energy_climate", "buyer_role": "institution_admin", "org_size": "enterprise", "geography": "united states" }, "jtbd": { "verb": "increase", "object": "grid visibility", "context": "distributed storage" }, "quadrant": "jet_fuel", "founder_intent": ["seeking_cofounder"], "keywords": ["energy", "storage", "grid", "utilities"] },
+        "evidence": [{ "text": "designed storage installations for three utilities", "evidence_type": "incurred_cost", "source": null, "date": null }],
+        "founder_context": { "background": "power systems engineering", "unfair_advantages": ["ran grid interconnection studies for three utilities"] }
+      }
+    },
+    {
+      "email": "felix@synthetic.edu",
+      "name": "Felix Moreau",
+      "note": "Unrelated: tutoring marketplace. The second noise-floor founder, and the one whose vocabulary (matching, scheduling) is superficially close to Maya's without the problem being close at all.",
+      "commitment": "Full-time from January 2027.",
+      "available_from": "2027-01",
+      "resume": "Taught middle-school maths for four years. Built a tutor-matching side project with 200 families on it. Self-taught web developer.",
+      "turns": [
+        "Parents pay for months of tutoring without ever seeing whether the grade moved.",
+        "I taught maths for four years and built a matching side project that two hundred families used. I can build, badly.",
+        "Full-time from January 2027."
+      ],
+      "fields": {
+        "idea_text": "TutorTrack shows parents whether tutoring is moving their child's grade.",
+        "offering": "progress tracking on top of a tutor marketplace",
+        "value_proposition": "shows a parent, week by week, whether the tutoring is working",
+        "segment": { "description": "parents of middle schoolers already paying for tutoring", "findability_evidence": "school parent associations", "homogeneity_claim": null, "size_estimate": null, "four_question_test": null, "refinement": null },
+        "facets": { "one_liner": "progress tracking for private tutoring", "offering_type": "marketplace", "business_model": "transaction_fee", "segment": { "industry": "tutoring", "industry_group": "education", "buyer_role": "household", "org_size": "consumer_na", "geography": "united states" }, "jtbd": { "verb": "increase", "object": "visible progress", "context": "private tutoring" }, "quadrant": "vitamin", "founder_intent": ["seeking_cofounder"], "keywords": ["tutoring", "education", "matching", "progress"] },
+        "evidence": [{ "text": "built a tutor-matching side project used by 200 families", "evidence_type": "observed_behavior", "source": null, "date": null }],
+        "founder_context": { "background": "middle-school teaching and self-taught web development", "unfair_advantages": ["taught middle-school maths for four years"] }
+      }
+    }
+  ]
+}

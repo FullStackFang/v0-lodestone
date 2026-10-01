@@ -1,0 +1,2 @@
+ALTER TABLE "pilot_invitation" ADD COLUMN "member_kind" text DEFAULT 'participant' NOT NULL;--> statement-breakpoint
+ALTER TABLE "pilot_invitation" ADD CONSTRAINT "pilot_invitation_member_kind_valid" CHECK ("pilot_invitation"."member_kind" in ('participant', 'operator', 'test'));

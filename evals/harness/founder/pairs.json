@@ -1,0 +1,126 @@
+{
+  "_note": "Hand-labeled pairs over the synthetic founders. `query` is an email (a person) or a card slug; `should` is who ought to be in the top three and `should_not` is who ought not. The two pairs marked `hypothesis` are the ones the weight fit exists to settle: same specific problem with complementary skills, against same abstract verb with complementary skills. Every label is ours, and the note says why — a pair whose answer we could not defend does not belong here.",
+  "pairs": [
+    {
+      "edge_type": "cofounder",
+      "query": "maya@synthetic.edu",
+      "should": ["omar@synthetic.edu"],
+      "should_not": ["nina@synthetic.edu", "felix@synthetic.edu"],
+      "note": "hypothesis. Omar has Maya's exact problem and the skills she is missing. If anything outranks him the weights are wrong."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "omar@synthetic.edu",
+      "should": ["maya@synthetic.edu"],
+      "should_not": ["nina@synthetic.edu"],
+      "note": "The same pair from the other side; the score is symmetric only if the components are."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "maya@synthetic.edu",
+      "should_not": ["dev@synthetic.edu"],
+      "note": "hypothesis. Dev shares Maya's problem AND her skills. Same-problem is not enough; a co-founder has to bring what she lacks."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "sam@synthetic.edu",
+      "should": ["iris@synthetic.edu"],
+      "should_not": ["nina@synthetic.edu", "victor@synthetic.edu"],
+      "note": "The second clean complement: bookkeeping domain meets document-pipeline engineering."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "iris@synthetic.edu",
+      "should": ["sam@synthetic.edu"],
+      "should_not": ["felix@synthetic.edu"],
+      "note": "The C pair from the engineer's side."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "priya@synthetic.edu",
+      "should": ["tom@synthetic.edu"],
+      "should_not": ["nina@synthetic.edu"],
+      "note": "Same abstract verb (reduce a wait), opposite skills, different fields — and fifteen months apart on commitment, so this is where the commitment term earns or loses its weight."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "lena@synthetic.edu",
+      "should_not": ["nina@synthetic.edu", "felix@synthetic.edu"],
+      "note": "Lena's domain is Maya's; her problem is not. She should surface dental-adjacent people, never the utility or the tutoring founder."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "tom@synthetic.edu",
+      "should": ["priya@synthetic.edu"],
+      "should_not": ["victor@synthetic.edu"],
+      "note": "B from the engineer's side. Victor commands nothing Tom is short of."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "nina@synthetic.edu",
+      "should_not": ["maya@synthetic.edu", "sam@synthetic.edu", "dev@synthetic.edu"],
+      "note": "The noise floor: a grid-storage founder has no co-founder in this cohort, and a ranking that finds one is finding vocabulary."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "felix@synthetic.edu",
+      "should_not": ["maya@synthetic.edu", "omar@synthetic.edu"],
+      "note": "Superficial vocabulary overlap — matching, scheduling, waitlists — with none of the problem in common."
+    },
+    {
+      "edge_type": "cofounder",
+      "query": "dev@synthetic.edu",
+      "should": ["omar@synthetic.edu"],
+      "should_not": ["maya@synthetic.edu"],
+      "note": "Dev needs exactly what Omar has, and Maya is his competitor rather than his complement."
+    },
+    {
+      "edge_type": "competitor",
+      "query": "maya@synthetic.edu",
+      "should": ["dev@synthetic.edu"],
+      "should_not": ["omar@synthetic.edu", "nina@synthetic.edu"],
+      "note": "Same offering, same segment, same price band. Omar is on the same problem but is the complement, not the rival — the competitor edge has to tell those apart."
+    },
+    {
+      "edge_type": "competitor",
+      "query": "dev@synthetic.edu",
+      "should": ["maya@synthetic.edu"],
+      "should_not": ["lena@synthetic.edu"],
+      "note": "Lena is in the same domain with a different product; that is not competition."
+    },
+    {
+      "edge_type": "competitor",
+      "query": "sam@synthetic.edu",
+      "should_not": ["maya@synthetic.edu", "nina@synthetic.edu"],
+      "note": "Nobody in the cohort competes with Sam. An empty top three is the right answer."
+    },
+    {
+      "edge_type": "mentor",
+      "query": "maya@synthetic.edu",
+      "should": ["grace@synthetic.edu"],
+      "should_not": ["nina@synthetic.edu", "felix@synthetic.edu"],
+      "note": "Grace has done the exact thing Maya is trying to do and has the evidence rows to prove it."
+    },
+    {
+      "edge_type": "mentor",
+      "query": "maya@synthetic.edu",
+      "should": ["grace@synthetic.edu"],
+      "should_not": ["victor@synthetic.edu"],
+      "note": "Grace and Victor claim the same channel knowledge; only one of them has observed_behavior behind it. This pair is what evidence_t3 is for."
+    },
+    {
+      "edge_type": "mentor",
+      "query": "omar@synthetic.edu",
+      "should": ["grace@synthetic.edu"],
+      "should_not": ["tom@synthetic.edu"],
+      "note": "Omar is short of the practice channel, which Grace commands and Tom does not."
+    },
+    {
+      "edge_type": "mentor",
+      "query": "dev@synthetic.edu",
+      "should": ["grace@synthetic.edu"],
+      "should_not": ["nina@synthetic.edu"],
+      "note": "The third query that should reach Grace — a mentor is allowed to be the answer more than once."
+    }
+  ]
+}

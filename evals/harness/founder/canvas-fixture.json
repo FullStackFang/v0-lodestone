@@ -1,0 +1,199 @@
+{
+  "_note": "The canvas map of design.md D1, written out. Each card lists the exact set canvasAssertions() must produce — facet, level, subject, text, evidence_type and the provenance.field that is the supersede key. Order is ignored; membership is not. A change to the map is a change to this file in the same commit, or the equality test fails.",
+  "personId": "00000000-0000-4000-8000-0000000000fp",
+  "cards": [
+    {
+      "name": "full",
+      "note": "Every mapped field populated, including evidence[] and founder_context. mechanism.capability is the one facet nothing on a card ever fills, so it is the one not_stated row.",
+      "fields": {
+        "idea_text": "DentalKeep fills cancelled dental appointment slots from an SMS waitlist.",
+        "offering": "a $349/mo SaaS that fills cancelled slots from an SMS waitlist",
+        "segment": {
+          "description": "owner-dentists at single-location US practices",
+          "findability_evidence": "state dental license registry",
+          "homogeneity_claim": "all of them lose the same revenue to same-day cancellations",
+          "size_estimate": "about 90,000 single-location practices in the US",
+          "four_question_test": {
+            "list_100_prospects": "yes",
+            "share_top_need": "maybe",
+            "one_gtm_reaches": "yes",
+            "can_afford": "no"
+          },
+          "refinement": "narrow to practices with three or more chairs"
+        },
+        "value_proposition": "recovers about $2,800 a month in no-show revenue",
+        "jtbd": {
+          "job_statement": "keep the chairs full",
+          "functional": "fill a cancelled slot within the hour",
+          "emotional": "stop dreading the morning schedule",
+          "social": "look organised to the hygienists",
+          "current_workaround": "the front desk calls down a paper list",
+          "passes_member_test": true
+        },
+        "economic_buyer": {
+          "role": "owner-dentist",
+          "distinct_from_end_user": true,
+          "budget_evidence": "already pays $300/mo for reminder texts"
+        },
+        "beachhead": {
+          "market": "Portland metro practices",
+          "why_first": "the founder can visit them in a day",
+          "adjacent_markets": ["orthodontics", "veterinary clinics"]
+        },
+        "four_us": {
+          "unworkable": { "answer": true, "rationale": "a lost slot is lost revenue" },
+          "unavoidable": { "answer": false, "rationale": "some practices overbook instead" },
+          "urgent": { "answer": true, "rationale": "every cancellation is same-day" },
+          "underserved": { "answer": null, "rationale": null }
+        },
+        "rubric_scores": {
+          "market_size": { "score": 3, "confidence": "low", "rationale": "90k practices, unverified", "evidence_type": "model_inference" },
+          "cost_to_launch": { "score": 4, "confidence": "med", "rationale": "one integration and an SMS gateway", "evidence_type": "model_inference" },
+          "value_prop_clarity": { "score": 5, "confidence": "high", "rationale": "a dollar figure per month", "evidence_type": "stated_opinion" },
+          "margins": { "score": 4, "confidence": "low", "rationale": "software plus SMS cost", "evidence_type": "model_inference" },
+          "competitive_advantage": { "score": 2, "confidence": "low", "rationale": "the PMS vendors could ship this", "evidence_type": "model_inference" },
+          "problem_magnitude": { "score": 4, "confidence": "med", "rationale": "eleven dentists named it first", "evidence_type": "observed_behavior" },
+          "whole_product": { "score": 3, "confidence": "low", "rationale": "no billing integration yet", "evidence_type": "model_inference" },
+          "team_market_fit": { "score": 5, "confidence": "high", "rationale": "four years inside dental procurement", "evidence_type": "incurred_cost" }
+        },
+        "kill_assumption": {
+          "assumption": "practices lose at least 10% of revenue to no-shows",
+          "falsifiable": true,
+          "cheapest_test": { "description": "pull ten schedules", "days": 7, "kill_criterion": "median no-show under 5%" }
+        },
+        "facets": {
+          "one_liner": "SMS waitlist that fills cancelled dental slots",
+          "offering_type": "saas",
+          "business_model": "subscription",
+          "segment": {
+            "industry": "dental practice",
+            "industry_group": "healthcare",
+            "buyer_role": "owner_founder",
+            "org_size": "smb",
+            "geography": "united states"
+          },
+          "jtbd": { "verb": "reduce", "object": "empty chair time", "context": "single-location practices" },
+          "quadrant": "painkiller",
+          "founder_intent": ["seeking_cofounder"],
+          "keywords": ["dental", "waitlist", "cancellation", "sms"]
+        },
+        "evidence": [
+          { "text": "talked to 11 owner-dentists in March", "evidence_type": "observed_behavior", "source": "founder's notes", "date": "2026-03" },
+          { "text": "two practices said they would pay $349", "evidence_type": "stated_opinion", "source": null, "date": null }
+        ],
+        "founder_context": {
+          "background": "ran procurement for a twelve-practice dental group",
+          "unfair_advantages": ["ran dental procurement for four years", "knows every supplier rep in Oregon"]
+        }
+      },
+      "expected": [
+        { "facet": "purpose", "level": "specific", "subject": "idea", "text": "DentalKeep fills cancelled dental appointment slots from an SMS waitlist.", "evidence_type": null, "field": "idea_text" },
+        { "facet": "purpose", "level": "specific", "subject": "idea", "text": "recovers about $2,800 a month in no-show revenue", "evidence_type": null, "field": "value_proposition" },
+        { "facet": "purpose", "level": "abstract", "subject": "idea", "text": "reduce empty chair time (single-location practices)", "evidence_type": null, "field": "facets.jtbd" },
+        { "facet": "purpose", "level": "abstract", "subject": "idea", "text": "keep the chairs full", "evidence_type": null, "field": "jtbd.job_statement" },
+        { "facet": "purpose", "level": "abstract", "subject": "idea", "text": "fill a cancelled slot within the hour", "evidence_type": null, "field": "jtbd.functional" },
+        { "facet": "purpose", "level": "core", "subject": "idea", "text": "stop dreading the morning schedule", "evidence_type": null, "field": "jtbd.emotional" },
+        { "facet": "purpose", "level": "core", "subject": "idea", "text": "look organised to the hygienists", "evidence_type": null, "field": "jtbd.social" },
+        { "facet": "mechanism.product", "level": null, "subject": "idea", "text": "a $349/mo SaaS that fills cancelled slots from an SMS waitlist", "evidence_type": null, "field": "offering" },
+        { "facet": "mechanism.revenue", "level": null, "subject": "idea", "text": "subscription", "evidence_type": null, "field": "facets.business_model" },
+        { "facet": "mechanism.distribution", "level": null, "subject": "idea", "text": "Portland metro practices — the founder can visit them in a day", "evidence_type": null, "field": "beachhead.market" },
+        { "facet": "mechanism.distribution", "level": null, "subject": "idea", "text": "state dental license registry", "evidence_type": null, "field": "segment.findability_evidence" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "owner-dentists at single-location US practices", "evidence_type": null, "field": "segment.description" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "dental practice", "evidence_type": null, "field": "facets.segment.industry" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "united states", "evidence_type": null, "field": "facets.segment.geography" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "orthodontics", "evidence_type": null, "field": "beachhead.adjacent_markets[0]" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "veterinary clinics", "evidence_type": null, "field": "beachhead.adjacent_markets[1]" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "buyer: owner-dentist", "evidence_type": null, "field": "economic_buyer.role" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "dental, waitlist, cancellation, sms", "evidence_type": null, "field": "facets.keywords" },
+        { "facet": "constraint", "level": null, "subject": "idea", "text": "about 90,000 single-location practices in the US", "evidence_type": null, "field": "segment.size_estimate" },
+        { "facet": "constraint", "level": null, "subject": "idea", "text": "narrow to practices with three or more chairs", "evidence_type": null, "field": "segment.refinement" },
+        { "facet": "constraint", "level": null, "subject": "idea", "text": "payer differs from end user", "evidence_type": null, "field": "economic_buyer.distinct_from_end_user" },
+        { "facet": "constraint", "level": null, "subject": "idea", "text": "practices lose at least 10% of revenue to no-shows", "evidence_type": null, "field": "kill_assumption.assumption" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "all of them lose the same revenue to same-day cancellations", "evidence_type": null, "field": "segment.homogeneity_claim" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "list 100: yes; top need: maybe; one gtm: yes; afford: no", "evidence_type": null, "field": "segment.four_question_test" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "today: the front desk calls down a paper list", "evidence_type": null, "field": "jtbd.current_workaround" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "already pays $300/mo for reminder texts", "evidence_type": null, "field": "economic_buyer.budget_evidence" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "unworkable: yes — a lost slot is lost revenue", "evidence_type": null, "field": "four_us.unworkable" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "unavoidable: no — some practices overbook instead", "evidence_type": null, "field": "four_us.unavoidable" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "urgent: yes — every cancellation is same-day", "evidence_type": null, "field": "four_us.urgent" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "market_size 3/5 (low) — 90k practices, unverified", "evidence_type": "model_inference", "field": "rubric_scores.market_size" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "cost_to_launch 4/5 (med) — one integration and an SMS gateway", "evidence_type": "model_inference", "field": "rubric_scores.cost_to_launch" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "value_prop_clarity 5/5 (high) — a dollar figure per month", "evidence_type": "stated_opinion", "field": "rubric_scores.value_prop_clarity" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "margins 4/5 (low) — software plus SMS cost", "evidence_type": "model_inference", "field": "rubric_scores.margins" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "competitive_advantage 2/5 (low) — the PMS vendors could ship this", "evidence_type": "model_inference", "field": "rubric_scores.competitive_advantage" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "problem_magnitude 4/5 (med) — eleven dentists named it first", "evidence_type": "observed_behavior", "field": "rubric_scores.problem_magnitude" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "whole_product 3/5 (low) — no billing integration yet", "evidence_type": "model_inference", "field": "rubric_scores.whole_product" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "team_market_fit 5/5 (high) — four years inside dental procurement", "evidence_type": "incurred_cost", "field": "rubric_scores.team_market_fit" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "pull ten schedules (7d; kill if median no-show under 5%)", "evidence_type": null, "field": "kill_assumption.cheapest_test" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "painkiller", "evidence_type": null, "field": "facets.quadrant" },
+        { "facet": "evidence", "level": null, "subject": "idea", "text": "talked to 11 owner-dentists in March", "evidence_type": "observed_behavior", "field": "evidence[0]" },
+        { "facet": "evidence", "level": null, "subject": "idea", "text": "two practices said they would pay $349", "evidence_type": "stated_opinion", "field": "evidence[1]" },
+        { "facet": "mechanism_commanded", "level": null, "subject": "person", "text": "ran dental procurement for four years", "evidence_type": "stated_opinion", "field": "founder_context.unfair_advantages[0]" },
+        { "facet": "mechanism_commanded", "level": null, "subject": "person", "text": "knows every supplier rep in Oregon", "evidence_type": "stated_opinion", "field": "founder_context.unfair_advantages[1]" },
+        { "facet": "domain", "level": null, "subject": "person", "text": "ran procurement for a twelve-practice dental group", "evidence_type": null, "field": "founder_context.background" },
+        { "facet": "mechanism.capability", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism.capability" }
+      ]
+    },
+    {
+      "name": "thin",
+      "note": "The scenarios.ts `thin` founder before anything is narrowed: an idea sentence and an offering. purpose and mechanism.product are stated; mechanism itself counts as stated because a subtype is; everything else is absence.",
+      "fields": {
+        "idea_text": "I want to build an app that helps small businesses manage their finances better.",
+        "offering": "an app that chases missing receipts from bookkeeping clients",
+        "segment": null,
+        "value_proposition": null,
+        "jtbd": null,
+        "economic_buyer": null,
+        "beachhead": null,
+        "four_us": null,
+        "rubric_scores": null,
+        "kill_assumption": null,
+        "facets": null,
+        "evidence": null,
+        "founder_context": null
+      },
+      "expected": [
+        { "facet": "purpose", "level": "specific", "subject": "idea", "text": "I want to build an app that helps small businesses manage their finances better.", "evidence_type": null, "field": "idea_text" },
+        { "facet": "mechanism.product", "level": null, "subject": "idea", "text": "an app that chases missing receipts from bookkeeping clients", "evidence_type": null, "field": "offering" },
+        { "facet": "mechanism.distribution", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism.distribution" },
+        { "facet": "mechanism.revenue", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism.revenue" },
+        { "facet": "mechanism.capability", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism.capability" },
+        { "facet": "constraint", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:constraint" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:domain" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:evaluation" },
+        { "facet": "evidence", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:evidence" }
+      ]
+    },
+    {
+      "name": "empty",
+      "note": "EMPTY_FIELDS. Ten idea facets, ten absences, and not one row about the founder — the card has said nothing about them.",
+      "fields": {
+        "idea_text": null,
+        "offering": null,
+        "segment": null,
+        "value_proposition": null,
+        "jtbd": null,
+        "economic_buyer": null,
+        "beachhead": null,
+        "four_us": null,
+        "rubric_scores": null,
+        "kill_assumption": null,
+        "facets": null,
+        "evidence": null,
+        "founder_context": null
+      },
+      "expected": [
+        { "facet": "purpose", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:purpose" },
+        { "facet": "mechanism", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism" },
+        { "facet": "mechanism.product", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism.product" },
+        { "facet": "mechanism.distribution", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism.distribution" },
+        { "facet": "mechanism.revenue", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism.revenue" },
+        { "facet": "mechanism.capability", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:mechanism.capability" },
+        { "facet": "constraint", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:constraint" },
+        { "facet": "domain", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:domain" },
+        { "facet": "evaluation", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:evaluation" },
+        { "facet": "evidence", "level": null, "subject": "idea", "text": "not_stated", "evidence_type": null, "field": "not_stated:evidence" }
+      ]
+    }
+  ]
+}

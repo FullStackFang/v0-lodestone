@@ -1,0 +1,3 @@
+ALTER TABLE "idea_experiment" DROP CONSTRAINT "idea_experiment_result";--> statement-breakpoint
+ALTER TABLE "idea_experiment" ADD CONSTRAINT "idea_experiment_evidence" CHECK ("idea_experiment"."evidence_type" is null or "idea_experiment"."evidence_type" in ('observed_behavior', 'incurred_cost', 'stated_opinion', 'model_inference'));--> statement-breakpoint
+ALTER TABLE "idea_experiment" ADD CONSTRAINT "idea_experiment_result" CHECK ("idea_experiment"."status" <> 'complete' or ("idea_experiment"."result" is not null and length(trim("idea_experiment"."result")) > 0 and "idea_experiment"."evidence_type" is not null));

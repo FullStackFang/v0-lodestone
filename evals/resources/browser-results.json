@@ -1,0 +1,85 @@
+{
+  "evaluationType": "agent_scenarios_not_user_usefulness",
+  "account": "synthetic research demo",
+  "followUp": "After the initial six-case snapshots, S04 was marked helped with an explicitly synthetic reciprocal-interest note, then changed to company meeting scheduling. Its old helped note reappeared after refresh; the linked URL now reflects that later state.",
+  "cases": [
+    {
+      "id": "S02",
+      "url": "http://localhost:3012/resources?card=11dc9e21-e2e3-4227-b756-432a27273ea5",
+      "expected": [
+        "SC01"
+      ],
+      "sources": [],
+      "count": 0,
+      "empty": true
+    },
+    {
+      "id": "S04",
+      "url": "http://localhost:3012/resources?card=59f8ea19-0ad8-43e0-9d90-bb69646c0fcd",
+      "expected": [
+        "SC01"
+      ],
+      "sources": [
+        {
+          "url": "https://faculty.wharton.upenn.edu/wp-content/uploads/2020/05/The-Liking-Gap-in-Conversations.pdf",
+          "text": "Source: 10.1177/0956797618783714 · selected excerpts, pp. 1–2"
+        }
+      ],
+      "count": 1,
+      "empty": false
+    },
+    {
+      "id": "S08",
+      "url": "http://localhost:3012/resources?card=3047b5ca-04c4-4dcc-b4ba-bd7247017985",
+      "expected": [
+        "SC06"
+      ],
+      "sources": [],
+      "count": 0,
+      "empty": true
+    },
+    {
+      "id": "S12",
+      "url": "http://localhost:3012/resources?card=96f2740f-7ce4-4669-91d5-677de5f2a431",
+      "expected": [],
+      "sources": [
+        {
+          "url": "https://faculty.wharton.upenn.edu/wp-content/uploads/2020/05/The-Liking-Gap-in-Conversations.pdf",
+          "text": "Source: 10.1177/0956797618783714 · selected excerpts, pp. 1–2"
+        }
+      ],
+      "count": 1,
+      "empty": false
+    },
+    {
+      "id": "S13",
+      "url": "http://localhost:3012/resources?card=443ba67c-49ef-4e69-8911-7e3a29b3e228",
+      "expected": [],
+      "sources": [
+        {
+          "url": "https://journals.sagepub.com/doi/10.1177/0146167220949003",
+          "text": "Source: 10.1177/0146167220949003 · selected abstract excerpts"
+        }
+      ],
+      "count": 1,
+      "empty": false
+    },
+    {
+      "id": "S14",
+      "url": "http://localhost:3012/resources?card=1ac1f8a0-c09e-467c-aeff-a570de7ae490",
+      "expected": [],
+      "sources": [
+        {
+          "url": "https://www.kumar-amit.com/s/Kumar-Gilovich-in-press-Some-Thing-to-Talk-About-PSPB.pdf",
+          "text": "Source: 10.1177/0146167215594591 · selected excerpts, pp. 1, 3"
+        },
+        {
+          "url": "https://faculty.wharton.upenn.edu/wp-content/uploads/2020/05/The-Liking-Gap-in-Conversations.pdf",
+          "text": "Source: 10.1177/0956797618783714 · selected excerpts, pp. 1–2"
+        }
+      ],
+      "count": 2,
+      "empty": false
+    }
+  ]
+}
