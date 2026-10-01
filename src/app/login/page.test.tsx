@@ -20,6 +20,6 @@ describe("login continuation", () => {
   it("sends an unsafe return destination to the default workspace", async () => {
     state.signedIn = false;
     const page = await Login({ searchParams: Promise.resolve({ next: "//outside.example" }) });
-    expect(renderToStaticMarkup(page)).toContain('data-callback="/ideas"');
+    expect(renderToStaticMarkup(page)).toContain('data-callback="/lodestone"');
   });
 });

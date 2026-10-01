@@ -7,6 +7,6 @@ describe("sign-in return path", () => {
   });
 
   it.each([undefined, null, ["/c/one"], "", "https://outside.example", "//outside.example", "/\\outside.example", "\\outside.example", "/%5coutside.example", "/%255coutside.example", "/%2foutside.example", "/safe/..//outside.example", "/\t/outside.example", "/%00bad", "/bad%encoding"])("rejects unsafe or malformed input: %s", (path) => {
-    expect(safeReturnPath(path)).toBe("/ideas");
+    expect(safeReturnPath(path)).toBe("/lodestone");
   });
 });

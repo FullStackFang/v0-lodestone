@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { ArrowRight, Mail } from "lucide-react";
 import { safeReturnPath } from "@/auth/return-path";
 
-export function SignIn({ callbackURL = "/ideas" }: { callbackURL?: string }) {
+export function SignIn({ callbackURL = "/lodestone" }: { callbackURL?: string }) {
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");

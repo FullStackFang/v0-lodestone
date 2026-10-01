@@ -1,5 +1,5 @@
 const LOCAL_ORIGIN = "https://thesis-forge.invalid";
-const FALLBACK = "/ideas";
+const FALLBACK = "/lodestone";
 const UNSAFE_CHARACTERS = /[\\\u0000-\u001f\u007f]/;
 
 export function safeReturnPath(value: unknown): string {
