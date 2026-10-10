@@ -1,3 +1,5 @@
+> Archived 2026-10-10. This describes the pre-trim Thesis Forge app; none of its routes exist in Lodestone. Kept for the record.
+
 # Resume: research MVP
 
 User approved making the MVP concrete: enter an idea and unresolved need → review three cited suggestions → record which helped and the next action. Behavioral science and social connections were already chosen; do not ask for a domain again.

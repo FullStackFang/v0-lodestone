@@ -1,3 +1,5 @@
+> Archived 2026-10-10. This describes the pre-trim Thesis Forge app; none of its routes exist in Lodestone. Kept for the record.
+
 # Innovation MVP Verification
 
 Local verification date: 2026-09-06.

@@ -1,3 +1,5 @@
+> Archived 2026-10-10. This describes the pre-trim Thesis Forge app; none of its routes exist in Lodestone. Kept for the record.
+
 # Try the research MVP
 
 The flow is: describe an idea, save one unresolved need, review cited research, and record what it helped you decide to do next.

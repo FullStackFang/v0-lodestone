@@ -8,7 +8,7 @@ const complete = {
   DATABASE_URL: "postgres://runtime:secret@db.example.test/forge?sslmode=require",
   BETTER_AUTH_URL: "https://pilot.example.test",
   BETTER_AUTH_SECRET: "a-production-secret-with-at-least-32-characters",
-  AUTH_EMAIL_FROM: "Thesis Forge <pilot@example.test>",
+  AUTH_EMAIL_FROM: "Lodestone <pilot@example.test>",
   RESEND_API_KEY: "re_secret_value",
   PILOT_OPERATOR_EMAILS: "operator@example.test",
 };

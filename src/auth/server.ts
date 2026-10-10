@@ -13,7 +13,7 @@ export function createAuth(db: Db, options: { secret?: string; baseURL?: string;
   const baseURL = options.baseURL ?? (process.env.BETTER_AUTH_URL || (production ? undefined : "http://localhost:3000"));
   if (!secret || !baseURL) throw new Error("BETTER_AUTH_SECRET and BETTER_AUTH_URL are required in production.");
   return betterAuth({
-    appName: "Thesis Forge", baseURL, secret,
+    appName: "Lodestone", baseURL, secret,
     database: drizzleAdapter(db, { provider: "pg", schema: { user: authUser, session: authSession, account: authAccount, verification: authVerification } }),
     session: { expiresIn: 60 * 60 * 24 * 7, cookieCache: { enabled: false } },
     plugins: [magicLink({ expiresIn: 600, storeToken: "hashed", sendMagicLink: options.sendMagicLink ?? deliverAuthLink })],

@@ -1,3 +1,5 @@
+> Archived 2026-10-10. This describes the pre-trim Thesis Forge app; none of its routes exist in Lodestone. Kept for the record.
+
 # Research MVP: broader agent evaluation
 
 2026-09-06. **The workflow is usable, but the current matcher is not reliable enough to treat its suggestions as relevant without review.** The prepared example overstates how well ordinary wording works. This evaluation found actionable matching, evidence-context, and feedback-version problems without requiring user input.

@@ -1,5 +1,5 @@
 {
-  "name": "thesis-forge",
+  "name": "lodestone",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,21 +10,6 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.mts",
-    "pilot:check": "node --experimental-strip-types scripts/pilot/check.mts",
-    "pilot:rehearse": "node --experimental-strip-types scripts/pilot/rehearse.mts",
-    "pilot:cleanup": "tsx scripts/pilot/cleanup.mts",
-    "test:pilot:postgres": "vitest run src/pilot/postgres.integration.test.ts",
-    "eval": "tsx evals/simulate.mts",
-    "bench": "tsx scripts/harness/bench.mts",
-    "harness:ingest": "tsx scripts/harness/ingest.mts",
-    "harness:forge": "tsx scripts/harness/forge.mts",
-    "extract": "tsx scripts/harness/extract.mts",
-    "seed:synthetic": "tsx scripts/harness/seed-synthetic.mts",
-    "recompute": "tsx scripts/harness/recompute.mts",
-    "followups": "tsx scripts/harness/followups.mts",
-    "judgments": "tsx scripts/harness/judgments.mts",
-    "resources:refresh": "tsx scripts/resources/refresh.mts",
-    "resources:demo": "tsx scripts/resources/demo.mts",
     "lodestone:seed": "tsx scripts/lodestone/seed.mts",
     "lodestone:digest": "tsx scripts/lodestone/digest.mts"
   },

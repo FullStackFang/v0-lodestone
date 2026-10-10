@@ -1,3 +1,5 @@
+> Archived 2026-10-10. This describes the pre-trim Thesis Forge app; none of its routes exist in Lodestone. Kept for the record.
+
 # Research MVP verification — 2026-09-06
 
 Scope: direct idea/need intake, grounded suggestions, persisted next-action feedback, and an isolated local demonstration. Plan: `openspec/changes/idea-resource-watch/`, section 4. No database migration or production deployment.

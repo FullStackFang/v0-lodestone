@@ -8,6 +8,6 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   const callbackURL = safeReturnPath((await searchParams).next);
   if (await ensureSession()) redirect(callbackURL);
   return <section className="auth-surface">
-    <h1>Thesis Forge</h1><p>Sign in to your workspace.</p><SignIn callbackURL={callbackURL} />
+    <h1>Lodestone</h1><p>Sign in to see your cards and the cohort.</p><SignIn callbackURL={callbackURL} />
   </section>;
 }

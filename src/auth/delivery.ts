@@ -36,7 +36,7 @@ export async function deliverEmail(message: EmailMessage) {
 export const deliverAuthLink: AuthLinkDelivery = async ({ email, url }) => {
   await deliverEmail({
     email,
-    subject: "Sign in to Thesis Forge",
+    subject: "Sign in to Lodestone",
     text: `Your sign-in link expires in 10 minutes:\n\n${url}`,
   });
 };

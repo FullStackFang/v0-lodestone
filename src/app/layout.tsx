@@ -16,8 +16,8 @@ const serif = Source_Serif_4({
 const sans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Thesis Forge",
-  description: "A raw idea to a Business Thesis Card, through eight gates.",
+  title: "Lodestone",
+  description: "The campus idea network.",
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -27,8 +27,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <header className="chrome">
           <a className="wordmark" href="/">
-            Thesis Forge
-            <span className="kicker">Business Thesis Card</span>
+            Lodestone
           </a>
           <nav className="app-nav" aria-label="Workspace">
             {signedIn ? <>
