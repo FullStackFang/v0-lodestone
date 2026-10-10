@@ -52,8 +52,20 @@ npm run build
 
 Local development uses PGlite under `./data` and the ignored
 `data/auth/outbox.jsonl` for mail. `npm run lodestone:seed -- --me you@example.edu`
-fills a synthetic cohort. Neither script may run while `next dev` holds the
-PGlite directory open.
+fills a synthetic cohort; `--set firms` is the larger demo set of fictional
+"fang-" firms. Neither script may run while `next dev` holds the PGlite
+directory open.
+
+## Demo data on a deployment
+
+To show the product before a real cohort exists, the seed may run against
+the deployment database from a workstation: pull the production variables,
+export them, and run the seed with `--set firms`. The script refuses only
+when `NODE_ENV=production`, which the pulled file does not set. Every seeded
+person's email ends in `.test`. Nothing cascades from a person row, so
+clearing the demo before a real cohort means removing those people's cards,
+memberships, invitations and ledger rows, and the `paper` documents, in one
+transaction.
 
 ## Rollback
 
