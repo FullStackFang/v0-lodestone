@@ -7,12 +7,12 @@
  * cohort. `--me` enrols that email as an operator member so the person who
  * signs in with it can import, publish, and open the map.
  *
- * Do not run while `next dev` holds `data/pglite` open. */
+ * Honours `DATABASE_URL`; without it opens the local PGlite directory, which
+ * `next dev` must not hold at the same time. Refuses to run in production. */
 import "../harness/env.mts";
-import path from "node:path";
 import { and, eq, isNull } from "drizzle-orm";
 import { COHORT, CORPUS, forgeDocument } from "../../evals/lodestone/cohort";
-import { createPgliteDb } from "../../src/db/client";
+import { getDb } from "../../src/db/client";
 import { document, documentChunk } from "../../src/db/schema";
 import { putArtifactText } from "../../src/harness/canonical";
 import { embed } from "../../src/harness/embed";
@@ -32,7 +32,11 @@ if (!process.env.VOYAGE_API_KEY?.trim()) {
   console.log("VOYAGE_API_KEY is not set: cards will be filed without vectors and nothing will match.");
 }
 
-const db = await createPgliteDb(path.resolve(process.cwd(), process.env.THESIS_DATA_DIR || "data/pglite"));
+if (process.env.NODE_ENV === "production") {
+  console.error("The seed is a synthetic cohort and never runs against production.");
+  process.exit(1);
+}
+const db = await getDb();
 
 // The corpus: a document and its canonical abstract, then one embedded chunk.
 let papersAdded = 0;
