@@ -12,8 +12,11 @@ deployment's secret manager:
 - `BETTER_AUTH_URL`: the exact public HTTPS origin, no path.
 - `BETTER_AUTH_SECRET`: stable, at least 32 characters. Rotating it signs
   everyone out.
-- `AUTH_EMAIL_FROM` and `RESEND_API_KEY`: a verified sender. Production fails
-  closed without delivery.
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: Google sign-in. The OAuth
+  client's authorized redirect URI is `<BETTER_AUTH_URL>/api/auth/callback/google`.
+- `AUTH_EMAIL_FROM` and `RESEND_API_KEY`: a verified sender for the
+  magic-link form, invitations and the digest. Optional if Google sign-in is
+  on; without them the email form is hidden and the digest cron skips.
 - `PILOT_OPERATOR_EMAILS`: the people who may open `/lodestone/map`.
 - `VOYAGE_API_KEY` and `EMBEDDING_MODEL`: without them every match list is
   empty.

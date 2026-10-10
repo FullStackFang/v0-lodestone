@@ -6,6 +6,12 @@ import { getDb, type Db } from "@/db/client";
 import { authAccount, authSession, authUser, authVerification } from "@/db/auth-schema";
 import { deliverAuthLink, type AuthLinkDelivery } from "./delivery";
 
+/** Google sign-in is on when a client is configured. Google reports the
+ *  address as verified, which is what the identity bridge requires. */
+export function googleConfigured(env: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(env.GOOGLE_CLIENT_ID?.trim() && env.GOOGLE_CLIENT_SECRET?.trim());
+}
+
 export function createAuth(db: Db, options: { secret?: string; baseURL?: string; sendMagicLink?: AuthLinkDelivery } = {}) {
   const globals = globalThis as typeof globalThis & { __forgeAuthSecret?: string };
   const production = process.env.NODE_ENV === "production";
@@ -16,6 +22,9 @@ export function createAuth(db: Db, options: { secret?: string; baseURL?: string;
     appName: "Lodestone", baseURL, secret,
     database: drizzleAdapter(db, { provider: "pg", schema: { user: authUser, session: authSession, account: authAccount, verification: authVerification } }),
     session: { expiresIn: 60 * 60 * 24 * 7, cookieCache: { enabled: false } },
+    socialProviders: googleConfigured()
+      ? { google: { clientId: process.env.GOOGLE_CLIENT_ID!, clientSecret: process.env.GOOGLE_CLIENT_SECRET!, prompt: "select_account" } }
+      : undefined,
     plugins: [magicLink({ expiresIn: 600, storeToken: "hashed", sendMagicLink: options.sendMagicLink ?? deliverAuthLink })],
   });
 }

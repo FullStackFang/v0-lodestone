@@ -4,10 +4,24 @@ import { useState, type FormEvent } from "react";
 import { ArrowRight, Mail } from "lucide-react";
 import { safeReturnPath } from "@/auth/return-path";
 
-export function SignIn({ callbackURL = "/lodestone" }: { callbackURL?: string }) {
+export function SignIn({ callbackURL = "/lodestone", google = false, email = true }: { callbackURL?: string; google?: boolean; email?: boolean }) {
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+
+  async function withGoogle() {
+    setPending(true); setError("");
+    try {
+      const response = await fetch("/api/auth/sign-in/social", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "google", callbackURL: safeReturnPath(callbackURL) }),
+      });
+      const body = (await response.json()) as { url?: string };
+      if (!response.ok || !body.url) throw new Error("Google sign-in could not start. Please try again.");
+      window.location.assign(body.url);
+    } catch (e) { setError(e instanceof Error ? e.message : "Sign-in failed."); setPending(false); }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -22,11 +36,18 @@ export function SignIn({ callbackURL = "/lodestone" }: { callbackURL?: string })
     } catch (e) { setError(e instanceof Error ? e.message : "Sign-in failed."); }
     finally { setPending(false); }
   }
-  return <form onSubmit={submit} className="form-stack">
-    <label>Name<input name="name" type="text" autoComplete="name" required maxLength={120} /></label>
-    <label>Email<input name="email" type="email" autoComplete="email" required maxLength={254} /></label>
-    <button className="button" disabled={pending}><Mail size={16} />{pending ? "Sending link..." : "Email a sign-in link"}<ArrowRight size={16} /></button>
-    {sent && <p role="status">Check your email for your sign-in link.</p>}
+
+  return <div className="form-stack">
+    {google && <button type="button" className="button" disabled={pending} onClick={withGoogle}>
+      {pending ? "Opening Google..." : "Continue with Google"}<ArrowRight size={16} />
+    </button>}
+    {google && email && <p className="meta" style={{ textAlign: "center" }}>or</p>}
+    {email && <form onSubmit={submit} className="form-stack">
+      <label>Name<input name="name" type="text" autoComplete="name" required maxLength={120} /></label>
+      <label>Email<input name="email" type="email" autoComplete="email" required maxLength={254} /></label>
+      <button className={`button${google ? " outline" : ""}`} disabled={pending}><Mail size={16} />{pending ? "Sending link..." : "Email a sign-in link"}<ArrowRight size={16} /></button>
+      {sent && <p role="status">Check your email for your sign-in link.</p>}
+    </form>}
     {error && <p role="alert" className="error">{error}</p>}
-  </form>;
+  </div>;
 }

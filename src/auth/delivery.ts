@@ -5,8 +5,14 @@ export type EmailMessage = { email: string; subject: string; text: string };
 export type EmailDelivery = (message: EmailMessage) => Promise<void>;
 export type AuthLinkDelivery = (message: { email: string; url: string }) => Promise<void>;
 
+/** A real provider is set. Without one, development writes to the outbox
+ *  and production fails closed. */
+export function mailConfigured(): boolean {
+  return Boolean(process.env.AUTH_EMAIL_FROM?.trim() && process.env.RESEND_API_KEY?.trim());
+}
+
 export async function deliverEmail(message: EmailMessage) {
-  if (process.env.AUTH_EMAIL_FROM && process.env.RESEND_API_KEY) {
+  if (mailConfigured()) {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
