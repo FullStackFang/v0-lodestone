@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { getDb } from "@/db/client";
 import { requirePerson } from "@/lib/session";
-import { cardBlocks, cardsForOwner, cohortCounts } from "@/lodestone/cards";
+import { cardBlocks, cardsForOwner, cohortCards, cohortCounts } from "@/lodestone/cards";
 import { corpusSize } from "@/lodestone/priorArt";
 import { isActiveMember } from "@/pilot/membership";
 import { ActionForm, SubmitButton } from "@/review/ActionForm";
@@ -20,6 +20,9 @@ export default async function LodestonePage() {
     cohortCounts(db),
     corpusSize(db),
   ]);
+  // The cohort's published cards, for members only: nine blocks and an
+  // owner name, the same rule the card page enforces.
+  const cohort = member ? (await cohortCards(db)).filter((c) => c.owner.id !== person.id) : [];
   return <>
     <header className="ls-header">
       <div>
@@ -48,5 +51,14 @@ export default async function LodestonePage() {
         <SubmitButton>Import</SubmitButton>
       </ActionForm>
     </section>
+
+    {member ? <section style={{ marginTop: 40 }}>
+      <h2>The cohort</h2>
+      {cohort.length ? <ul className="ls-list">{cohort.map(({ card, owner }) => <li key={card.ideaId}>
+        <h2><Link href={`/lodestone/cards/${card.ideaId}`}>{card.title}</Link></h2>
+        {card.line ? <p>{card.line}</p> : null}
+        <span className="meta">{owner.name}{card.publishedAt ? ` · published ${card.publishedAt.toLocaleDateString("en-US")}` : ""}</span>
+      </li>)}</ul> : <p className="ls-empty">Nobody else has published a card yet.</p>}
+    </section> : null}
   </>;
 }
