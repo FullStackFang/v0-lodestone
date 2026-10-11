@@ -264,12 +264,14 @@ with blocks, prior art, peers and the owner's feedback; `POST`/`GET
 .../feedback` writing `card_feedback` (`useful | known | not_relevant`, one
 verdict per owner, card and target). Migration `0012_lodestone_api`.
 
-### 7.2 Whetstone: connection and send
+### 7.2 Whetstone: connection and send — done
 
-A Lodestone section in settings (server, token, "test connection" against
-`me`). A Rust command, since the webview has no network capability on
-purpose, that posts the export to `cards` and fetches the card back. A
-"Send to Lodestone" action beside the existing export.
+In `../v0-whetstone`: a Lodestone section in settings (server, token, "test
+connection" against `me`); one Rust command (`lodestone_request`, reqwest with
+rustls) pinned to the configured server and to `/api/lodestone/`, since the
+webview has no network capability on purpose; `src/workspace/lodestone.ts`
+with the routes and shapes from `docs/api.md`; and "Send to Lodestone" on the
+Share bar, posting exactly the document Export JSON writes.
 
 ### 7.3 Whetstone: matches in the idea, with verdicts
 
