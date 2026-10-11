@@ -246,3 +246,39 @@ Phase 6 waits on a request from a cohort member.
 
 Phase 4 can start in parallel with Phase 2 since it touches only scripts and the
 corpus; its threshold retune waits on a real cohort.
+
+## Phase 7 — The Whetstone bridge (started 2026-10-11)
+
+Lodestone is the published network; Whetstone (the Forge desktop app, in the
+sibling repo `v0-whetstone`) is where a student thinks, with a model in the
+loop. The bridge replaces the manual file import with an API Whetstone calls,
+and sends the student's verdicts on matches back. The thread never leaves the
+desktop; only the `forge-idea/2` export crosses, exactly as the import does.
+
+### 7.1 Client API on Lodestone — done
+
+`docs/api.md` is the contract. Member-minted bearer tokens at
+`/lodestone/tokens` (`api_token`, sha256 only); `GET /api/lodestone/me`;
+`POST`/`GET /api/lodestone/cards`; `GET`/`PATCH /api/lodestone/cards/<id>`
+with blocks, prior art, peers and the owner's feedback; `POST`/`GET
+.../feedback` writing `card_feedback` (`useful | known | not_relevant`, one
+verdict per owner, card and target). Migration `0012_lodestone_api`.
+
+### 7.2 Whetstone: connection and send
+
+A Lodestone section in settings (server, token, "test connection" against
+`me`). A Rust command, since the webview has no network capability on
+purpose, that posts the export to `cards` and fetches the card back. A
+"Send to Lodestone" action beside the existing export.
+
+### 7.3 Whetstone: matches in the idea, with verdicts
+
+Prior art and peers shown beside the canvas, each with the three verdicts
+posting to `feedback`. The top hits handed to the model as turn context so it
+can say which it already knows and which are new to it.
+
+### 7.4 Lodestone: the atlas and the retune
+
+A two-dimensional projection of cards and papers on the map page, from the
+vectors already stored. `card_feedback` counts per paper feed the threshold
+retune in Phase 4.3.

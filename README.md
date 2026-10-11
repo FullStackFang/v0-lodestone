@@ -39,12 +39,16 @@ and says so.
 | A card: nine blocks, prior art, peers, publish | `/lodestone/cards/<ideaId>` | `priorArt.ts`, `peers.ts` |
 | The director's cohort map | `/lodestone/map` (operators) | `map.ts`, `geometry.ts` |
 | The weekly digest | `/lodestone/digest`, `npm run lodestone:digest` | `digest.ts` |
+| API tokens for a client such as Whetstone | `/lodestone/tokens` | `api.ts` |
+| The client API: send a card, read its matches, post a verdict | `/api/lodestone/*`, see `docs/api.md` | `api.ts`, `src/app/api/lodestone/` |
 
-Storage is one table of Lodestone's own, `forge_card` (migration `0011`): the export
+Storage is three tables of Lodestone's own: `forge_card` (migration `0011`), the export
 document whole, owner, visibility `private | cohort`, `published_at`. The ledger rows
 beneath a card are the ones `projectForgeIdea` files under `forge:<idea id>` on the
 owner's own person row, so a re-import supersedes and never duplicates. Paper abstracts
-are embedded whole into `document_chunk.embedding`.
+are embedded whole into `document_chunk.embedding`. `api_token` and `card_feedback`
+(migration `0012`) hold a member's client tokens, sha256 only, and their verdicts on the
+matches a client showed them.
 
 Rules carried from Forge: `private` is the default and one action away; the cohort sees
 the nine blocks with their origin marks and the owner's name, never the thread, the

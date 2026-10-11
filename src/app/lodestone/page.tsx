@@ -30,7 +30,7 @@ export default async function LodestonePage() {
         <h1>{person.name}</h1>
         <p>{member ? `An active member of this cohort. ${counts.published} of ${counts.members} members have published a card; the corpus holds ${corpus} paper${corpus === 1 ? "" : "s"}.` : "Not yet a member of this cohort. Your cards stay private and still match against the corpus; publishing needs an invitation."}</p>
       </div>
-      <nav className="ls-legend"><Link href="/lodestone/digest">This week's digest <ArrowRight size={13} /></Link><Link href="/lodestone/map">Cohort map <ArrowRight size={13} /></Link></nav>
+      <nav className="ls-legend"><Link href="/lodestone/digest">This week's digest <ArrowRight size={13} /></Link><Link href="/lodestone/map">Cohort map <ArrowRight size={13} /></Link><Link href="/lodestone/tokens">API tokens <ArrowRight size={13} /></Link></nav>
     </header>
 
     {cards.length ? <ul className="ls-list">{cards.map((card) => {
