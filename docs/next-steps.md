@@ -273,11 +273,13 @@ webview has no network capability on purpose; `src/workspace/lodestone.ts`
 with the routes and shapes from `docs/api.md`; and "Send to Lodestone" on the
 Share bar, posting exactly the document Export JSON writes.
 
-### 7.3 Whetstone: matches in the idea, with verdicts
+### 7.3 Whetstone: matches in the idea, with verdicts — done
 
-Prior art and peers shown beside the canvas, each with the three verdicts
-posting to `feedback`. The top hits handed to the model as turn context so it
-can say which it already knows and which are new to it.
+A Lodestone panel beside the canvas lists `priorArt` and `peers` from
+`GET /api/lodestone/cards/<id>` with the three verdicts posted to `/feedback`,
+plus publish/withdraw through `PATCH`. The first five of each not marked
+`not_relevant` ride along with the next turn as a "What the network found"
+section, `known` ones marked; a turn never waits on the network.
 
 ### 7.4 Lodestone: the atlas and the retune
 
