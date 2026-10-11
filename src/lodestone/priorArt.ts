@@ -11,6 +11,8 @@ import type { Db } from "@/db/client";
 import { artifactTexts, document, documentChunk } from "@/db/schema";
 import type { Embedder } from "./cards";
 import { blockLabel } from "./cards";
+import { forgeCard } from "@/db/lodestone-schema";
+import { parseForgeIdea } from "@/harness/founder/forge";
 import { cosine, ideaVectors, type IdeaVector } from "./vectors";
 
 /** Embed every paper whose abstract has no chunk yet. Returns how many. */
@@ -43,7 +45,38 @@ export interface PaperHit {
   venue: string | null;
   field: string | null;
   url: string | null;
+  /** True when the author listed this paper in the card's `already_have` —
+   *  the one the idea started from. Still returned, so they see the corpus
+   *  holds it, but flagged: it is theirs, not a find. */
+  yours: boolean;
   addedAt: Date;
+}
+
+/** A DOI as a key: lower-cased, with any resolver prefix dropped. */
+function doiKey(doi: string): string {
+  return doi.trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, "").replace(/^doi:/, "");
+}
+
+/** An OpenAlex id as a key: lower-cased, with the site's prefix dropped. */
+function idKey(id: string): string {
+  return id.trim().toLowerCase().replace(/^https?:\/\/openalex\.org\//, "");
+}
+
+/** The papers a card's author holds, as every key a corpus row could carry.
+ *  Empty for a document before `/3`. */
+export function heldPapers(doc: Record<string, unknown>): Set<string> {
+  const keys = new Set<string>();
+  for (const a of parseForgeIdea(doc).alreadyHave) {
+    keys.add(idKey(a.id));
+    if (a.doi) keys.add(doiKey(a.doi));
+  }
+  return keys;
+}
+
+function isHeld(held: Set<string>, provenance: Record<string, unknown>): boolean {
+  if (held.size === 0) return false;
+  const { doi, openalex_id: id } = provenance;
+  return (typeof doi === "string" && held.has(doiKey(doi))) || (typeof id === "string" && held.has(idKey(id)));
 }
 
 interface PaperRow {
@@ -74,7 +107,7 @@ async function papers(db: Db, since?: Date): Promise<PaperRow[]> {
     .map((r) => ({ ...r, embedding: r.embedding as number[] }));
 }
 
-export function scorePaper(rows: IdeaVector[], paper: PaperRow): PaperHit {
+export function scorePaper(rows: IdeaVector[], paper: PaperRow, held: Set<string> = new Set()): PaperHit {
   let best = -Infinity;
   const byBlock = new Map<string, number>();
   for (const r of rows) {
@@ -96,18 +129,23 @@ export function scorePaper(rows: IdeaVector[], paper: PaperRow): PaperHit {
     venue: typeof p.venue === "string" ? p.venue : null,
     field: typeof p.field === "string" ? p.field : null,
     url: typeof p.url === "string" ? p.url : typeof p.doi === "string" ? `https://doi.org/${p.doi}` : null,
+    yours: isHeld(held, p),
     addedAt: paper.addedAt,
   };
 }
 
 /** The k closest papers to this card, or an empty list when the card has no
- *  vectors yet. `since` narrows to papers added after a date, for the digest. */
+ *  vectors yet. `since` narrows to papers added after a date, for the digest.
+ *  A paper the author listed as already held is ranked like any other and
+ *  flagged `yours`. */
 export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): Promise<PaperHit[]> {
   const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
   if (rows.length === 0) return [];
+  const [card] = await db.select({ doc: forgeCard.doc }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId)).limit(1);
+  const held = card ? heldPapers(card.doc) : new Set<string>();
   const corpus = await papers(db, since);
   return corpus
-    .map((p) => scorePaper(rows, p))
+    .map((p) => scorePaper(rows, p, held))
     .sort((a, b) => b.score - a.score)
     .slice(0, k);
 }

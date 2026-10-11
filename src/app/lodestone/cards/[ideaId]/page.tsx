@@ -63,7 +63,7 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
         {priorArt.length ? <div className="ls-rows">{priorArt.map((p) => <div className="ls-row" key={p.documentId}>
           <span className="t">{p.url ? <a href={p.url} target="_blank" rel="noreferrer">{p.title}</a> : p.title}</span>
           <span className="n">{p.score.toFixed(2)}</span>
-          <span className="why">closest to <b>{p.blocks.join(", ")}</b></span>
+          <span className="why">closest to <b>{p.blocks.join(", ")}</b>{p.yours ? " · yours — the paper this idea started from" : ""}</span>
           <span className="meta">{[p.venue, p.year, p.field].filter(Boolean).join(" · ") || "no metadata"}</span>
           <span className="bar"><i style={{ width: pct(p.score) }} /></span>
         </div>)}</div> : <div className="ls-quiet"><p>{corpus === 0 ? "The corpus is empty." : "This card has no vectors yet."}</p><span>{corpus === 0 ? "Ingest papers and embed their abstracts; the match runs against whatever the corpus holds." : "Re-import the card once an embedding key is configured."}</span></div>}

@@ -6,6 +6,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { COHORT, CORPUS, forgeDocument } from "../../evals/lodestone/cohort";
 import { createPgliteDb, type Db } from "@/db/client";
 import { document, forgeCard, assertions } from "@/db/schema";
+import { putArtifactText } from "@/harness/canonical";
 import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
 import { canView, cardBlocks, cardsForOwner, cohortCards, cohortCounts, importCard, setVisibility } from "./cards";
@@ -73,6 +74,31 @@ describe("prior art at zero density", () => {
     expect(hits[0].score).toBeGreaterThan(hits[2].score);
     expect(hits[0].blocks.length).toBeGreaterThan(0);
     expect(hits[0].blocks[0]).toMatch(/Customer segments|Value proposition|Key activities/);
+    expect(hits.every((h) => h.yours === false)).toBe(true);
+  });
+
+  it("flags the paper the author already holds, by DOI, and only that one", async () => {
+    const [held] = await db.select({ id: document.id }).from(document).where(eq(document.title, CORPUS[0].title));
+    await putArtifactText(db, {
+      artifactId: held.id,
+      sourceFormat: "abstract",
+      parser: "test",
+      text: CORPUS[0].abstract,
+      provenance: { doi: "10.1000/SIGHT-unseen", openalex_id: null },
+    });
+    const v3 = {
+      ...forgeDocument(sam),
+      format: "forge-idea/3",
+      already_have: [{ id: "W1", title: CORPUS[0].title, doi: "https://doi.org/10.1000/sight-unseen" }],
+    };
+    const out = await importCard(db, owner(sam.email), v3, testEmbed);
+    expect(out.created).toBe(false);
+    const hits = await priorArtFor(db, sam.ideaId, CORPUS.length);
+    expect(hits.find((h) => h.title === CORPUS[0].title)?.yours).toBe(true);
+    expect(hits.filter((h) => h.yours)).toHaveLength(1);
+    // Back on /2 the same card holds nothing.
+    await importCard(db, owner(sam.email), forgeDocument(sam), testEmbed);
+    expect((await priorArtFor(db, sam.ideaId, CORPUS.length)).some((h) => h.yours)).toBe(false);
   });
 });
 

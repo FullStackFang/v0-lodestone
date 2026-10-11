@@ -252,8 +252,9 @@ corpus; its threshold retune waits on a real cohort.
 Lodestone is the published network; Whetstone (the Forge desktop app, in the
 sibling repo `v0-whetstone`) is where a student thinks, with a model in the
 loop. The bridge replaces the manual file import with an API Whetstone calls,
-and sends the student's verdicts on matches back. The thread never leaves the
-desktop; only the `forge-idea/2` export crosses, exactly as the import does.
+and sends the student's verdicts on matches back. The export document crosses
+whole, as the import does — thread included, since the server anchors evidence
+quotes in the author's own turns — and the cohort sees the blocks alone (rule 3).
 
 ### 7.1 Client API on Lodestone — done
 
@@ -286,3 +287,13 @@ section, `known` ones marked; a turn never waits on the network.
 A two-dimensional projection of cards and papers on the map page, from the
 vectors already stored. `card_feedback` counts per paper feed the threshold
 retune in Phase 4.3.
+
+### 7.5 Already have: the author's own paper is not a find — done (2026-10-11)
+
+`forge-idea/3` adds `already_have`, the papers the author holds — today the
+paper a paper-seeded idea started from — as id, title and DOI, never an
+abstract. `priorArtFor` flags a corpus hit whose DOI or OpenAlex id matches as
+`yours`; Whetstone's panel says so and the turn is told it is not news. `/2`
+is still accepted and holds none. Pairing back into the canvas — a paper's
+sentence set beside a block — waits for real abstracts (Phase 4) and will be a
+separate `support` relation, never `evidence`, which is the author's own words.

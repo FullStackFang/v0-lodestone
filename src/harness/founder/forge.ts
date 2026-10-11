@@ -83,6 +83,20 @@ export const ForgeIdeaV2 = z.object({
 });
 export type ForgeIdeaV2 = z.infer<typeof ForgeIdeaV2>;
 
+/** A paper the author already holds — today the one a paper-seeded idea
+ *  started from. Ids and a title only, never the abstract: the network flags a
+ *  corpus match against it as the author's own rather than as a find. */
+export const AlreadyHave = z.array(
+  z.object({ id: z.string().min(1), title: z.string(), doi: z.string().nullable().optional() }),
+);
+
+/** `/2` plus `already_have`. Everything else is the same document. */
+export const ForgeIdeaV3 = ForgeIdeaV2.extend({
+  format: z.literal("forge-idea/3"),
+  already_have: AlreadyHave.default([]),
+});
+export type ForgeIdeaV3 = z.infer<typeof ForgeIdeaV3>;
+
 export const ForgeIdeaV1 = z.object({
   format: z.literal("forge-idea/1"),
   title: z.string(),
@@ -105,11 +119,13 @@ export type ForgeIdeaV1 = z.infer<typeof ForgeIdeaV1>;
 
 /** What the projection reads, whichever format arrived. */
 export interface ForgeIdea {
-  format: "forge-idea/1" | "forge-idea/2";
+  format: "forge-idea/1" | "forge-idea/2" | "forge-idea/3";
   ideaId: string;
   /** False for `/1`: entry keys were minted here, so nothing can supersede. */
   stableKeys: boolean;
   profile: Record<string, string>;
+  /** The papers the author holds; empty before `/3`. */
+  alreadyHave: { id: string; title: string; doi: string | null }[];
   workspaces: {
     framework: string;
     thread: { role: "you" | "forge"; text: string }[];
@@ -130,6 +146,7 @@ export function parseForgeIdea(input: unknown): ForgeIdea {
       ideaId: createHash("sha256").update(`${doc.title}\n${doc.line}`, "utf8").digest("hex").slice(0, 32),
       stableKeys: false,
       profile: doc.profile,
+      alreadyHave: [],
       workspaces: [
         {
           framework: "business_model",
@@ -139,12 +156,14 @@ export function parseForgeIdea(input: unknown): ForgeIdea {
       ],
     };
   }
-  const doc = ForgeIdeaV2.parse(input);
+  const doc = format === "forge-idea/3" ? ForgeIdeaV3.parse(input) : ForgeIdeaV2.parse(input);
   return {
-    format: "forge-idea/2",
+    format: doc.format,
     ideaId: doc.id,
     stableKeys: true,
     profile: doc.profile,
+    alreadyHave:
+      "already_have" in doc ? doc.already_have.map((a) => ({ id: a.id, title: a.title, doi: a.doi ?? null })) : [],
     workspaces: doc.workspaces.map((w) => ({ framework: w.framework, thread: w.thread, canvas: w.canvas })),
   };
 }

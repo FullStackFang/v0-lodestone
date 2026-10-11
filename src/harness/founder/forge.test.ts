@@ -433,6 +433,25 @@ describe("forgeCli", () => {
 });
 
 describe("parseForgeIdea", () => {
+  it("reads forge-idea/3 and the papers the author holds, and /2 as holding none", () => {
+    const v3 = parseForgeIdea({
+      ...fixture.document,
+      format: "forge-idea/3",
+      already_have: [{ id: "W1", title: "A paper", doi: "10.1/x" }, { id: "W2", title: "Another" }],
+    });
+    expect(v3.format).toBe("forge-idea/3");
+    expect(v3.stableKeys).toBe(true);
+    expect(v3.alreadyHave).toEqual([
+      { id: "W1", title: "A paper", doi: "10.1/x" },
+      { id: "W2", title: "Another", doi: null },
+    ]);
+    expect(parseForgeIdea({ ...fixture.document, format: "forge-idea/3" }).alreadyHave).toEqual([]);
+    expect(parseForgeIdea(fixture.document).alreadyHave).toEqual([]);
+    expect(() =>
+      parseForgeIdea({ ...fixture.document, format: "forge-idea/3", already_have: [{ title: "no id" }] }),
+    ).toThrow();
+  });
+
   it("rejects a document that is not a forge-idea", () => {
     expect(() => parseForgeIdea({ format: "forge-idea/9" })).toThrow();
     expect(() => parseForgeIdea({ ...fixture.document, workspaces: [{ framework: 1 }] })).toThrow();
