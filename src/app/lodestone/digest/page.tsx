@@ -33,7 +33,7 @@ export default async function DigestPage() {
           <span className="ct">{p.score.toFixed(2)}</span>
         </div>)}
         {s.papers.map((p) => <div className="ls-drow" key={p.documentId}>
-          <span className="k">corpus</span>
+          <span className="k">{p.kind === "patent" ? "patent" : "corpus"}</span>
           <div><div className="t">{p.url ? <a href={p.url} target="_blank" rel="noreferrer">{p.title}</a> : p.title}</div><div className="why">added {day(p.addedAt)} · closest to <b>{p.blocks.join(", ")}</b>{p.year ? ` · ${p.year}` : ""}</div></div>
           <span className="ct">{p.score.toFixed(2)}</span>
         </div>)}

@@ -59,12 +59,13 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
     <div className="ls-two">
       <section className="ls-section">
         <h2>Prior art</h2>
-        <p>Papers whose abstracts sit closest to a block of this card. {corpus} in the corpus. Works before anyone else has published.</p>
+        <p>Papers and patents whose abstracts sit closest to a block of this card. {corpus} in the corpus. Works before anyone else has published.</p>
         {priorArt.length ? <div className="ls-rows">{priorArt.map((p) => <div className="ls-row" key={p.documentId}>
+          {p.kind === "patent" ? <span className="eyebrow">Patent</span> : null}
           <span className="t">{p.url ? <a href={p.url} target="_blank" rel="noreferrer">{p.title}</a> : p.title}</span>
           <span className="n">{p.score.toFixed(2)}</span>
           <span className="why">closest to <b>{p.blocks.join(", ")}</b>{p.yours ? " · yours — the paper this idea started from" : ""}</span>
-          <span className="meta">{[p.venue, p.year, p.field].filter(Boolean).join(" · ") || "no metadata"}</span>
+          <span className="meta">{[p.venue, p.year, p.field, p.querySet && `set ${p.querySet}`].filter(Boolean).join(" · ") || "no metadata"}</span>
           <span className="bar"><i style={{ width: pct(p.score) }} /></span>
         </div>)}</div> : <div className="ls-quiet"><p>{corpus === 0 ? "The corpus is empty." : "This card has no vectors yet."}</p><span>{corpus === 0 ? "Ingest papers and embed their abstracts; the match runs against whatever the corpus holds." : "Re-import the card once an embedding key is configured."}</span></div>}
       </section>

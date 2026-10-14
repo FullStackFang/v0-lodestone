@@ -2,10 +2,12 @@
  *  published, the regions the published cards form, how close the cards sit
  *  to each other, and which papers they touched. Counts and names, never a
  *  grade, and never the text of a card its author kept private. */
+import { and, eq, inArray, isNotNull, max, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
+import { artifactTexts, document } from "@/db/schema";
 import { cardBlocks, cohortCards, cohortCounts, type CohortCard } from "./cards";
 import { CLOSE, distanceProfile, kmeans, regionCount, regionLabels, type ProfileRow } from "./geometry";
-import { priorArtFor } from "./priorArt";
+import { CORPUS_SOURCES, priorArtFor, type CorpusKind } from "./priorArt";
 import { blended, ideaVectors } from "./vectors";
 
 export interface MapRegion {
@@ -76,5 +78,46 @@ export async function cohortMap(db: Db, options: MapOptions = {}): Promise<Cohor
     profile: distanceProfile(points),
     papersTouched: all.size,
     close,
+  };
+}
+
+export interface CorpusSummary {
+  /** Documents per source, vector or not. */
+  bySource: Record<CorpusKind, number>;
+  /** Each ingest set with how many documents it brought, largest first. */
+  querySets: { name: string; kind: CorpusKind; count: number }[];
+  /** When the newest document arrived; null for an empty corpus. */
+  newest: Date | null;
+}
+
+/** What the corpus holds, for the operator: counts per source, the query
+ *  sets that filled it, and how fresh it is. */
+export async function corpusSummary(db: Db): Promise<CorpusSummary> {
+  const sources = [...CORPUS_SOURCES];
+  const counts = await db
+    .select({ source: document.source, count: sql<number>`count(*)::int`, newest: max(document.createdAt) })
+    .from(document)
+    .where(inArray(document.source, sources))
+    .groupBy(document.source);
+  const setName = sql<string>`${artifactTexts.provenance}->>'query_set'`;
+  const sets = await db
+    .select({ name: setName, kind: document.source, count: sql<number>`count(distinct ${document.id})::int` })
+    .from(artifactTexts)
+    .innerJoin(document, eq(document.id, artifactTexts.artifactId))
+    .where(and(inArray(document.source, sources), isNotNull(setName)))
+    .groupBy(setName, document.source);
+  const bySource = { paper: 0, patent: 0 } as Record<CorpusKind, number>;
+  let newest: Date | null = null;
+  for (const c of counts) {
+    bySource[c.source as CorpusKind] = c.count;
+    const at = c.newest ? new Date(c.newest) : null;
+    if (at && (!newest || at > newest)) newest = at;
+  }
+  return {
+    bySource,
+    querySets: sets
+      .map((s) => ({ name: s.name, kind: s.kind as CorpusKind, count: s.count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    newest,
   };
 }

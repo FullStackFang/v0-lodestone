@@ -12,6 +12,9 @@ import { GET as me } from "./me/route";
 import { GET as listCards, POST as sendCard } from "./cards/route";
 import { GET as readCard, PATCH as patchCard } from "./cards/[ideaId]/route";
 import { GET as readFeedback, POST as sendFeedback } from "./cards/[ideaId]/feedback/route";
+import { GET as readPaper } from "./papers/[documentId]/route";
+import { document } from "@/db/schema";
+import { putArtifactText } from "@/harness/canonical";
 
 const origin = "https://lodestone.invalid";
 const sam = COHORT[0];
@@ -102,5 +105,47 @@ describe("client routes", () => {
       params(sam.ideaId),
     );
     expect(bad.status).toBe(400);
+  });
+  it("serves one paper or patent to any token, with a citation line", async () => {
+    const db = await getDb();
+    const paperParams = (documentId: string) => ({ params: Promise.resolve({ documentId }) });
+    const abstract = "Departing tenants who record a walkthrough video reduce mid-lease moves among arriving students.";
+    const [paper] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Walkthroughs and arrivals", text: abstract }).returning({ id: document.id });
+    await putArtifactText(db, {
+      artifactId: paper.id,
+      sourceFormat: "abstract",
+      parser: "test",
+      text: abstract,
+      provenance: { doi: "10.5555/walk", openalex_id: "https://openalex.org/W42", authors: ["A. Reader", "B. Writer"], year: 2021, venue: "Housing Studies", query_set: "housing" },
+    });
+    const res = await readPaper(req(`/api/lodestone/papers/${paper.id}`), paperParams(paper.id));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      documentId: paper.id,
+      kind: "paper",
+      title: "Walkthroughs and arrivals",
+      abstract,
+      provenance: expect.objectContaining({ doi: "10.5555/walk", query_set: "housing" }),
+      citation: "A. Reader, B. Writer. (2021). Walkthroughs and arrivals. Housing Studies",
+    });
+
+    const [patent] = await db.insert(document).values({ sessionId: null, source: "patent", title: "Escrowed sublet deposit", text: "A deposit is held in escrow." }).returning({ id: document.id });
+    await putArtifactText(db, {
+      artifactId: patent.id,
+      sourceFormat: "abstract",
+      parser: "test",
+      text: "A deposit is held in escrow.",
+      provenance: { patent_number: "11000001", inventors: ["C. Inventor"], year: 2023 },
+    });
+    const p = await (await readPaper(req(`/api/lodestone/papers/${patent.id}`), paperParams(patent.id))).json();
+    expect(p.kind).toBe("patent");
+    expect(p.citation).toBe("C. Inventor. (2023). Escrowed sublet deposit. US Patent 11000001");
+
+    expect((await readPaper(req(`/api/lodestone/papers/${paper.id}`, {}, ""), paperParams(paper.id))).status).toBe(401);
+    expect((await readPaper(req(`/api/lodestone/papers/${sam.ideaId}`), paperParams(sam.ideaId))).status).toBe(404);
+    const unknown = "00000000-0000-4000-8000-000000000000";
+    expect((await readPaper(req(`/api/lodestone/papers/${unknown}`), paperParams(unknown))).status).toBe(404);
+    const [deck] = await db.insert(document).values({ sessionId: null, source: "deck", title: "a deck", text: "slides" }).returning({ id: document.id });
+    expect((await readPaper(req(`/api/lodestone/papers/${deck.id}`), paperParams(deck.id))).status).toBe(404);
   });
 });

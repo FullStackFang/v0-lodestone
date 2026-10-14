@@ -11,7 +11,7 @@ import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
 import { canView, cardBlocks, cardsForOwner, cohortCards, cohortCounts, importCard, setVisibility } from "./cards";
 import { digestFor, renderDigest } from "./digest";
-import { cohortMap } from "./map";
+import { cohortMap, corpusSummary } from "./map";
 import { peersFor } from "./peers";
 import { corpusSize, embedPaperAbstracts, priorArtFor } from "./priorArt";
 import { testEmbed } from "./test-embed";
@@ -100,6 +100,46 @@ describe("prior art at zero density", () => {
     await importCard(db, owner(sam.email), forgeDocument(sam), testEmbed);
     expect((await priorArtFor(db, sam.ideaId, CORPUS.length)).some((h) => h.yours)).toBe(false);
   });
+
+  it("embeds a patent like a paper and ranks it in the same list, saying what it is", async () => {
+    const abstract =
+      "A system verifies a sublet from a departing student to an arriving student, records a walkthrough video of the unit, and holds the deposit in escrow until move-in under a semester-length lease.";
+    const [patent] = await db
+      .insert(document)
+      .values({ sessionId: null, source: "patent", title: "Verified student sublet with walkthrough video", text: abstract })
+      .returning({ id: document.id });
+    await putArtifactText(db, {
+      artifactId: patent.id,
+      sourceFormat: "abstract",
+      parser: "test",
+      text: abstract,
+      provenance: { patent_number: "11999999", url: "https://patents.google.com/patent/US11999999", year: 2024, field: "G — Physics", query_set: "housing-patents" },
+    });
+    expect(await embedPaperAbstracts(db, testEmbed)).toBe(1);
+    const hits = await priorArtFor(db, sam.ideaId, 3);
+    expect(hits[0]).toMatchObject({
+      documentId: patent.id,
+      kind: "patent",
+      querySet: "housing-patents",
+      url: "https://patents.google.com/patent/US11999999",
+      year: 2024,
+    });
+    expect(hits.slice(1).every((h) => h.kind === "paper" && h.querySet === null)).toBe(true);
+    expect(await corpusSize(db)).toBe(CORPUS.length + 1);
+  });
+
+  it("embeds a batch at a time, so a run that dies keeps what it finished", async () => {
+    const texts = ["first unembedded abstract", "second unembedded abstract", "third unembedded abstract"];
+    for (const text of texts) await db.insert(document).values({ sessionId: null, source: "paper", title: text, text });
+    let calls = 0;
+    const dying = async (batch: string[]) => {
+      if (++calls === 2) throw new Error("killed");
+      return testEmbed(batch);
+    };
+    await expect(embedPaperAbstracts(db, dying, 2)).rejects.toThrow(/killed/);
+    expect(await embedPaperAbstracts(db, testEmbed, 2)).toBe(1);
+    expect(await embedPaperAbstracts(db, testEmbed)).toBe(0);
+  });
 });
 
 describe("visibility", () => {
@@ -187,6 +227,7 @@ describe("the cohort", () => {
     expect(text).toContain("Lodestone digest");
     expect(text).toContain("new card ·");
     expect(text).toContain("corpus ·");
+    expect(text).toContain("corpus · Patent · Verified student sublet with walkthrough video");
   });
 
   it("drops a revoked member's card from every cohort list without touching the ledger", async () => {
@@ -200,5 +241,22 @@ describe("the cohort", () => {
     expect((await peersFor(db, sam.ideaId, 10)).map((p) => p.ideaId)).not.toContain(jonas.ideaId);
     const rowsAfter = (await db.select().from(assertions).where(eq(assertions.subjectId, `forge:${jonas.ideaId}`))).length;
     expect(rowsAfter).toBe(rowsBefore);
+  });
+});
+
+describe("the corpus on the map", () => {
+  it("counts each source, names each query set, and dates the newest arrival", async () => {
+    const before = await corpusSummary(db);
+    expect(before.bySource.patent).toBe(1);
+    expect(before.querySets).toEqual([{ name: "housing-patents", kind: "patent", count: 1 }]);
+
+    const abstract = "Escrowed deposits and verified handoffs in student housing markets.";
+    const [paper] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Escrow in housing", text: abstract }).returning();
+    await putArtifactText(db, { artifactId: paper.id, sourceFormat: "abstract", parser: "test", text: abstract, provenance: { openalex_id: "https://openalex.org/W77", query_set: "housing-papers" } });
+
+    const after = await corpusSummary(db);
+    expect(after.bySource).toEqual({ paper: before.bySource.paper + 1, patent: 1 });
+    expect(after.querySets.map((s) => `${s.kind}:${s.name}:${s.count}`).sort()).toEqual(["paper:housing-papers:1", "patent:housing-patents:1"]);
+    expect(after.newest?.getTime()).toBe(paper.createdAt.getTime());
   });
 });

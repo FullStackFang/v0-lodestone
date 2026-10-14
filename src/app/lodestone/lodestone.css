@@ -31,6 +31,7 @@
 .ls-row .n { font-variant-numeric: tabular-nums; font-family: var(--font-serif), Georgia, serif; font-size: 19px; color: var(--oxblood); }
 .ls-row .why { grid-column: 1 / -1; font-size: 12.5px; color: var(--body); }
 .ls-row .why b { color: var(--oxblood); font-weight: 500; }
+.ls-row .eyebrow { grid-column: 1 / -1; color: var(--oxblood); }
 .ls-row .meta { grid-column: 1 / -1; font-size: 11.5px; color: var(--taupe); }
 .ls-row .bar { grid-column: 1 / -1; height: 4px; background: var(--wash); border-radius: 999px; overflow: hidden; }
 .ls-row .bar i { display: block; height: 100%; background: var(--oxblood); }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getDb } from "@/db/client";
 import { requirePerson } from "@/lib/session";
-import { cohortMap } from "@/lodestone/map";
+import { cohortMap, corpusSummary } from "@/lodestone/map";
 import { isPilotOperatorEmail, membershipFor } from "@/pilot/membership";
 import "../lodestone.css";
 
@@ -18,7 +18,7 @@ export default async function MapPage() {
       <header className="ls-header"><div><p className="eyebrow">Lodestone · cohort map</p><h1>Directors only</h1><p>The map is the program's view. It counts and names regions; it never opens a private card. Ask an operator for the operator role to see it.</p></div><nav className="ls-legend"><Link href="/lodestone"><ArrowLeft size={13} /> Cards</Link></nav></header>
     </article>;
   }
-  const map = await cohortMap(db);
+  const [map, corpus] = await Promise.all([cohortMap(db), corpusSummary(db)]);
   const biggest = Math.max(1, ...map.regions.map((r) => r.cards.length));
   const tallest = Math.max(1, ...map.profile.rows.map((r) => r.count));
   return <article>
@@ -64,6 +64,15 @@ export default async function MapPage() {
         </div>
       </section>
     </div>
+
+    <section className="ls-section">
+      <h2>The corpus</h2>
+      <p>What prior art is ranked against: {corpus.bySource.paper} paper{corpus.bySource.paper === 1 ? "" : "s"} and {corpus.bySource.patent} patent{corpus.bySource.patent === 1 ? "" : "s"}{corpus.newest ? `, the newest added ${corpus.newest.toISOString().slice(0, 10)}` : ""}. Grown by <code>npm run lodestone:ingest</code>.</p>
+      {corpus.querySets.length ? <div className="ls-rows">{corpus.querySets.map((s) => <div className="ls-region" key={`${s.kind}:${s.name}`}>
+        <span className="nm">{s.name}</span>
+        <span className="ct">{s.count} {s.kind === "patent" ? "patent" : "paper"}{s.count === 1 ? "" : "s"}</span>
+      </div>)}</div> : <div className="ls-quiet"><p>No query sets yet.</p><span>Seeded abstracts carry none; each ingest run names one with <code>--set</code>.</span></div>}
+    </section>
     <p className="ls-note">What this page cannot do: open a private card, read a thread, show a grade, or rank members.</p>
   </article>;
 }

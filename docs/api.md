@@ -82,8 +82,8 @@ One card and what the network found for it. For the owner:
   "segments": [],
   "member": true,
   "corpus": 15,
-  "priorArt": [ { "documentId": "…", "title": "…", "score": 0.81, "blocks": ["Value proposition"],
-                  "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…" }, … ],
+  "priorArt": [ { "documentId": "…", "kind": "paper", "querySet": "food-waste", "title": "…",
+                  "score": 0.81, "blocks": ["Value proposition"], "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…" }, … ],
   "peers": [ { "ideaId": "…", "title": "…", "line": "…", "owner": { "id": "…", "name": "…" },
                "publishedAt": "…", "score": 0.78,
                "shared": [ { "mine": "channels", "theirs": "channels", "similarity": 0.83 } ] }, … ],
@@ -91,9 +91,13 @@ One card and what the network found for it. For the owner:
 }
 ```
 
-Prior art is the ten closest papers, `yours` true for one the author listed
+Prior art is the ten closest papers and patents, ranked in one list by the
+same cosine. `kind` is `paper` or `patent`; a patent's `url` is its Google
+Patents page and its `field` is the CPC section. `querySet` names the ingest
+set the document came from, or is `null` for a seeded abstract. `yours` is
+true for one the author listed
 in `already_have` (matched by DOI or OpenAlex id — still returned, so they
-see the corpus holds it); peers the ten closest published cards, present only
+see the corpus holds it). Peers are the ten closest published cards, present only
 when the owner is an active member. For a cohort card the token
 may view but does not own, the response is `card`, `owner`, `blocks` and
 `segments` alone.
@@ -119,6 +123,30 @@ card and target; a second replaces the first. `context` is kept as sent, so a
 later threshold retune can be judged against what the person actually saw.
 
 `GET` on the same path lists the owner's verdicts for the card.
+
+### `GET /api/lodestone/papers/<documentId>`
+
+One paper or patent from the corpus, to any valid token: the `documentId` of
+a `priorArt` hit, read in full.
+
+```json
+{
+  "documentId": "…",
+  "kind": "paper",
+  "title": "…",
+  "abstract": "…",
+  "provenance": { "doi": "…", "openalex_id": "…", "authors": ["…"], "year": 2021,
+                  "venue": "…", "field": "…", "url": "…", "query_set": "food-waste" },
+  "citation": "A. Reader, B. Writer. (2021). Title. Venue"
+}
+```
+
+`abstract` is the canonical abstract, the only text Lodestone stores; there
+is no full text to return. Paper metadata comes from OpenAlex (CC0), so
+nothing is withheld. A patent's provenance carries `patent_number`,
+`assignees`, `inventors` and `cpc` instead of `doi`, `venue` and `authors`,
+and its citation names the inventors and the patent number. An id that is
+not a paper or patent, a card's idea id included, answers `404`.
 
 ## What a client should do with it
 
