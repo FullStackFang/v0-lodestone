@@ -178,7 +178,12 @@ abstracts. A real cohort needs hundreds to thousands.
 - `/lodestone/map` shows corpus size, sources and the date of the last ingest.
 - The card page's "Prior art" section says which query set each hit came from.
 
-### 4.3 Retune thresholds
+### 4.3 Retune thresholds — done (2026-10-14)
+
+`PAPER_FLOOR` is now 0.75 and `CLOSE` stays 0.75, on a model-marked sample of the
+synthetic firms cohort; see `evals/lodestone/thresholds.md`. Redo it on real cards.
+The rest of Phase 4 waits on an `OPENALEX_API_KEY` (one run of 500) and on
+PatentsView coming back (the patent source).
 
 `CLOSE` 0.75 and `PAPER_FLOOR` 0.6 were set on five abstracts. With a real corpus,
 sample 20 cards × top-5 hits, have a human mark each hit relevant or not, and move the

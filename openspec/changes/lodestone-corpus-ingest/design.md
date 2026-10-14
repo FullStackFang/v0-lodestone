@@ -85,3 +85,22 @@ else is done, the file records that and the constants stay.
 2. **What to embed for a patent.** Claims-style abstracts are stiff. If
    precision on patents is poor in the retune sample, embed `title +
    abstract` for patents only. Not decided until measured.
+
+## Found while applying (2026-10-14)
+
+1. **PatentsView is down.** `search.patentsview.org` does not answer, because
+   USPTO paused the PatentsView API on 2026-03-20 while moving it to its Open
+   Data Portal, with no return date. `patentsview.ts` is built and tested to
+   the PatentSearch v1 shape against a fake `fetch`. A live run stops on its
+   first request and prints the failure. When an endpoint exists again, that
+   file is the one to repoint. Tasks 6.1 (patent set) and 7.4 wait on it.
+2. **OpenAlex needs a key to page.** Cursor paging past the first page answers
+   401 without a free `api_key`. `OPENALEX_API_KEY` is passed when set; without
+   it every query stops at 200 works with exit 2, which is the designed resume
+   path. Task 7.1 (one run of 500) waits on a key.
+3. **Stub abstracts.** About 5% of `has_abstract:true` works carry a subject tag
+   ("Digital", "International audience") as the abstract. Their vectors sit
+   close to every card, and in the first retune sample they pulled precision at
+   5 down to 0.13. The ingest command refuses an abstract under
+   `MIN_ABSTRACT_WORDS = 30` as `short_abstract`. See
+   `evals/lodestone/thresholds.md`.

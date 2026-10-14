@@ -44,6 +44,17 @@ without an abstract SHALL be reported and not written.
 - **WHEN** a returned patent has no abstract
 - **THEN** the line for it says `no_abstract` and nothing is written
 
+### Requirement: A stub abstract is not an abstract
+
+The command SHALL refuse a paper or patent whose abstract is shorter than
+thirty words, reporting it as `short_abstract` and writing nothing. Such
+"abstracts" — a subject tag, a fragment — embed close to every card and crowd
+real hits out of the top five.
+
+#### Scenario: A subject tag arrives as an abstract
+- **WHEN** a returned work's abstract is "International audience"
+- **THEN** the line for it says `short_abstract` and nothing is written
+
 ### Requirement: Re-ingest writes nothing
 
 The system SHALL check a work's or patent's source identifier against stored

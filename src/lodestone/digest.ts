@@ -25,7 +25,7 @@ export interface Digest {
 
 export const DIGEST_DAYS = 7;
 /** Below this a paper is noise, not a digest row. */
-export const PAPER_FLOOR = 0.6;
+export const PAPER_FLOOR = 0.75;
 
 export interface DigestOptions {
   /** The lowest paper score worth a row. Defaults to `PAPER_FLOOR`. */
