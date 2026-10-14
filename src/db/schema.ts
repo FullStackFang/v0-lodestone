@@ -61,7 +61,7 @@ export const EMBEDDING_DIMENSIONS = 1024;
 export const cardStatus = pgEnum("card_status", CARD_STATUSES);
 export const stage = pgEnum("stage", STAGES);
 export const gateResult = pgEnum("gate_result", ["pass", "fail"]);
-export const documentSource = pgEnum("document_source", ["deck", "resume", "paper"]);
+export const documentSource = pgEnum("document_source", ["deck", "resume", "paper", "patent"]);
 
 // The harness vocabulary, one enum per `src/harness/schema.ts` tuple.
 export const subjectType = pgEnum("subject_type", SUBJECT_TYPES);
@@ -220,7 +220,23 @@ export const artifactTexts = pgTable(
     provenance: jsonb("provenance").notNull().default(sql`'{}'::jsonb`).$type<Record<string, unknown>>(),
     createdAt: createdAt(),
   },
-  (t) => [index("artifact_texts_artifact_idx").on(t.artifactId, t.version)],
+  (t) => [
+    index("artifact_texts_artifact_idx").on(t.artifactId, t.version),
+    // A source's own id names one work, so a second ingest of it is a no-op
+    // at the database and not only in the loop that checks first. A DOI is
+    // case-insensitive, so its key is lowered. The cost: a corpus text cannot
+    // take a second version, because every version carries the same id; a
+    // corrected abstract is a delete and re-ingest, not a re-parse.
+    uniqueIndex("artifact_texts_openalex_id_unique")
+      .on(sql`(${t.provenance}->>'openalex_id')`)
+      .where(sql`${t.provenance}->>'openalex_id' is not null`),
+    uniqueIndex("artifact_texts_doi_unique")
+      .on(sql`lower(${t.provenance}->>'doi')`)
+      .where(sql`${t.provenance}->>'doi' is not null`),
+    uniqueIndex("artifact_texts_patent_number_unique")
+      .on(sql`(${t.provenance}->>'patent_number')`)
+      .where(sql`${t.provenance}->>'patent_number' is not null`),
+  ],
 );
 
 /** Idempotent on content, extraction configuration, attribution, and attempt.

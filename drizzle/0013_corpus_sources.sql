@@ -1,0 +1,4 @@
+ALTER TYPE "public"."document_source" ADD VALUE 'patent';--> statement-breakpoint
+CREATE UNIQUE INDEX "artifact_texts_openalex_id_unique" ON "artifact_texts" USING btree (("provenance"->>'openalex_id')) WHERE "artifact_texts"."provenance"->>'openalex_id' is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "artifact_texts_doi_unique" ON "artifact_texts" USING btree (lower("provenance"->>'doi')) WHERE "artifact_texts"."provenance"->>'doi' is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "artifact_texts_patent_number_unique" ON "artifact_texts" USING btree (("provenance"->>'patent_number')) WHERE "artifact_texts"."provenance"->>'patent_number' is not null;
