@@ -72,6 +72,14 @@ in-memory ledger with a hashed bag-of-words embedder (`test-embed.ts`). The thre
 (`CLOSE` 0.75, `PAPER_FLOOR` 0.6) are tuned for Voyage and lowered explicitly in the
 test; what is under test is the mechanism.
 
+`npm run lodestone:eval -- --label <name> --no-search` scores the real ranking against a
+fixed set: the cards in `evals/lodestone/eval-set/cards.ts`, the papers marked relevant to
+each in `marks.ts`, and about 950 distractors in `distractors.txt`. It needs
+`VOYAGE_API_KEY` and `OPENALEX_API_KEY`, works in its own `data/pglite-eval`, prints
+precision at 5, recall at 10, MRR and distinct fields in the top ten, and writes the
+per-card table to `eval-set/results/<date>-<label>.md`. Only the first run fetches the
+corpus; later runs reuse it.
+
 ## Not built, on purpose
 
 Campus-wide tenancy, mutual introductions with contact reveal, other card formats,
