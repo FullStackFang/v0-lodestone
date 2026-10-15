@@ -56,25 +56,53 @@ describe("the fixture hash", () => {
 });
 
 describe("workUrl", () => {
+  const none = { mailto: "", apiKey: "" };
+
   it("takes a bare DOI, a doi.org URL and a W id", () => {
-    expect(workUrl("10.1145/3530013", "")).toBe(
+    expect(workUrl("10.1145/3530013", none)).toBe(
       "https://api.openalex.org/works/https://doi.org/10.1145/3530013",
     );
-    expect(workUrl("https://doi.org/10.1145/3530013", "")).toBe(
+    expect(workUrl("https://doi.org/10.1145/3530013", none)).toBe(
       "https://api.openalex.org/works/https://doi.org/10.1145/3530013",
     );
-    expect(workUrl("W2741809807", "")).toBe("https://api.openalex.org/works/W2741809807");
-    expect(workUrl("https://openalex.org/W2741809807", "")).toBe(
+    expect(workUrl("W2741809807", none)).toBe("https://api.openalex.org/works/W2741809807");
+    expect(workUrl("https://openalex.org/W2741809807", none)).toBe(
       "https://api.openalex.org/works/W2741809807",
     );
   });
 
-  it("adds the polite-pool address when one is configured", () => {
-    expect(workUrl("W1", "a@b.edu")).toBe("https://api.openalex.org/works/W1?mailto=a%40b.edu");
+  it("adds the contact address when one is configured", () => {
+    expect(workUrl("W1", { mailto: "a@b.edu", apiKey: "" })).toBe("https://api.openalex.org/works/W1?mailto=a%40b.edu");
+  });
+
+  it("carries the key beside the address, on a DOI lookup as on a W id", () => {
+    const url = new URL(workUrl("10.1145/3530013", { mailto: "a@b.edu", apiKey: "k-1" }));
+    expect(url.pathname).toBe("/works/https://doi.org/10.1145/3530013");
+    expect(url.searchParams.get("api_key")).toBe("k-1");
+    expect(url.searchParams.get("mailto")).toBe("a@b.edu");
+    expect(new URL(workUrl("W1", { mailto: "", apiKey: "k-1" })).searchParams.get("api_key")).toBe("k-1");
+  });
+
+  it("reads the key and the address from the environment by default", () => {
+    const saved = { OPENALEX_API_KEY: process.env.OPENALEX_API_KEY, OPENALEX_MAILTO: process.env.OPENALEX_MAILTO };
+    try {
+      process.env.OPENALEX_API_KEY = " k-env ";
+      process.env.OPENALEX_MAILTO = "env@b.edu";
+      const url = new URL(workUrl("W1"));
+      expect(url.searchParams.get("api_key")).toBe("k-env");
+      expect(url.searchParams.get("mailto")).toBe("env@b.edu");
+      delete process.env.OPENALEX_API_KEY;
+      expect(new URL(workUrl("W1")).searchParams.has("api_key")).toBe(false);
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
   });
 
   it("refuses anything that is neither", () => {
-    expect(() => workUrl("a paper about clinics", "")).toThrow(/not a DOI/);
+    expect(() => workUrl("a paper about clinics", none)).toThrow(/not a DOI/);
   });
 });
 

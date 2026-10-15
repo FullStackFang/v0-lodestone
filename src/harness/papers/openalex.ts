@@ -1,9 +1,10 @@
 /** OpenAlex, the only source of a paper.
  *
- * Keyless, DOI-native, and its abstract is an inverted index that rebuilds
+ * DOI-native, and its abstract is an inverted index that rebuilds
  * deterministically — which is why it is here and Semantic Scholar is not.
- * `OPENALEX_MAILTO` buys the polite pool; without it the requests are
- * rate-limited harder but still answered.
+ * Every request carries `OPENALEX_API_KEY` when it is set: a key gets its
+ * own daily budget, and without one a request draws on a shared keyless
+ * budget. `OPENALEX_MAILTO` rides beside it as a contact address.
  *
  * Nothing in this module touches the database. It fetches, rebuilds and
  * reads fields; `ingest.ts` decides what becomes a row. */
@@ -44,10 +45,17 @@ export async function fetchWork(
 }
 
 /** A DOI (bare, `doi:` or a doi.org URL), an OpenAlex `W…` id, or an
- *  OpenAlex URL. Anything else is a caller error, not a fetch. */
-export function workUrl(identifier: string, mailto = process.env.OPENALEX_MAILTO?.trim()): string {
+ *  OpenAlex URL. Anything else is a caller error, not a fetch. Carries the
+ *  key and the contact address, read from the environment unless given. */
+export function workUrl(
+  identifier: string,
+  { mailto = process.env.OPENALEX_MAILTO?.trim(), apiKey = process.env.OPENALEX_API_KEY?.trim() }: { mailto?: string; apiKey?: string } = {},
+): string {
   const id = identifier.trim();
-  const query = mailto ? `?mailto=${encodeURIComponent(mailto)}` : "";
+  const params = new URLSearchParams();
+  if (mailto) params.set("mailto", mailto);
+  if (apiKey) params.set("api_key", apiKey);
+  const query = params.size ? `?${params}` : "";
   const doi = doiOf(id);
   if (doi) return `${API}https://doi.org/${doi}${query}`;
   if (/^W\d+$/i.test(id)) return `${API}${id.toUpperCase()}${query}`;

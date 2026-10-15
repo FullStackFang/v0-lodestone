@@ -9,7 +9,7 @@ const work = (n: number): OpenAlexWork => ({
 });
 
 /** A fake OpenAlex: each cursor answers with its page, or with a status. */
-function fakeOpenAlex(pages: Record<string, { works: OpenAlexWork[]; next: string | null } | number>) {
+function fakeOpenAlex(pages: Record<string, { works: OpenAlexWork[]; next: string | null; notice?: string } | number>) {
   const urls: URL[] = [];
   const impl = (async (input: string | URL | Request) => {
     const url = new URL(String(input));
@@ -17,7 +17,7 @@ function fakeOpenAlex(pages: Record<string, { works: OpenAlexWork[]; next: strin
     const page = pages[url.searchParams.get("cursor") ?? ""];
     if (page === undefined) return new Response("no such cursor", { status: 400 });
     if (typeof page === "number") return new Response("slow down", { status: page });
-    return new Response(JSON.stringify({ results: page.works, meta: { next_cursor: page.next } }), { status: 200 });
+    return new Response(JSON.stringify({ results: page.works, meta: { next_cursor: page.next, notice: page.notice } }), { status: 200 });
   }) as typeof fetch;
   return { impl, urls };
 }
@@ -121,5 +121,15 @@ describe("searchWorks", () => {
     );
     expect(waits).toBe(2);
     expect(pages).toEqual(["*:1", "c2:1"]);
+  });
+
+  it("hands each page's notice to the caller", async () => {
+    const { impl } = fakeOpenAlex({
+      "*": { works: [work(1)], next: "c2" },
+      c2: { works: [work(2)], next: null, notice: "You are on the shared daily budget." },
+    });
+    const notices: string[] = [];
+    await searchWorks({ query: "q", fetchImpl: impl, wait: noWait, onNotice: (n) => void notices.push(n) }, async () => {});
+    expect(notices).toEqual(["You are on the shared daily budget."]);
   });
 });

@@ -9,7 +9,7 @@ worked at the same time as the row before them.
 
 ## 1. Key
 
-- [ ] 1.1 `lodestone-sources-repair` section 1 complete. Gate: 20-DOI keyed run, no budget notice; 25/s under a key. Date:
+- [x] 1.1 `lodestone-sources-repair` section 1 complete. Gate: 20-DOI keyed run, no budget notice; 25/s under a key. Date: 2026-10-15 — 20/20 DOIs fetched with `api_key`, all 200, no budget notice (a keyed two-page query also none); the limiter runs at 25/s under a key and 10/s without (fake-clock tests; the run prints its ceiling). A serial `--list` run is latency-bound at about 4/s
 
 ## 2. Measure (parallel with 3 and 4a)
 

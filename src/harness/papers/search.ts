@@ -7,7 +7,7 @@
  *  the loop returns the cursor of the page it could not read and the caller
  *  prints it for `--cursor`. */
 import type { OpenAlexWork } from "./openalex";
-import { limiter, OPENALEX_PER_SECOND, type Limiter } from "./rate";
+import { openalexLimiter, type Limiter } from "./rate";
 
 const API = "https://api.openalex.org/works";
 /** OpenAlex's largest page. */
@@ -45,6 +45,8 @@ export interface SearchOptions {
   wait?: Limiter;
   /** Called once per page read, with the cursor that read it. */
   onPage?: (page: { cursor: string; works: number }) => void;
+  /** Called with any `meta.notice` a page carries, such as a budget warning. */
+  onNotice?: (notice: string) => void;
 }
 
 export interface SearchResult {
@@ -58,7 +60,7 @@ export interface SearchResult {
 
 interface WorksPage {
   results?: OpenAlexWork[];
-  meta?: { next_cursor?: string | null };
+  meta?: { next_cursor?: string | null; notice?: string | null };
 }
 
 export async function searchWorks(
@@ -66,9 +68,9 @@ export async function searchWorks(
   onWork: (work: OpenAlexWork) => Promise<void>,
 ): Promise<SearchResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const wait = options.wait ?? limiter(OPENALEX_PER_SECOND, 1000);
   const mailto = options.mailto ?? process.env.OPENALEX_MAILTO?.trim();
   const apiKey = options.apiKey ?? process.env.OPENALEX_API_KEY?.trim();
+  const wait = options.wait ?? openalexLimiter(apiKey);
   const limit = options.limit ?? Infinity;
   let cursor: string | null = options.cursor || "*";
   let seen = 0;
@@ -90,6 +92,7 @@ export async function searchWorks(
       return { seen, stopped: true, cursor, reason: error instanceof Error ? error.message : String(error) };
     }
 
+    if (page.meta?.notice) options.onNotice?.(page.meta.notice);
     const works = (page.results ?? []).slice(0, perPage);
     options.onPage?.({ cursor, works: works.length });
     for (const work of works) {

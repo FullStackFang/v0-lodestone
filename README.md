@@ -29,7 +29,9 @@ checks (or `PILOT_OPERATOR_EMAILS`). Import any `forge-idea` export on `/lodesto
 Both scripts open `data/pglite` directly and must not run while `next dev` has it open.
 
 Without `VOYAGE_API_KEY` cards are filed with no vectors and every match list is empty
-and says so.
+and says so. `npm run lodestone:ingest` grows the paper corpus from OpenAlex; beside
+`VOYAGE_API_KEY` it wants `OPENALEX_API_KEY`, without which a query stops after one
+page of 200 and runs on OpenAlex's shared keyless budget.
 
 ## What is here
 

@@ -1,10 +1,10 @@
 ## 1. OpenAlex
 
-- [ ] 1.1 Failing tests: `workUrl` carries `api_key` when `OPENALEX_API_KEY` is set and `mailto` beside it; `searchUrl` already does, keep its test
-- [ ] 1.2 `openalex.ts`: `workUrl(identifier, { mailto, apiKey })`; header comment stops saying keyless and polite pool
-- [ ] 1.3 `rate.ts`: `openalexLimiter()` returns 25/s with a key, 10/s without; test with a fake clock for both
-- [ ] 1.4 `scripts/lodestone/ingest.mts`: use `openalexLimiter()`; print the ceiling; on the first response whose `meta.notice` names the shared budget, print it once
-- [ ] 1.5 `.env.example`: `OPENALEX_API_KEY` with one line on the $1/day budget; README "Run it" mentions it beside `VOYAGE_API_KEY`
+- [x] 1.1 Failing tests: `workUrl` carries `api_key` when `OPENALEX_API_KEY` is set and `mailto` beside it; `searchUrl` already does, keep its test (2026-10-15: plus `searchWorks` hands `meta.notice` to an `onNotice` hook)
+- [x] 1.2 `openalex.ts`: `workUrl(identifier, { mailto, apiKey })`; header comment stops saying keyless and polite pool
+- [x] 1.3 `rate.ts`: `openalexLimiter()` returns 25/s with a key, 10/s without; test with a fake clock for both (2026-10-15: `openalexPerSecond`, `OPENALEX_KEYED_PER_SECOND = 25`; `searchWorks` defaults to it)
+- [x] 1.4 `scripts/lodestone/ingest.mts`: use `openalexLimiter()`; print the ceiling; on the first response whose `meta.notice` names the shared budget, print it once (2026-10-15: 20-DOI keyed `--list` run — 20/20 requests 200 with `api_key`, no notice, 20 new and embedded; a keyed query paged past 200, two pages, no notice)
+- [x] 1.5 `.env.example`: `OPENALEX_API_KEY` with one line on the $1/day budget; README "Run it" mentions it beside `VOYAGE_API_KEY`
 
 ## 2. Patents
 
