@@ -5,7 +5,7 @@ worked at the same time as the row before them.
 
 ## 0. Prerequisite
 
-- [ ] 0.1 `lodestone-corpus-compact` complete. Gate: suite green; SQL and reference ranking agree on the seeded cohort; `abstractHash` served. Date / values:
+- [x] 0.1 `lodestone-corpus-compact` complete. Gate: suite green; SQL and reference ranking agree on the seeded cohort; `abstractHash` served. Date / values: 2026-10-15 — 367 passed, 1 skipped; 24 cards × (top 10 + since top 5) identical to the pre-`0014` exact scan, worst |Δscore| 2.2e-5; `abstractHash` on 968/968 dev and 15/15 production-copy documents; `0014` verified on PGlite and a Neon branch
 
 ## 1. Key
 

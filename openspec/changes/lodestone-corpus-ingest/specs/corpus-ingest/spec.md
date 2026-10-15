@@ -29,7 +29,7 @@ published polite-pool rate.
 ### Requirement: Patents are a second source of the same shape
 
 The system SHALL ingest granted US patents from the PatentsView search API as
-`document` rows with `source = "patent"`, the abstract as text, and provenance
+`document` rows with `source = "patent"`, the abstract in `artifact_texts`, and provenance
 carrying the patent number, a Google Patents url, assignees, inventors, CPC
 codes, grant year, and a `field` derived from the CPC section. A patent
 without an abstract SHALL be reported and not written.
