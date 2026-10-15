@@ -13,8 +13,8 @@ export type ForgeCardVisibility = "private" | "cohort";
  *  One row per Forge idea; a re-import replaces `doc` and bumps `updated_at`,
  *  and the ledger supersedes underneath it. */
 export const forgeCard = pgTable("forge_card", {
-  /** Forge's own idea id: 32 hex characters, the same string the ledger's
-   *  `forge:` subject carries. */
+  /** Forge's own idea id — a uuid, or 32 hex for a derived `/1` id — the
+   *  same string the ledger's `forge:` subject carries. */
   ideaId: text("idea_id").primaryKey(),
   ownerId: uuid("owner_id").notNull().references(() => person.id),
   title: text("title").notNull(),

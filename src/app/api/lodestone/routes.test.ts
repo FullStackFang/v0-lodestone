@@ -152,4 +152,22 @@ describe("client routes", () => {
     const [deck] = await db.insert(document).values({ sessionId: null, source: "deck", title: "a deck", text: "slides" }).returning({ id: document.id });
     expect((await readPaper(req(`/api/lodestone/papers/${deck.id}`), paperParams(deck.id))).status).toBe(404);
   });
+  it("reads back a card sent under Whetstone's own id, a dashed uuid", async () => {
+    // Whetstone mints idea ids with crypto.randomUUID(); only a /1 document's
+    // derived id is 32 bare hex. A card the send accepts must be one the
+    // client can read, publish and vote on.
+    const ideaId = "7214159e-ca24-4873-b571-34c14119b7f0";
+    const sent = await sendCard(req("/api/lodestone/cards", { method: "POST", body: JSON.stringify({ ...forgeDocument(sam), id: ideaId }) }));
+    expect(sent.status).toBe(201);
+    expect((await sent.json()).card.ideaId).toBe(ideaId);
+    expect((await readCard(req(`/api/lodestone/cards/${ideaId}`), params(ideaId))).status).toBe(200);
+    const pub = await patchCard(req(`/api/lodestone/cards/${ideaId}`, { method: "PATCH", body: JSON.stringify({ visibility: "private" }) }), params(ideaId));
+    expect(pub.status).toBe(200);
+    const vote = await sendFeedback(
+      req(`/api/lodestone/cards/${ideaId}/feedback`, { method: "POST", body: JSON.stringify({ kind: "paper", targetId: "doc-9", verdict: "useful" }) }),
+      params(ideaId),
+    );
+    expect(vote.status).toBe(200);
+    expect((await readFeedback(req(`/api/lodestone/cards/${ideaId}/feedback`), params(ideaId))).status).toBe(200);
+  });
 });
