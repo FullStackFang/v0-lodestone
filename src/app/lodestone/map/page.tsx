@@ -3,7 +3,8 @@ import { ArrowLeft } from "lucide-react";
 import { getDb } from "@/db/client";
 import { requirePerson } from "@/lib/session";
 import { cohortMap, corpusSummary } from "@/lodestone/map";
-import { isPilotOperatorEmail, membershipFor } from "@/pilot/membership";
+import { isOperator } from "@/pilot/membership";
+import { OperatorsOnly } from "../OperatorsOnly";
 import "../lodestone.css";
 
 export const dynamic = "force-dynamic";
@@ -11,13 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function MapPage() {
   const db = await getDb();
   const person = await requirePerson(db);
-  const membership = await membershipFor(db, person.id);
-  const director = isPilotOperatorEmail(person.email) || membership?.memberKind === "operator";
-  if (!director) {
-    return <article>
-      <header className="ls-header"><div><p className="eyebrow">Lodestone · cohort map</p><h1>Directors only</h1><p>The map is the program's view. It counts and names regions; it never opens a private card. Ask an operator for the operator role to see it.</p></div><nav className="ls-legend"><Link href="/lodestone"><ArrowLeft size={13} /> Cards</Link></nav></header>
-    </article>;
-  }
+  if (!(await isOperator(db, person))) return <OperatorsOnly page="cohort map" />;
   const [map, corpus] = await Promise.all([cohortMap(db), corpusSummary(db)]);
   const biggest = Math.max(1, ...map.regions.map((r) => r.cards.length));
   const tallest = Math.max(1, ...map.profile.rows.map((r) => r.count));

@@ -4,7 +4,7 @@ import { getDb } from "@/db/client";
 import { requirePerson } from "@/lib/session";
 import { cardBlocks, cardsForOwner, cohortCards, cohortCounts } from "@/lodestone/cards";
 import { corpusSize } from "@/lodestone/priorArt";
-import { isActiveMember } from "@/pilot/membership";
+import { isActiveMember, isOperator } from "@/pilot/membership";
 import { ActionForm, SubmitButton } from "@/review/ActionForm";
 import { importForgeCard } from "./actions";
 import "./lodestone.css";
@@ -14,11 +14,12 @@ export const dynamic = "force-dynamic";
 export default async function LodestonePage() {
   const db = await getDb();
   const person = await requirePerson(db);
-  const [cards, member, counts, corpus] = await Promise.all([
+  const [cards, member, counts, corpus, operator] = await Promise.all([
     cardsForOwner(db, person.id),
     isActiveMember(db, person.id),
     cohortCounts(db),
     corpusSize(db),
+    isOperator(db, person),
   ]);
   // The cohort's published cards, for members only: nine blocks and an
   // owner name, the same rule the card page enforces.
@@ -30,7 +31,7 @@ export default async function LodestonePage() {
         <h1>{person.name}</h1>
         <p>{member ? `An active member of this cohort. ${counts.published} of ${counts.members} members have published a card; the corpus holds ${corpus} paper${corpus === 1 ? "" : "s"}.` : "Not yet a member of this cohort. Your cards stay private and still match against the corpus; publishing needs an invitation."}</p>
       </div>
-      <nav className="ls-legend"><Link href="/lodestone/digest">This week's digest <ArrowRight size={13} /></Link><Link href="/lodestone/map">Cohort map <ArrowRight size={13} /></Link><Link href="/lodestone/tokens">API tokens <ArrowRight size={13} /></Link></nav>
+      <nav className="ls-legend"><Link href="/lodestone/digest">This week's digest <ArrowRight size={13} /></Link><Link href="/lodestone/map">Cohort map <ArrowRight size={13} /></Link>{operator ? <Link href="/lodestone/roster">Roster <ArrowRight size={13} /></Link> : null}<Link href="/lodestone/tokens">API tokens <ArrowRight size={13} /></Link></nav>
     </header>
 
     {cards.length ? <ul className="ls-list">{cards.map((card) => {

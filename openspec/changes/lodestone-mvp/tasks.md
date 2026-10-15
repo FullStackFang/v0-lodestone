@@ -21,7 +21,7 @@ worked at the same time as the row before them.
 
 ## 4. Publish
 
-- [ ] 4a.1 `lodestone-publish` sections 1–2 (roster, join, health, migrate URL, seed guard) complete against PGlite. Date:
+- [x] 4a.1 `lodestone-publish` sections 1–2 (roster, join, health, migrate URL, seed guard) complete against PGlite. Date: 2026-10-15 — typecheck clean; 389 passed, 1 skipped; `next build` lists `/lodestone/roster`, `/lodestone/join/[token]`, `/api/lodestone/health`
 - [ ] 4b.1 `lodestone-publish` sections 3–4 complete. Gate: health all true on production and preview; owner signed in by Resend; membership-kind operator invited a second member who accepted; token minted; Whetstone connection test passes against production. Date / URL:
 
 ## 5. Search
