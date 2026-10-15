@@ -63,7 +63,8 @@ describe("ingestWork", () => {
     const [doc] = await db.select().from(document).where(eq(document.id, result.artifactId!));
     expect(doc.source).toBe("paper");
     expect(doc.sessionId).toBeNull();
-    expect(doc.text).toBe(fixture.expected_abstract);
+    // The abstract's one home is the canonical text above.
+    expect(doc.text).toBeNull();
   });
 
   it("is idempotent on the same identifier", async () => {

@@ -1,11 +1,11 @@
 /** The network end to end on an in-memory ledger: import, visibility, prior
  *  art at zero density, peers once a cohort exists, the map, the digest. The
  *  embedder is the hashed bag of words, so a match here means shared words. */
-import { eq } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { COHORT, CORPUS, forgeDocument } from "../../evals/lodestone/cohort";
 import { createPgliteDb, type Db } from "@/db/client";
-import { document, forgeCard, assertions } from "@/db/schema";
+import { artifactTexts, document, documentChunk, forgeCard, assertions } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
 import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
@@ -13,8 +13,9 @@ import { canView, cardBlocks, cardsForOwner, cohortCards, cohortCounts, importCa
 import { digestFor, renderDigest } from "./digest";
 import { cohortMap, corpusSummary } from "./map";
 import { peersFor } from "./peers";
-import { corpusSize, embedPaperAbstracts, priorArtFor } from "./priorArt";
+import { corpusSize, embedPaperAbstracts, heldPapers, priorArtFor, scorePaper, type CorpusKind } from "./priorArt";
 import { testEmbed } from "./test-embed";
+import { ideaVectors } from "./vectors";
 
 let db: Db;
 const people = new Map<string, string>();
@@ -30,10 +31,35 @@ beforeAll(async () => {
     await enrollTestMember(db, id);
   }
   people.set(stranger.email, await ensurePerson(db, stranger));
-  for (const p of CORPUS) {
-    await db.insert(document).values({ sessionId: null, source: "paper", title: p.title, text: p.abstract });
-  }
+  for (const p of CORPUS) await addPaper(p.title, p.abstract);
 }, 60_000);
+
+/** A corpus paper as every writer stores one: the abstract in
+ *  `artifact_texts` only. */
+async function addPaper(title: string, abstract: string, provenance: Record<string, unknown> = {}, source: "paper" | "patent" = "paper") {
+  const [row] = await db.insert(document).values({ sessionId: null, source, title, text: null }).returning();
+  await putArtifactText(db, { artifactId: row.id, sourceFormat: "abstract", parser: "test", text: abstract, provenance });
+  return row;
+}
+
+/** Every corpus vector read back and scored in Node: what `priorArtFor`
+ *  did before ranking moved into the database, newest first so a tie breaks
+ *  the same way. */
+async function exactScan(ideaId: string, k: number, since?: Date) {
+  const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
+  const [card] = await db.select({ doc: forgeCard.doc }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId));
+  const corpus = await db
+    .select({ documentId: document.id, kind: document.source, title: document.title, embedding: documentChunk.embedding, provenance: artifactTexts.provenance, addedAt: document.createdAt })
+    .from(documentChunk)
+    .innerJoin(document, eq(document.id, documentChunk.documentId))
+    .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
+    .where(and(inArray(document.source, ["paper", "patent"]), isNotNull(documentChunk.embedding), since ? gte(document.createdAt, since) : undefined))
+    .orderBy(desc(document.createdAt));
+  return corpus
+    .map((p) => scorePaper(rows, { ...p, kind: p.kind as CorpusKind, embedding: p.embedding as number[] }, heldPapers(card.doc)))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k);
+}
 
 const owner = (email: string) => ({ id: people.get(email)!, email });
 
@@ -67,6 +93,10 @@ describe("prior art at zero density", () => {
     expect(await corpusSize(db)).toBe(0);
     expect(await embedPaperAbstracts(db, testEmbed)).toBe(CORPUS.length);
     expect(await embedPaperAbstracts(db, testEmbed)).toBe(0);
+    // Embedded from the canonical text, and the abstract copied nowhere.
+    const stored = await db.select({ doc: document.text, chunk: documentChunk.text }).from(documentChunk).innerJoin(document, eq(document.id, documentChunk.documentId));
+    expect(stored).toHaveLength(CORPUS.length);
+    expect(stored.every((s) => s.doc === null && s.chunk === null)).toBe(true);
     expect(await cohortCards(db)).toHaveLength(0);
     const hits = await priorArtFor(db, sam.ideaId, 3);
     expect(hits).toHaveLength(3);
@@ -79,13 +109,7 @@ describe("prior art at zero density", () => {
 
   it("flags the paper the author already holds, by DOI, and only that one", async () => {
     const [held] = await db.select({ id: document.id }).from(document).where(eq(document.title, CORPUS[0].title));
-    await putArtifactText(db, {
-      artifactId: held.id,
-      sourceFormat: "abstract",
-      parser: "test",
-      text: CORPUS[0].abstract,
-      provenance: { doi: "10.1000/SIGHT-unseen", openalex_id: null },
-    });
+    await db.update(artifactTexts).set({ provenance: { doi: "10.1000/SIGHT-unseen", openalex_id: null } }).where(eq(artifactTexts.artifactId, held.id));
     const v3 = {
       ...forgeDocument(sam),
       format: "forge-idea/3",
@@ -125,17 +149,12 @@ describe("prior art at zero density", () => {
   it("embeds a patent like a paper and ranks it in the same list, saying what it is", async () => {
     const abstract =
       "A system verifies a sublet from a departing student to an arriving student, records a walkthrough video of the unit, and holds the deposit in escrow until move-in under a semester-length lease.";
-    const [patent] = await db
-      .insert(document)
-      .values({ sessionId: null, source: "patent", title: "Verified student sublet with walkthrough video", text: abstract })
-      .returning({ id: document.id });
-    await putArtifactText(db, {
-      artifactId: patent.id,
-      sourceFormat: "abstract",
-      parser: "test",
-      text: abstract,
-      provenance: { patent_number: "11999999", url: "https://patents.google.com/patent/US11999999", year: 2024, field: "G — Physics", query_set: "housing-patents" },
-    });
+    const patent = await addPaper(
+      "Verified student sublet with walkthrough video",
+      abstract,
+      { patent_number: "11999999", url: "https://patents.google.com/patent/US11999999", year: 2024, field: "G — Physics", query_set: "housing-patents" },
+      "patent",
+    );
     expect(await embedPaperAbstracts(db, testEmbed)).toBe(1);
     const hits = await priorArtFor(db, sam.ideaId, 3);
     expect(hits[0]).toMatchObject({
@@ -151,14 +170,24 @@ describe("prior art at zero density", () => {
 
   it("embeds a batch at a time, so a run that dies keeps what it finished", async () => {
     const texts = ["first unembedded abstract", "second unembedded abstract", "third unembedded abstract"];
-    for (const text of texts) await db.insert(document).values({ sessionId: null, source: "paper", title: text, text });
+    const size = await corpusSize(db);
+    for (const text of texts) await addPaper(text, text);
+    // Counted once it has a vector, not before.
+    expect(await corpusSize(db)).toBe(size);
     let calls = 0;
     const dying = async (batch: string[]) => {
       if (++calls === 2) throw new Error("killed");
       return testEmbed(batch);
     };
     await expect(embedPaperAbstracts(db, dying, 2)).rejects.toThrow(/killed/);
+    expect(await corpusSize(db)).toBe(size + 2);
     expect(await embedPaperAbstracts(db, testEmbed, 2)).toBe(1);
+    expect(await embedPaperAbstracts(db, testEmbed)).toBe(0);
+    expect(await corpusSize(db)).toBe(size + 3);
+  });
+
+  it("leaves a corpus row with no canonical text unembedded: there is nothing to embed", async () => {
+    await db.insert(document).values({ sessionId: null, source: "paper", title: "half written", text: null });
     expect(await embedPaperAbstracts(db, testEmbed)).toBe(0);
   });
 });
@@ -199,6 +228,23 @@ describe("the cohort", () => {
     expect(counts.members).toBe(COHORT.length);
     expect(counts.working).toBe(COHORT.length);
     expect(counts.published).toBe(COHORT.length);
+  });
+
+  it("ranks prior art in the database exactly as a scan of every vector would", async () => {
+    const [{ mid }] = await db.select({ mid: document.createdAt }).from(document).where(eq(document.title, CORPUS[2].title));
+    for (const m of COHORT) {
+      for (const since of [undefined, mid]) {
+        const want = await exactScan(m.ideaId, 3, since);
+        const got = await priorArtFor(db, m.ideaId, 3, since);
+        expect(got.map((h) => h.documentId)).toEqual(want.map((h) => h.documentId));
+        for (const [at, h] of got.entries()) {
+          expect(h.score).toBeCloseTo(want[at].score, 5);
+          expect(h.blocks).toEqual(want[at].blocks);
+          expect(h.yours).toBe(want[at].yours);
+        }
+        if (since) expect(got.every((h) => h.addedAt >= since)).toBe(true);
+      }
+    }
   });
 
   it("finds the housing peers for the sublet card and explains them by block", async () => {
@@ -272,8 +318,7 @@ describe("the corpus on the map", () => {
     expect(before.querySets).toEqual([{ name: "housing-patents", kind: "patent", count: 1 }]);
 
     const abstract = "Escrowed deposits and verified handoffs in student housing markets.";
-    const [paper] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Escrow in housing", text: abstract }).returning();
-    await putArtifactText(db, { artifactId: paper.id, sourceFormat: "abstract", parser: "test", text: abstract, provenance: { openalex_id: "https://openalex.org/W77", query_set: "housing-papers" } });
+    const paper = await addPaper("Escrow in housing", abstract, { openalex_id: "https://openalex.org/W77", query_set: "housing-papers" });
 
     const after = await corpusSummary(db);
     expect(after.bySource).toEqual({ paper: before.bySource.paper + 1, patent: 1 });

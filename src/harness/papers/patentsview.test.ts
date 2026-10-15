@@ -145,8 +145,9 @@ describe("ingestPatent", () => {
     expect(result).toMatchObject({ status: "ok", created: true });
     const [doc] = await db.select().from(document).where(eq(document.id, result.artifactId!));
     expect(doc).toMatchObject({ source: "patent", sessionId: null, title: "Cold chain sensor tag" });
-    expect(doc.text).toBe("A sensor tag records the temperature of a perishable shipment and reports any excursion over a cold chain.");
+    expect(doc.text).toBeNull();
     const [text] = await db.select().from(artifactTexts).where(eq(artifactTexts.artifactId, doc.id));
+    expect(text.canonicalText).toBe("A sensor tag records the temperature of a perishable shipment and reports any excursion over a cold chain.");
     expect(text.sourceFormat).toBe("abstract");
     expect(text.parser).toBe("patentsview-abstract-v1");
     expect(text.provenance).toMatchObject({ patent_number: "11223344", field: "G — Physics", query_set: "cold-chain" });

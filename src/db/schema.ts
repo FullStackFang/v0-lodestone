@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  halfvec,
   index,
   integer,
   jsonb,
@@ -107,10 +108,15 @@ export const document = pgTable(
     sessionId: uuid("session_id").references(() => session.id),
     source: documentSource("source").notNull(),
     title: text("title"),
-    text: text("text").notNull(),
+    /** A deck's or résumé's text. Null for a paper or patent: its abstract's
+     *  one home is `artifact_texts.canonical_text`. */
+    text: text("text"),
     createdAt: createdAt(),
   },
-  (t) => [index("document_session_idx").on(t.sessionId)],
+  (t) => [
+    index("document_session_idx").on(t.sessionId),
+    check("document_text_required", sql`${t.source} not in ('deck', 'resume') or ${t.text} is not null`),
+  ],
 );
 
 export const thesisCard = pgTable(
@@ -180,18 +186,25 @@ export const stageEvent = pgTable(
   (t) => [index("stage_event_card_idx").on(t.cardId, t.createdAt)],
 );
 
-/** Phase 2 landing zone. Nothing in this change writes rows here. */
+/** The corpus vectors: one chunk per paper or patent, the whole abstract
+ *  embedded. Half precision, which moves a cosine by about 1e-3, far inside
+ *  every threshold, and indexed so a card's prior art is found in the
+ *  database. `text` is null for a corpus chunk; the abstract lives in
+ *  `artifact_texts`. */
 export const documentChunk = pgTable(
   "document_chunk",
   {
     id: id(),
     documentId: uuid("document_id").notNull().references(() => document.id),
     ordinal: integer("ordinal").notNull(),
-    text: text("text").notNull(),
+    text: text("text"),
     page: integer("page"),
-    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
+    embedding: halfvec("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
   },
-  (t) => [index("document_chunk_document_idx").on(t.documentId, t.ordinal)],
+  (t) => [
+    index("document_chunk_document_idx").on(t.documentId, t.ordinal),
+    index("document_chunk_embedding_hnsw").using("hnsw", t.embedding.op("halfvec_cosine_ops")),
+  ],
 );
 
 // ---------------------------------------------------------------------------

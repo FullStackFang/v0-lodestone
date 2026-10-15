@@ -34,7 +34,7 @@ import { ingestLine, ingestWork, MIN_ABSTRACT_WORDS, parseList, type IngestResul
 import { fetchPatent, ingestPatent, searchPatents, type PatentIngestResult, type PatentsViewPatent } from "../../src/harness/papers/patentsview";
 import { limiter, OPENALEX_PER_SECOND, PATENTSVIEW_PER_MINUTE } from "../../src/harness/papers/rate";
 import { searchWorks, type SearchResult } from "../../src/harness/papers/search";
-import { CORPUS_SOURCES, embedPaperAbstracts } from "../../src/lodestone/priorArt";
+import { CORPUS_SOURCES, corpusOrphans, embedPaperAbstracts } from "../../src/lodestone/priorArt";
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | null => {
@@ -138,7 +138,7 @@ const unembedded = await db.select({ id: document.id }).from(document)
   .leftJoin(documentChunk, eq(documentChunk.documentId, document.id))
   .where(and(inArray(document.source, [...CORPUS_SOURCES]), isNull(documentChunk.id)));
 console.log(
-  `# ${tally.new} new, ${tally.existing} existing, ${tally.no_abstract} no_abstract, ${tally.short_abstract} short_abstract, ${tally.not_found} not_found; ${embedded} embedded, ${unembedded.length} without a vector`,
+  `# ${tally.new} new, ${tally.existing} existing, ${tally.no_abstract} no_abstract, ${tally.short_abstract} short_abstract, ${tally.not_found} not_found; ${embedded} embedded, ${unembedded.length} without a vector, ${await corpusOrphans(db)} without a canonical text`,
 );
 
 if (stop) {

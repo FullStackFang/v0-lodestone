@@ -252,7 +252,7 @@ export async function ingestPatent(db: Db, identifier: string, deps: PatentInges
   const { row, put } = await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(document)
-      .values({ sessionId: null, source: "patent", title, text: abstract })
+      .values({ sessionId: null, source: "patent", title, text: null })
       .returning({ id: document.id });
     return { row, put: await putArtifactText(tx, { artifactId: row.id, sourceFormat: "abstract", parser: PATENT_PARSER, text: abstract, provenance }) };
   });

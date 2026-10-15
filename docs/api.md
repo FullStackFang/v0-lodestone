@@ -142,6 +142,7 @@ a `priorArt` hit, read in full.
   "kind": "paper",
   "title": "…",
   "abstract": "…",
+  "abstractHash": "…",
   "provenance": { "doi": "…", "openalex_id": "…", "authors": ["…"], "year": 2021,
                   "venue": "…", "field": "…", "url": "…", "query_set": "food-waste" },
   "citation": "A. Reader, B. Writer. (2021). Title. Venue"
@@ -154,6 +155,12 @@ nothing is withheld. A patent's provenance carries `patent_number`,
 `assignees`, `inventors` and `cpc` instead of `doi`, `venue` and `authors`,
 and its citation names the inventors and the patent number. An id that is
 not a paper or patent, a card's idea id included, answers `404`.
+
+`abstractHash` is the stored hash of that abstract. Two reads with no
+re-ingest between them return the same one. Keep it beside anything anchored
+in the abstract, such as a `support` sentence. If a later read returns a
+different hash, the abstract was replaced, and an anchored sentence may no
+longer be a substring of it.
 
 ## What a client should do with it
 

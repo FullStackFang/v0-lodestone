@@ -6,9 +6,9 @@
  *  schema reserved and nothing had written. No model reads the paper: the
  *  match is cosine between the card's block vectors and the abstract, and
  *  the explanation is which block came closest. */
-import { and, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { artifactTexts, document, documentChunk } from "@/db/schema";
+import { EMBEDDING_DIMENSIONS, artifactTexts, document, documentChunk } from "@/db/schema";
 import type { Embedder } from "./cards";
 import { blockLabel } from "./cards";
 import { forgeCard } from "@/db/lodestone-schema";
@@ -26,13 +26,19 @@ const EMBED_BATCH = 128;
 
 /** Embed every paper and patent whose abstract has no chunk yet. Returns how
  *  many. Written a batch at a time, so a run killed partway keeps what it
- *  embedded and leaves the rest for the next call. */
+ *  embedded and leaves the rest for the next call. The abstract is read from
+ *  its newest canonical text, its one stored copy; a document without one has
+ *  nothing to embed and is left for `corpusOrphans` to report. */
 export async function embedPaperAbstracts(db: Db, embed: Embedder, batch = EMBED_BATCH): Promise<number> {
-  const missing = await db
-    .select({ id: document.id, text: document.text })
+  const rows = await db
+    .select({ id: document.id, text: artifactTexts.canonicalText })
     .from(document)
+    .innerJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
     .leftJoin(documentChunk, eq(documentChunk.documentId, document.id))
-    .where(and(inArray(document.source, [...CORPUS_SOURCES]), isNull(documentChunk.id)));
+    .where(and(inArray(document.source, [...CORPUS_SOURCES]), isNull(documentChunk.id)))
+    .orderBy(document.id, desc(artifactTexts.version));
+  const seen = new Set<string>();
+  const missing = rows.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
   let written = 0;
   for (let from = 0; from < missing.length; from += batch) {
     const slice = missing.slice(from, from + batch);
@@ -41,7 +47,7 @@ export async function embedPaperAbstracts(db: Db, embed: Embedder, batch = EMBED
     for (const [at, m] of slice.entries()) {
       const vector = result.vectors[at];
       if (!vector) continue;
-      await db.insert(documentChunk).values({ documentId: m.id, ordinal: 0, text: m.text, embedding: vector });
+      await db.insert(documentChunk).values({ documentId: m.id, ordinal: 0, text: null, embedding: vector });
       written += 1;
     }
   }
@@ -96,44 +102,35 @@ function isHeld(held: Set<string>, provenance: Record<string, unknown>): boolean
   return (typeof doi === "string" && held.has(doiKey(doi))) || (typeof id === "string" && held.has(idKey(id)));
 }
 
-interface PaperRow {
+/** What a hit says about its document, beside the score. */
+interface PaperMeta {
   documentId: string;
   kind: CorpusKind;
   title: string | null;
-  embedding: number[];
   provenance: Record<string, unknown> | null;
   addedAt: Date;
 }
 
-async function papers(db: Db, since?: Date): Promise<PaperRow[]> {
-  const rows = await db
-    .select({
-      documentId: document.id,
-      kind: document.source,
-      title: document.title,
-      embedding: documentChunk.embedding,
-      provenance: artifactTexts.provenance,
-      addedAt: document.createdAt,
-    })
-    .from(documentChunk)
-    .innerJoin(document, eq(document.id, documentChunk.documentId))
-    .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
-    .where(and(inArray(document.source, [...CORPUS_SOURCES]), isNotNull(documentChunk.embedding), since ? gte(document.createdAt, since) : sql`true`))
-    .orderBy(desc(document.createdAt));
-  const seen = new Set<string>();
-  return rows
-    .filter((r) => (seen.has(r.documentId) ? false : (seen.add(r.documentId), true)))
-    .map((r) => ({ ...r, kind: r.kind as CorpusKind, embedding: r.embedding as number[] }));
+export interface PaperRow extends PaperMeta {
+  embedding: number[];
 }
 
+/** Score one paper against a card's rows in Node. Ranking no longer does
+ *  this — `priorArtFor` scores in the database — but it is the definition
+ *  the database path is tested against. */
 export function scorePaper(rows: IdeaVector[], paper: PaperRow, held: Set<string> = new Set()): PaperHit {
-  let best = -Infinity;
   const byBlock = new Map<string, number>();
   for (const r of rows) {
     const c = cosine(r.embedding, paper.embedding);
-    if (c > best) best = c;
     byBlock.set(r.block, Math.max(byBlock.get(r.block) ?? -Infinity, c));
   }
+  return hitFrom(paper, byBlock, held);
+}
+
+/** A hit from each block's best cosine: the score is the best block, and the
+ *  explanation is that block and any other within a hair of it. */
+function hitFrom(paper: PaperMeta, byBlock: Map<string, number>, held: Set<string>): PaperHit {
+  const best = Math.max(...byBlock.values());
   const blocks = [...byBlock.entries()]
     .filter(([, c]) => c >= best - 0.03)
     .sort((a, b) => b[1] - a[1])
@@ -155,25 +152,98 @@ export function scorePaper(rows: IdeaVector[], paper: PaperRow, held: Set<string
   };
 }
 
+const corpusSources = sql.join(CORPUS_SOURCES.map((s) => sql`${s}`), sql`, `);
+
 /** The k closest papers to this card, or an empty list when the card has no
  *  vectors yet. `since` narrows to papers added after a date, for the digest.
  *  A paper the author listed as already held is ranked like any other and
- *  flagged `yours`. */
+ *  flagged `yours`.
+ *
+ *  Ranked in the database; only the k hits' per-block cosines come back.
+ *  Candidates are the union of each card row's k nearest chunks by the HNSW
+ *  index. The union is exact: a paper in the true top k is in its own best
+ *  row's top k, since anything nearer that row also scores above it. The
+ *  candidates are then scored exactly, the corpus side cast up from half
+ *  precision. `since` skips the index and scores every document added since,
+ *  a week of ingest, which a filtered index scan could under-return. */
 export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): Promise<PaperHit[]> {
   const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
   if (rows.length === 0) return [];
   const [card] = await db.select({ doc: forgeCard.doc }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId)).limit(1);
   const held = card ? heldPapers(card.doc) : new Set<string>();
-  const corpus = await papers(db, since);
-  return corpus
-    .map((p) => scorePaper(rows, p, held))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k);
+
+  const q = sql.join(
+    rows.map((r) => sql`(${r.block}, ${JSON.stringify(r.embedding)}::vector(${sql.raw(String(EMBEDDING_DIMENSIONS))}))`),
+    sql`, `,
+  );
+  const candidates = since
+    ? sql`select d.id as document_id from document d
+          where d.source in (${corpusSources}) and d.created_at >= ${since.toISOString()}`
+    : sql`select distinct n.document_id from q cross join lateral (
+            select c.document_id from document_chunk c join document d on d.id = c.document_id
+            where d.source in (${corpusSources}) and c.embedding is not null
+            order by c.embedding <=> q.v::halfvec(${sql.raw(String(EMBEDDING_DIMENSIONS))})
+            limit ${k}
+          ) n`;
+  const result = await db.execute(sql`
+    with q(block, v) as (values ${q}),
+    candidates as (${candidates}),
+    per_block as (
+      select c.document_id, q.block, max(1 - (c.embedding::vector <=> q.v)) as cos
+      from candidates join document_chunk c on c.document_id = candidates.document_id cross join q
+      where c.embedding is not null
+      group by c.document_id, q.block
+    ),
+    best as (
+      select p.document_id from per_block p join document d on d.id = p.document_id
+      group by p.document_id, d.created_at
+      order by max(p.cos) desc, d.created_at desc
+      limit ${k}
+    )
+    select p.document_id, p.block, p.cos from per_block p join best using (document_id)`);
+  const scored = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { document_id: string; block: string; cos: number | string }[];
+  if (scored.length === 0) return [];
+
+  // Each map is seeded in the card's row order, as `scorePaper` fills it, so
+  // blocks that tie are named in the same order.
+  const byDocument = new Map<string, Map<string, number>>();
+  for (const s of scored) {
+    const blocks = byDocument.get(s.document_id) ?? new Map(rows.map((r) => [r.block, -Infinity]));
+    blocks.set(s.block, Number(s.cos));
+    byDocument.set(s.document_id, blocks);
+  }
+  const meta = await db
+    .select({ documentId: document.id, kind: document.source, title: document.title, provenance: artifactTexts.provenance, addedAt: document.createdAt })
+    .from(document)
+    .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
+    .where(inArray(document.id, [...byDocument.keys()]))
+    .orderBy(desc(document.createdAt), desc(artifactTexts.version));
+  const seen = new Set<string>();
+  return meta
+    .filter((m) => (seen.has(m.documentId) ? false : (seen.add(m.documentId), true)))
+    .map((m) => hitFrom({ ...m, kind: m.kind as CorpusKind }, byDocument.get(m.documentId)!, held))
+    .sort((a, b) => b.score - a.score);
 }
 
 /** How many papers the corpus holds with a vector. */
 export async function corpusSize(db: Db): Promise<number> {
-  return (await papers(db)).length;
+  const [row] = await db
+    .select({ n: countDistinct(documentChunk.documentId) })
+    .from(documentChunk)
+    .innerJoin(document, eq(document.id, documentChunk.documentId))
+    .where(and(inArray(document.source, [...CORPUS_SOURCES]), isNotNull(documentChunk.embedding)));
+  return row?.n ?? 0;
+}
+
+/** Corpus documents with no canonical text: a write that broke halfway. They
+ *  are never embedded or served, so the ingest and seed scripts name them. */
+export async function corpusOrphans(db: Db): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(document)
+    .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
+    .where(and(inArray(document.source, [...CORPUS_SOURCES]), isNull(artifactTexts.id)));
+  return row?.n ?? 0;
 }
 
 export interface CorpusDocument {
@@ -182,6 +252,10 @@ export interface CorpusDocument {
   title: string | null;
   /** The canonical abstract — the only text Lodestone holds for a work. */
   abstract: string;
+  /** The stored `text_hash` of that abstract. A client keeps it beside
+   *  anything anchored in the abstract; a different hash on a later read
+   *  means the abstract was replaced. */
+  abstractHash: string;
   provenance: Record<string, unknown>;
   citation: string;
 }
@@ -189,20 +263,21 @@ export interface CorpusDocument {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** One paper or patent as the read endpoint serves it, or null for any id
- *  that is not one — a card's idea id included. */
+ *  that is not one — a card's idea id included, and a corpus row whose
+ *  canonical text never landed. */
 export async function corpusDocument(db: Db, documentId: string): Promise<CorpusDocument | null> {
   if (!UUID.test(documentId)) return null;
   const [row] = await db
-    .select({ kind: document.source, title: document.title, text: document.text, canonical: artifactTexts.canonicalText, provenance: artifactTexts.provenance })
+    .select({ kind: document.source, title: document.title, abstract: artifactTexts.canonicalText, abstractHash: artifactTexts.textHash, provenance: artifactTexts.provenance })
     .from(document)
-    .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
+    .innerJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
     .where(and(eq(document.id, documentId), inArray(document.source, [...CORPUS_SOURCES])))
     .orderBy(desc(artifactTexts.version))
     .limit(1);
   if (!row) return null;
   const kind = row.kind as CorpusKind;
   const provenance = row.provenance ?? {};
-  return { documentId, kind, title: row.title, abstract: row.canonical ?? row.text, provenance, citation: citationFor(kind, provenance, row.title) };
+  return { documentId, kind, title: row.title, abstract: row.abstract, abstractHash: row.abstractHash, provenance, citation: citationFor(kind, provenance, row.title) };
 }
 
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((s): s is string => typeof s === "string" && s.length > 0) : []);

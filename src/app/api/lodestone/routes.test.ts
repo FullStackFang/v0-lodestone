@@ -110,8 +110,8 @@ describe("client routes", () => {
     const db = await getDb();
     const paperParams = (documentId: string) => ({ params: Promise.resolve({ documentId }) });
     const abstract = "Departing tenants who record a walkthrough video reduce mid-lease moves among arriving students.";
-    const [paper] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Walkthroughs and arrivals", text: abstract }).returning({ id: document.id });
-    await putArtifactText(db, {
+    const [paper] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Walkthroughs and arrivals", text: null }).returning({ id: document.id });
+    const put = await putArtifactText(db, {
       artifactId: paper.id,
       sourceFormat: "abstract",
       parser: "test",
@@ -125,11 +125,12 @@ describe("client routes", () => {
       kind: "paper",
       title: "Walkthroughs and arrivals",
       abstract,
+      abstractHash: put.textHash,
       provenance: expect.objectContaining({ doi: "10.5555/walk", query_set: "housing" }),
       citation: "A. Reader, B. Writer. (2021). Walkthroughs and arrivals. Housing Studies",
     });
 
-    const [patent] = await db.insert(document).values({ sessionId: null, source: "patent", title: "Escrowed sublet deposit", text: "A deposit is held in escrow." }).returning({ id: document.id });
+    const [patent] = await db.insert(document).values({ sessionId: null, source: "patent", title: "Escrowed sublet deposit", text: null }).returning({ id: document.id });
     await putArtifactText(db, {
       artifactId: patent.id,
       sourceFormat: "abstract",
@@ -145,6 +146,9 @@ describe("client routes", () => {
     expect((await readPaper(req(`/api/lodestone/papers/${sam.ideaId}`), paperParams(sam.ideaId))).status).toBe(404);
     const unknown = "00000000-0000-4000-8000-000000000000";
     expect((await readPaper(req(`/api/lodestone/papers/${unknown}`), paperParams(unknown))).status).toBe(404);
+    // A corpus row whose canonical text never landed is a broken write, not a paper.
+    const [halfway] = await db.insert(document).values({ sessionId: null, source: "paper", title: "half written", text: null }).returning({ id: document.id });
+    expect((await readPaper(req(`/api/lodestone/papers/${halfway.id}`), paperParams(halfway.id))).status).toBe(404);
     const [deck] = await db.insert(document).values({ sessionId: null, source: "deck", title: "a deck", text: "slides" }).returning({ id: document.id });
     expect((await readPaper(req(`/api/lodestone/papers/${deck.id}`), paperParams(deck.id))).status).toBe(404);
   });

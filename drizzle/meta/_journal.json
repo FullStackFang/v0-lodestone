@@ -99,6 +99,13 @@
       "when": 1792001023654,
       "tag": "0013_corpus_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792070731835,
+      "tag": "0014_corpus_compact",
+      "breakpoints": true
     }
   ]
 }

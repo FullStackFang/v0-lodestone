@@ -160,7 +160,7 @@ export async function ingestWork(
   const { row, put } = await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(document)
-      .values({ sessionId: null, source: "paper", title, text: canonical })
+      .values({ sessionId: null, source: "paper", title, text: null })
       .returning({ id: document.id });
     const put = await putArtifactText(tx, {
       artifactId: row.id,

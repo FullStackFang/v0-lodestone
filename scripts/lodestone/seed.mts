@@ -22,7 +22,7 @@ import { putArtifactText } from "../../src/harness/canonical";
 import { embed } from "../../src/harness/embed";
 import { ensurePerson } from "../../src/harness/ledger";
 import { importCard, setVisibility } from "../../src/lodestone/cards";
-import { embedPaperAbstracts } from "../../src/lodestone/priorArt";
+import { corpusOrphans, embedPaperAbstracts } from "../../src/lodestone/priorArt";
 import { enrollTestMember } from "../../src/pilot/test-fixtures";
 
 const args = process.argv.slice(2);
@@ -55,7 +55,7 @@ for (const p of papers) {
   const existing = await db.select({ id: document.id }).from(document)
     .where(and(eq(document.source, "paper"), eq(document.title, p.title))).limit(1);
   if (existing[0]) continue;
-  const [row] = await db.insert(document).values({ sessionId: null, source: "paper", title: p.title, text: p.abstract }).returning({ id: document.id });
+  const [row] = await db.insert(document).values({ sessionId: null, source: "paper", title: p.title, text: null }).returning({ id: document.id });
   await putArtifactText(db, {
     artifactId: row.id,
     sourceFormat: "abstract",
@@ -69,7 +69,7 @@ const chunks = await embedPaperAbstracts(db, embed);
 const unembedded = await db.select({ id: document.id }).from(document)
   .leftJoin(documentChunk, eq(documentChunk.documentId, document.id))
   .where(and(eq(document.source, "paper"), isNull(documentChunk.id)));
-console.log(`corpus: ${papersAdded} papers added, ${chunks} abstracts embedded, ${unembedded.length} without a vector`);
+console.log(`corpus: ${papersAdded} papers added, ${chunks} abstracts embedded, ${unembedded.length} without a vector, ${await corpusOrphans(db)} without a canonical text`);
 
 // The cohort.
 let at = 0;
