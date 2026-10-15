@@ -119,3 +119,21 @@ anchored in the abstract, and compare it on a later read.
 - **`document.text` nullable** affects every reader of decks and résumés.
   Writers of those sources still always set it, and a check constraint keeps
   it required for `source in ('deck','resume')`.
+
+## Measured (2026-10-15)
+
+A copy of the dev database (968 papers, 24 seeded cards), at `0013` and then
+migrated to `0014`, each after `vacuum full`. `pg_total_relation_size` ÷ 968,
+in bytes; `document_chunk` includes the HNSW index.
+
+| Table            | Before | After |
+| ---------------- | -----: | ----: |
+| `document`       |  1,676 |   228 |
+| `document_chunk` |  7,202 | 5,746 |
+| `artifact_texts` |  2,370 | 2,370 |
+| Per document     | 11,247 | 8,344 |
+
+The proposal's estimate was 9.3 KB to 7 KB; the ratio held. Ranking against
+the exact scan from the pre-`0014` code: 48 lists (each card's top 10 and a
+since-window top 5), no difference in ids, order, blocks or `yours`, worst
+score difference 2.2e-5.
