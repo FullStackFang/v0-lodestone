@@ -3,8 +3,8 @@
 What Whetstone, or any client a member runs, may do against Lodestone. The
 server stores, embeds once, ranks and serves. It calls no model, and nothing
 here returns another member's thread, evidence sentences or contact details.
-The contract between the two apps is this page plus the `forge-idea/3`
-export format Whetstone writes (`/2` and `/1` are still accepted).
+The contract between the two apps is this page plus the `forge-idea/4`
+export format Whetstone writes (`/3`, `/2` and `/1` are still accepted).
 
 ## Authentication
 
@@ -40,7 +40,7 @@ The connection test. Who the token is and what the network holds.
 
 ### `POST /api/lodestone/cards`
 
-The import form as an API. The body is a `forge-idea/1`, `/2` or `/3`
+The import form as an API. The body is a `forge-idea/1`, `/2`, `/3` or `/4`
 export, whole. The card is filed under the token's person and embedded; the
 ledger rows beneath it supersede, so sending the same idea again updates
 rather than duplicates. An idea id that belongs to someone else is refused
@@ -51,6 +51,13 @@ holds, as `[{ "id", "title", "doi" }]` — ids and a title, never an abstract.
 Today Whetstone lists the paper a paper-seeded idea started from. A prior-art
 match against one of them comes back flagged `yours` rather than presented as
 a find.
+
+A `/4` document is `/3` with a `support` array on each workspace: sentences
+Whetstone's author weighed from a paper's abstract against a block, as
+`[{ "block", "entry_key", "document_id", "kind", "title", "citation",
+"sentence", "stance", "run_id" }]`. They are stored with the rest of the raw
+document but not yet projected, embedded or ranked, and never become an
+entry's evidence.
 
 `201` on first import, `200` on update:
 

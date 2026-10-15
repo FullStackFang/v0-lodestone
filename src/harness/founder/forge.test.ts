@@ -452,6 +452,23 @@ describe("parseForgeIdea", () => {
     ).toThrow();
   });
 
+  it("reads forge-idea/4 as /3, ignoring the support beside each workspace", () => {
+    const support = [
+      { block: "cost_structure", entry_key: null, document_id: "d1", kind: "paper", title: "T",
+        citation: "A (2021). T.", sentence: "Margins fall.", stance: "contradicts", run_id: "r1" },
+    ];
+    const v4 = parseForgeIdea({
+      ...fixture.document,
+      format: "forge-idea/4",
+      already_have: [{ id: "W1", title: "A paper", doi: null }],
+      workspaces: fixture.document.workspaces.map((w) => ({ ...w, support })),
+    });
+    const v3 = parseForgeIdea({ ...fixture.document, format: "forge-idea/3", already_have: [{ id: "W1", title: "A paper", doi: null }] });
+    expect(v4.format).toBe("forge-idea/4");
+    expect({ ...v4, format: v3.format }).toEqual(v3);
+    expect(JSON.stringify(v4.workspaces)).not.toContain("Margins fall.");
+  });
+
   it("rejects a document that is not a forge-idea", () => {
     expect(() => parseForgeIdea({ format: "forge-idea/9" })).toThrow();
     expect(() => parseForgeIdea({ ...fixture.document, workspaces: [{ framework: 1 }] })).toThrow();

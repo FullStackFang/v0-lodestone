@@ -101,6 +101,27 @@ describe("prior art at zero density", () => {
     expect((await priorArtFor(db, sam.ideaId, CORPUS.length)).some((h) => h.yours)).toBe(false);
   });
 
+  it("imports forge-idea/4 as /3, the support beside each workspace ignored", async () => {
+    const doc = forgeDocument(sam) as { workspaces: Record<string, unknown>[] };
+    const v4 = {
+      ...doc,
+      format: "forge-idea/4",
+      already_have: [],
+      workspaces: doc.workspaces.map((w) => ({
+        ...w,
+        support: [
+          { block: "cost_structure", entry_key: null, document_id: "d1", kind: "paper", title: "T",
+            citation: "A (2021). T.", sentence: "Margins fall.", stance: "contradicts", run_id: "r1" },
+        ],
+      })),
+    };
+    const out = await importCard(db, owner(sam.email), v4, testEmbed);
+    expect(out.created).toBe(false);
+    const blocks = cardBlocks(v4).blocks.flatMap((b) => b.entries.map((e) => e.text));
+    expect(blocks).not.toContain("Margins fall.");
+    await importCard(db, owner(sam.email), forgeDocument(sam), testEmbed);
+  });
+
   it("embeds a patent like a paper and ranks it in the same list, saying what it is", async () => {
     const abstract =
       "A system verifies a sublet from a departing student to an arriving student, records a walkthrough video of the unit, and holds the deposit in escrow until move-in under a semester-length lease.";

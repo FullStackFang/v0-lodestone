@@ -97,6 +97,16 @@ export const ForgeIdeaV3 = ForgeIdeaV2.extend({
 });
 export type ForgeIdeaV3 = z.infer<typeof ForgeIdeaV3>;
 
+/** `/3` plus a `support` array on each workspace: the sentences Whetstone's
+ *  weigh runs filed from papers the author read, beside the blocks. The
+ *  workspace schema drops the key from the projection, but `importCard` keeps
+ *  the raw document, so they are stored, unread, until a cohort view has a use
+ *  for them. Everything else is `/3`. */
+export const ForgeIdeaV4 = ForgeIdeaV3.extend({
+  format: z.literal("forge-idea/4"),
+});
+export type ForgeIdeaV4 = z.infer<typeof ForgeIdeaV4>;
+
 export const ForgeIdeaV1 = z.object({
   format: z.literal("forge-idea/1"),
   title: z.string(),
@@ -119,7 +129,7 @@ export type ForgeIdeaV1 = z.infer<typeof ForgeIdeaV1>;
 
 /** What the projection reads, whichever format arrived. */
 export interface ForgeIdea {
-  format: "forge-idea/1" | "forge-idea/2" | "forge-idea/3";
+  format: "forge-idea/1" | "forge-idea/2" | "forge-idea/3" | "forge-idea/4";
   ideaId: string;
   /** False for `/1`: entry keys were minted here, so nothing can supersede. */
   stableKeys: boolean;
@@ -156,7 +166,12 @@ export function parseForgeIdea(input: unknown): ForgeIdea {
       ],
     };
   }
-  const doc = format === "forge-idea/3" ? ForgeIdeaV3.parse(input) : ForgeIdeaV2.parse(input);
+  const doc =
+    format === "forge-idea/4"
+      ? ForgeIdeaV4.parse(input)
+      : format === "forge-idea/3"
+        ? ForgeIdeaV3.parse(input)
+        : ForgeIdeaV2.parse(input);
   return {
     format: doc.format,
     ideaId: doc.id,
