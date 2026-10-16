@@ -1,14 +1,14 @@
 ## 0. Gate
 
-- [ ] 0.1 `lodestone-sources-repair` merged (keyed OpenAlex, limiter by key); `lodestone-eval-set` baseline recorded with `--no-search`
+- [x] 0.1 `lodestone-sources-repair` merged (keyed OpenAlex, limiter by key); `lodestone-eval-set` baseline recorded with `--no-search`
 
 ## 1. Sources
 
-- [ ] 1.1 Failing tests with a fake `fetch`: `searchUrl({ semantic: true })` carries `search.semantic`, no `search`, `per-page=50` and `api_key`; `searchWorks` with `semantic: true` returns up to 50 works and spaces at 1/s under a fake clock; a 429 returns `{ stopped: true }`
-- [ ] 1.2 `search.ts`: the `semantic` option
-- [ ] 1.3 Failing tests for `s2.ts`: URL fields, `x-api-key`, a paper with a DOI yields `{ doi, tldr }`, one without is reported `skipped_no_doi`
-- [ ] 1.4 `src/harness/papers/s2.ts`: `searchS2`, 1/s limiter; resolution through `fetchWork` → `ingestWork`; the TLDR handed to the ingest as provenance `tldr` for `lodestone-hit-sentences` to use
-- [ ] 1.5 Migration `0015_card_search`: table `card_search`
+- [x] 1.1 Failing tests with a fake `fetch`: `searchUrl({ semantic: true })` carries `search.semantic`, no `search`, `per-page=50` and `api_key`; `searchWorks` with `semantic: true` returns up to 50 works and spaces at 1/s under a fake clock; a 429 returns `{ stopped: true }`
+- [x] 1.2 `search.ts`: the `semantic` option (2026-10-16: semantic refuses a cursor; one page, no cursor param)
+- [x] 1.3 Failing tests for `s2.ts`: URL fields, `x-api-key`, a paper with a DOI yields `{ doi, tldr }`, one without is reported `skipped_no_doi`
+- [x] 1.4 `src/harness/papers/s2.ts`: `searchS2`, 1/s limiter; resolution through `fetchWork` → `ingestWork`; the TLDR handed to the ingest as provenance `tldr` for `lodestone-hit-sentences` to use (2026-10-16: `s2.ts` searches only; `searchCard` does the ingest. The key is optional: a keyless call got 429 from the shared pool)
+- [x] 1.5 Migration `0015_card_search`: table `card_search`
 
 ## 2. The search
 

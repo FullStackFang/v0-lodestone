@@ -18,6 +18,10 @@ export const OPENALEX_PER_SECOND = 10;
 /** OpenAlex under a key: 25 a second, headroom under its 30 for an eval run
  *  and an ingest to overlap. */
 export const OPENALEX_KEYED_PER_SECOND = 25;
+/** OpenAlex semantic search: one request a second, key or no key. */
+export const OPENALEX_SEMANTIC_PER_SECOND = 1;
+/** Semantic Scholar search: one request a second, the keyed ceiling. */
+export const S2_PER_SECOND = 1;
 /** PatentsView: 45 requests a minute. */
 export const PATENTSVIEW_PER_MINUTE = 45;
 
@@ -42,4 +46,14 @@ export function openalexPerSecond(apiKey = process.env.OPENALEX_API_KEY?.trim())
 /** A limiter at the OpenAlex ceiling for this key, or for none. */
 export function openalexLimiter(apiKey = process.env.OPENALEX_API_KEY?.trim(), clock: Clock = realClock): Limiter {
   return limiter(openalexPerSecond(apiKey), 1000, clock);
+}
+
+/** A limiter for OpenAlex semantic search, which allows one request a second. */
+export function openalexSemanticLimiter(clock: Clock = realClock): Limiter {
+  return limiter(OPENALEX_SEMANTIC_PER_SECOND, 1000, clock);
+}
+
+/** A limiter for Semantic Scholar search. */
+export function s2Limiter(clock: Clock = realClock): Limiter {
+  return limiter(S2_PER_SECOND, 1000, clock);
 }

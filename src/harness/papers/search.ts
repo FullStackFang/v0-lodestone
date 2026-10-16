@@ -5,13 +5,18 @@
  *  next page is asked for, so a run that dies after page three has written
  *  three pages. A 429 or a network failure is a resume point, not an error:
  *  the loop returns the cursor of the page it could not read and the caller
- *  prints it for `--cursor`. */
+ *  prints it for `--cursor`.
+ *
+ *  `semantic: true` asks `search.semantic` instead: one page of at most fifty,
+ *  no cursor (OpenAlex refuses one), one request a second. */
 import type { OpenAlexWork } from "./openalex";
-import { openalexLimiter, type Limiter } from "./rate";
+import { openalexLimiter, openalexSemanticLimiter, type Limiter } from "./rate";
 
 const API = "https://api.openalex.org/works";
 /** OpenAlex's largest page. */
 const PER_PAGE = 200;
+/** Semantic search returns at most fifty, on one page. */
+const SEMANTIC_PER_PAGE = 50;
 
 export interface SearchUrlInput {
   query: string;
@@ -20,11 +25,14 @@ export interface SearchUrlInput {
   perPage: number;
   mailto?: string;
   apiKey?: string;
+  semantic?: boolean;
 }
 
-export function searchUrl({ query, since, cursor, perPage, mailto, apiKey }: SearchUrlInput): string {
+export function searchUrl({ query, since, cursor, perPage, mailto, apiKey, semantic }: SearchUrlInput): string {
   const filter = ["has_abstract:true", ...(since ? [`from_publication_date:${since}-01-01`] : [])].join(",");
-  const params = new URLSearchParams({ search: query, filter, "per-page": String(perPage), cursor });
+  const params = semantic
+    ? new URLSearchParams({ "search.semantic": query, filter, "per-page": String(Math.min(perPage, SEMANTIC_PER_PAGE)) })
+    : new URLSearchParams({ search: query, filter, "per-page": String(perPage), cursor });
   if (mailto) params.set("mailto", mailto);
   if (apiKey) params.set("api_key", apiKey);
   return `${API}?${params}`;
@@ -41,6 +49,8 @@ export interface SearchOptions {
   mailto?: string;
   /** OpenAlex wants a free key to page past the first page by cursor. */
   apiKey?: string;
+  /** `search.semantic`: one page of at most fifty, never a cursor. */
+  semantic?: boolean;
   fetchImpl?: typeof fetch;
   wait?: Limiter;
   /** Called once per page read, with the cursor that read it. */
@@ -70,17 +80,18 @@ export async function searchWorks(
   const fetchImpl = options.fetchImpl ?? fetch;
   const mailto = options.mailto ?? process.env.OPENALEX_MAILTO?.trim();
   const apiKey = options.apiKey ?? process.env.OPENALEX_API_KEY?.trim();
-  const wait = options.wait ?? openalexLimiter(apiKey);
-  const limit = options.limit ?? Infinity;
+  const semantic = options.semantic ?? false;
+  const wait = options.wait ?? (semantic ? openalexSemanticLimiter() : openalexLimiter(apiKey));
+  const limit = Math.min(options.limit ?? Infinity, semantic ? SEMANTIC_PER_PAGE : Infinity);
   let cursor: string | null = options.cursor || "*";
   let seen = 0;
 
   while (cursor !== null && seen < limit) {
-    const perPage = Math.min(PER_PAGE, limit - seen);
+    const perPage = Math.min(semantic ? SEMANTIC_PER_PAGE : PER_PAGE, limit - seen);
     let page: WorksPage;
     try {
       await wait();
-      const response = await fetchImpl(searchUrl({ query: options.query, since: options.since, cursor, perPage, mailto, apiKey }), {
+      const response = await fetchImpl(searchUrl({ query: options.query, since: options.since, cursor, perPage, mailto, apiKey, semantic }), {
         headers: { accept: "application/json" },
       });
       if (!response.ok) {
@@ -99,7 +110,7 @@ export async function searchWorks(
       await onWork(work);
       seen += 1;
     }
-    cursor = works.length === 0 ? null : page.meta?.next_cursor ?? null;
+    cursor = semantic || works.length === 0 ? null : page.meta?.next_cursor ?? null;
   }
   return { seen, stopped: false, cursor };
 }

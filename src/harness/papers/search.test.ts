@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OpenAlexWork } from "./openalex";
+import { OPENALEX_SEMANTIC_PER_SECOND, openalexSemanticLimiter, type Clock } from "./rate";
 import { searchUrl, searchWorks } from "./search";
 
 const work = (n: number): OpenAlexWork => ({
@@ -131,5 +132,52 @@ describe("searchWorks", () => {
     const notices: string[] = [];
     await searchWorks({ query: "q", fetchImpl: impl, wait: noWait, onNotice: (n) => void notices.push(n) }, async () => {});
     expect(notices).toEqual(["You are on the shared daily budget."]);
+  });
+});
+
+describe("semantic search", () => {
+  it("asks for search.semantic, never search or a cursor, fifty to a page, under the key", () => {
+    const url = new URL(searchUrl({ query: "help students concentrate", cursor: "*", perPage: 200, apiKey: "k-1", semantic: true }));
+    expect(url.searchParams.get("search.semantic")).toBe("help students concentrate");
+    expect(url.searchParams.has("search")).toBe(false);
+    expect(url.searchParams.has("cursor")).toBe(false);
+    expect(url.searchParams.get("per-page")).toBe("50");
+    expect(url.searchParams.get("api_key")).toBe("k-1");
+    expect(url.searchParams.get("filter")).toBe("has_abstract:true");
+  });
+
+  it("reads one page of at most fifty and never follows a cursor", async () => {
+    const works = Array.from({ length: 60 }, (_, i) => work(i + 1));
+    const urls: URL[] = [];
+    const impl = (async (input: string | URL | Request) => {
+      urls.push(new URL(String(input)));
+      return new Response(JSON.stringify({ results: works, meta: { next_cursor: "c2" } }), { status: 200 });
+    }) as typeof fetch;
+    let seen = 0;
+    const result = await searchWorks({ query: "q", semantic: true, fetchImpl: impl, wait: noWait }, async () => void seen++);
+    expect(seen).toBe(50);
+    expect(result).toEqual({ seen: 50, stopped: false, cursor: null });
+    expect(urls).toHaveLength(1);
+  });
+
+  it("spaces semantic requests a second apart by default", async () => {
+    let t = 0;
+    const starts: number[] = [];
+    const clock: Clock = { now: () => t, sleep: async (ms) => void (t += ms) };
+    const impl = (async () => {
+      starts.push(t);
+      return new Response(JSON.stringify({ results: [work(1)], meta: {} }), { status: 200 });
+    }) as typeof fetch;
+    const wait = openalexSemanticLimiter(clock);
+    for (let i = 0; i < 3; i++) await searchWorks({ query: "q", semantic: true, fetchImpl: impl, wait }, async () => {});
+    expect(starts).toEqual([0, 1000, 2000]);
+    expect(OPENALEX_SEMANTIC_PER_SECOND).toBe(1);
+  });
+
+  it("returns stopped on a 429 without throwing", async () => {
+    const impl = (async () => new Response("Semantic search is limited to 1 request per second.", { status: 429 })) as typeof fetch;
+    const result = await searchWorks({ query: "q", semantic: true, fetchImpl: impl, wait: noWait }, async () => {});
+    expect(result).toMatchObject({ seen: 0, stopped: true });
+    expect(result.reason).toMatch(/429/);
   });
 });

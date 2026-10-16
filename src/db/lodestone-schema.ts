@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { person } from "./schema";
 
 /** Where a Forge card can be seen. `private` is the default and the state a
@@ -33,6 +33,33 @@ export const forgeCard = pgTable("forge_card", {
 ]);
 
 export type ForgeCardRow = typeof forgeCard.$inferSelect;
+
+export type CardSearchState = "running" | "done";
+/** Per source: documents new to the corpus, already held, Semantic Scholar
+ *  hits without a DOI, and the error that stopped it, if any. */
+export type CardSearchSources = Record<string, { new: number; existing: number; skipped_no_doi?: number; error?: string }>;
+
+/** The last search run for one block of one card. `text_hash` is the sha256
+ *  of the block's entry texts in canvas order: a re-import searches a block
+ *  only when it changed, or when its row has sat `running` past the stale
+ *  window. No other member's token reads this table. */
+export const cardSearch = pgTable("card_search", {
+  ideaId: text("idea_id").notNull().references(() => forgeCard.ideaId, { onDelete: "cascade" }),
+  /** The block key: `value_proposition`, never its label. */
+  block: text("block").notNull(),
+  textHash: text("text_hash").notNull(),
+  state: text("state").$type<CardSearchState>().notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  sources: jsonb("sources").$type<CardSearchSources>().notNull().default(sql`'{}'::jsonb`),
+  /** Documents this run added to the corpus. */
+  found: integer("found").notNull().default(0),
+}, (t) => [
+  primaryKey({ columns: [t.ideaId, t.block] }),
+  check("card_search_state_valid", sql`${t.state} in ('running', 'done')`),
+]);
+
+export type CardSearchRow = typeof cardSearch.$inferSelect;
 
 /** A bearer token a member mints for a client of their own, Whetstone being
  *  the first. The token itself is shown once and never stored; the row holds
