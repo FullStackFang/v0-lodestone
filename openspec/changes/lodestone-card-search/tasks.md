@@ -33,7 +33,7 @@
 
 - [ ] 4.1 `npm run lodestone:eval -- --label search` with search on (the runner imports through `importCard`): record MRR of marked documents, mean distinct fields, and P@5 for the record
 - [ ] 4.2 `--label quota --no-search`; `--label purpose` with the ten cross-field cards carrying purposes
-- [ ] 4.3 Write the three rows beside the baseline here; accept when marked-document MRR ≥ baseline and mean fields ≥ baseline + 1; otherwise try `6k` candidates or adjust the query builder and re-run
+- [ ] 4.3 Write the three rows beside the baseline here; accept when mean fields ≥ baseline + 1, marked-document MRR ≥ half the baseline (0.251), and at least half of the searched-in papers in the top five of ten sampled cards are judged relevant (design §9); otherwise try `6k` candidates or adjust the query builder and re-run
 
 ### Eval rows so far (2026-10-16; not accepted)
 
@@ -45,4 +45,4 @@
 
 - `search` added ~11,300 documents, all from OpenAlex: Semantic Scholar answered 429 to every keyless call. The top tens filled with library guides, annual reports and repository copies that OpenAlex types `article`. Searches now keep to articles and reviews in a journal or conference (`scholarly`: an OpenAlex filter on keyword search, a source check in `searchCard` for semantic hits, which OpenAlex filters by type only).
 - The filtered re-run ran out of the OpenAlex key's daily budget after 24 of 30 cards and is not a row. Re-run after the budget resets: copy `data/pglite-eval` to `data/pglite-eval-search` first, then `--data pglite-eval-search --no-quota --label search`, then `purpose` on a fresh copy with `--purpose`.
-- The MRR gate counts every searched-in paper as unmarked, so a relevant find pushes the marks down exactly as noise does: search can pass it only by adding nothing that outranks the marks. The gate needs a decision before 4.3 can accept anything.
+- The MRR gate counts every searched-in paper as unmarked, so a relevant find pushes the marks down exactly as noise does: search can pass it only by adding nothing that outranks the marks. Decided the same day: the gate is now fields + 1, marked MRR ≥ half the baseline as a noise floor, and a judged sample of the searched-in hits (4.3, design §9).

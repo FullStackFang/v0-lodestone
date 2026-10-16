@@ -26,7 +26,7 @@ worked at the same time as the row before them.
 
 ## 5. Search
 
-- [ ] 5.1 `lodestone-card-search` complete. Gate: eval rows `search`, `quota`, `purpose`; marked-document MRR ≥ baseline; fields ≥ baseline + 1; one production card reaches `done` with `found > 0`; provenance allowlist holds on a searched-in paper. Date / values:
+- [ ] 5.1 `lodestone-card-search` complete. Gate: eval rows `search`, `quota`, `purpose`; fields ≥ baseline + 1; marked-document MRR ≥ half the baseline; at least half of the searched-in top-five hits on ten sampled cards judged relevant; one production card reaches `done` with `found > 0`; provenance allowlist holds on a searched-in paper. Date / values:
 - [ ] 5.2 (parallel with 5.1) `lodestone-hit-sentences` section 1 and `lodestone-verdict-ranking` sections 1 and 3 complete against the committed corpus. Date:
 
 ## 6. Explain
