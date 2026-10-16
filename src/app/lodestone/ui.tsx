@@ -21,7 +21,7 @@ export function ArrowIcon({ kind = "up", size = 14 }: { kind?: Exclude<ArrowKind
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ARROWS[kind]} /></svg>;
 }
 
-export function Pill({ href, variant, arrow = "right", children, className, type = "button", disabled, small }: {
+export function Pill({ href, variant, arrow = "right", children, className, type = "button", disabled, small, onClick }: {
   href?: string;
   variant: PillVariant;
   arrow?: ArrowKind;
@@ -31,12 +31,14 @@ export function Pill({ href, variant, arrow = "right", children, className, type
   disabled?: boolean;
   /** 40px tall with a 28px arrow, for secondary places. */
   small?: boolean;
+  /** For a button pill in a client component. */
+  onClick?: () => void;
 }) {
   const cls = ["pill", `pill-${variant}`, small ? "pill-small" : "", className ?? ""].filter(Boolean).join(" ");
   const body = <>{children}{arrow !== "none" ? <span className="go"><ArrowIcon kind={arrow} size={small ? 13 : 16} /></span> : null}</>;
   if (href && /^https?:/.test(href)) return <a className={cls} href={href} target="_blank" rel="noreferrer">{body}</a>;
   if (href) return <Link className={cls} href={href}>{body}</Link>;
-  return <button className={cls} type={type} disabled={disabled}>{body}</button>;
+  return <button className={cls} type={type} disabled={disabled} onClick={onClick}>{body}</button>;
 }
 
 export function Chip({ tone, children, title }: { tone: ChipTone; children: ReactNode; title?: string }) {

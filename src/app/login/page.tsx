@@ -12,8 +12,16 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   // The magic link needs somewhere to go: a provider in production, the
   // local outbox otherwise.
   const email = mailConfigured() || process.env.NODE_ENV !== "production";
-  return <section className="auth-surface">
-    <h1>Lodestone</h1><p>Sign in to see your cards and the cohort.</p>
-    <SignIn callbackURL={callbackURL} google={googleConfigured()} email={email} />
-  </section>;
+  return <div className="wrap stack">
+    <section className="mast drench auth-band">
+      <div className="mast-copy">
+        <span className="lab">Lodestone · the campus idea network</span>
+        <h1 className="h1 mast">Sign in to see your cards and the cohort.</h1>
+        <p className="line">A card is matched to <b>prior art</b> and to <b>peers</b> before anyone else has published. Private by default; the cohort sees nine blocks and a name.</p>
+      </div>
+    </section>
+    <section className="panel paper auth-surface">
+      <SignIn callbackURL={callbackURL} google={googleConfigured()} email={email} />
+    </section>
+  </div>;
 }

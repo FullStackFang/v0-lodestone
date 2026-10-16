@@ -246,8 +246,7 @@ input[type="email"], input[type="search"], input[type="number"], select {
 input[type="file"] { display: block; max-width: 100%; margin-top: 6px; }
 .page-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; margin-bottom: 28px; }
 .page-heading h1 { line-height: 1.2; }
-.auth-surface { max-width: 400px; margin: 30px auto; }
-.auth-surface h1 { margin-bottom: 16px; }
+.auth-surface { width: 100%; max-width: 440px; margin: 0 auto; }
 .form-stack { display: flex; flex-direction: column; gap: 16px; }
 .form-stack label, .filter-bar label, .save-reference label { display: flex; flex-direction: column; gap: 6px; color: var(--ink); font-size: 13px; }
 .form-stack .button { align-self: flex-start; }

@@ -391,3 +391,13 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 .field-card .button { justify-self: start; border-radius: 999px; min-height: 46px; padding: 0 22px; }
 .field-card .receipt { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .rk.tok { grid-template-columns: 28px minmax(0, 1fr); } .rk-form { grid-column: 2; } }
+
+/* Login */
+.auth-band { padding-bottom: 48px; }
+.auth-stack { display: flex; flex-direction: column; gap: 18px; }
+.auth-stack .pill { align-self: stretch; justify-content: space-between; }
+.auth-stack .field-card .pill { align-self: flex-start; }
+.auth-stack .error { margin: 0; font-size: 13px; color: var(--oxblood); }
+.auth-stack .receipt { margin: 0; font-size: 13px; color: var(--ink); }
+.field-card input[type="email"] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; min-height: 46px; width: 100%; }
+.field-card input[type="email"]:focus { border-color: var(--ink); }
