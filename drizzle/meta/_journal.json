@@ -127,6 +127,13 @@
       "when": 1792165306845,
       "tag": "0017_verdict_graph",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792166578185,
+      "tag": "0018_card_rank",
+      "breakpoints": true
     }
   ]
 }

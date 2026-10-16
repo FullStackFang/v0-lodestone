@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getDb } from "@/db/client";
 import { requirePerson } from "@/lib/session";
-import { canView, cardBlocks, cardById } from "@/lodestone/cards";
+import { blockLabel, canView, cardBlocks, cardById } from "@/lodestone/cards";
 import { peersFor } from "@/lodestone/peers";
 import { corpusSize, priorArtFor } from "@/lodestone/priorArt";
+import { changesFor } from "@/lodestone/search";
 import { withSentences } from "@/lodestone/sentences";
 import { embed } from "@/harness/embed";
 import { cohortCards } from "@/lodestone/cards";
@@ -28,14 +29,17 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
   const mine = card.ownerId === person.id;
   const member = await isActiveMember(db, person.id);
   const { blocks, confirmed } = cardBlocks(card.doc);
-  const [priorArt, corpus, peers, published] = await Promise.all([
+  const [priorArt, corpus, peers, published, changes] = await Promise.all([
     priorArtFor(db, ideaId, 5, { viewerId: person.id }).then((hits) => withSentences(db, embed, ideaId, hits)),
     corpusSize(db),
     member ? peersFor(db, ideaId, 5) : Promise.resolve([]),
     cohortCards(db),
+    // Diffed against the ten the snapshot holds, not the five shown here.
+    mine ? priorArtFor(db, ideaId, 10, { viewerId: person.id }).then((hits) => changesFor(db, ideaId, hits)) : Promise.resolve(null),
   ]);
   const others = published.filter((c) => c.card.ideaId !== ideaId).length;
   const titleOf = (documentId: string) => priorArt.find((h) => h.documentId === documentId)?.title;
+  const usefulGone = changes?.dropped.filter((h) => h.verdict === "useful").map((h) => h.title) ?? [];
 
   return <article>
     <header className="ls-header">
@@ -63,6 +67,9 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
       <section className="ls-section">
         <h2>Prior art</h2>
         <p>Papers and patents whose abstracts sit closest to a block of this card. {corpus} in the corpus. Works before anyone else has published.</p>
+        {changes && (changes.blocks.length || changes.added.length || changes.dropped.length) ? <p className="ls-note">
+          Since you changed {changes.blocks.map(blockLabel).join(", ") || "this card"}: {changes.added.length} new in the top ten, {changes.dropped.length} gone{usefulGone.length ? `, among them ${usefulGone.join(", ")}, which you found useful` : ""}.
+        </p> : null}
         {priorArt.length ? <div className="ls-rows">{priorArt.map((p) => <div className="ls-row" key={p.documentId}>
           {p.kind === "patent" ? <span className="eyebrow">Patent</span> : null}
           <span className="t">{p.url ? <a href={p.url} target="_blank" rel="noreferrer">{p.title}</a> : p.title}</span>

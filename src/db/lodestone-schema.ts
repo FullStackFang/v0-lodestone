@@ -25,6 +25,9 @@ export const forgeCard = pgTable("forge_card", {
   publishedAt: timestamp("published_at", { withTimezone: true }),
   importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /** How many times the card has been sent; each import bumps it. 0 for a
+   *  card last sent before it existed. `card_rank` is keyed on it. */
+  importSeq: integer("import_seq").notNull().default(0),
 }, (t) => [
   index("forge_card_owner_idx").on(t.ownerId),
   index("forge_card_visibility_idx").on(t.visibility, t.publishedAt),
@@ -61,6 +64,26 @@ export const cardSearch = pgTable("card_search", {
   primaryKey({ columns: [t.ideaId, t.block] }),
   check("card_search_state_valid", sql`${t.state} in ('running', 'done')`),
 ]);
+
+/** A ranked hit as `card_rank` keeps it: the `PaperHit` as JSON, dates as
+ *  ISO strings. */
+export type CardRankHit = { documentId: string } & Record<string, unknown>;
+
+/** The owner's ranked list for one import of a card, written once, when
+ *  that import's search is done: what the next import's pivot diff is taken
+ *  against. `block_hashes` is each block's `card_search.text_hash` at the
+ *  time, so the diff can name the blocks that changed. */
+export const cardRank = pgTable("card_rank", {
+  ideaId: text("idea_id").notNull().references(() => forgeCard.ideaId, { onDelete: "cascade" }),
+  importSeq: integer("import_seq").notNull(),
+  takenAt: timestamp("taken_at", { withTimezone: true }).notNull().defaultNow(),
+  hits: jsonb("hits").$type<CardRankHit[]>().notNull(),
+  blockHashes: jsonb("block_hashes").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+}, (t) => [
+  primaryKey({ columns: [t.ideaId, t.importSeq] }),
+]);
+
+export type CardRankRow = typeof cardRank.$inferSelect;
 
 export type CardSearchRow = typeof cardSearch.$inferSelect;
 

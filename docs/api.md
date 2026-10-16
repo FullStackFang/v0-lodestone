@@ -111,6 +111,8 @@ One card and what the network found for it. For the owner:
                            "s2": { "new": 8, "existing": 12, "skipped_no_doi": 5, "error": "…" } } },
   "priorArt": [ { "documentId": "…", "kind": "paper", "querySet": "food-waste", "title": "…",
                   "score": 0.81, "blocks": ["Value proposition"], "blockKeys": ["value_proposition"], "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…" }, … ],
+  "changes": { "since": "4", "blocks": ["customer_segments"],
+               "added": [ { …hit }, … ], "dropped": [ { …hit, "verdict": "useful" }, … ] },
   "peers": [ { "ideaId": "…", "title": "…", "line": "…", "owner": { "id": "…", "name": "…" },
                "publishedAt": "…", "score": 0.78,
                "shared": [ { "mine": "channels", "theirs": "channels", "similarity": 0.83 } ] }, … ],
@@ -152,6 +154,22 @@ Verdicts never leave the server: no verdict is sent to OpenAlex, Semantic
 Scholar or any other service. And they shape no one else's view: a member
 who is not the owner never sees `via`, nor anything else a verdict
 produced, on any route or page.
+
+`changes` is what the last send did to the list. When a send's search is
+done, the owner's top ten is kept; `changes` compares the list now with the
+one kept for the newest earlier send. `since` is the send it is for, as a
+string — it changes only when the card is sent again, so a client that
+dismissed the note keeps it dismissed by that value. `blocks` are the keys
+of the blocks whose entries changed. `added` are hits in the list now that
+were not then; `dropped` are hits that were then and are not now, as they
+were then, each with `verdict`: the owner's on it for this card, or `null`.
+A dropped hit the owner found `useful` is not put back; say so — "since you
+changed your customer segment, three new papers, and <title>, which you
+found useful, dropped out". `changes` is `null` while `search.state` is
+`running`, after a send whose search has not started, and for a card with no
+earlier list (its first send, or the first read of a card not sent since
+lists were kept). When all three arrays are empty there is nothing to say.
+Only the owner sees `changes`; another member's response has no such key.
 
 ### `PATCH /api/lodestone/cards/<ideaId>`
 

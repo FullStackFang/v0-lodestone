@@ -13,17 +13,25 @@
  *  card is stored with it. The card's text does leave the server, as the
  *  search strings. */
 import { createHash } from "node:crypto";
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, notInArray } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { cardSearch, forgeCard, type CardSearchSources } from "@/db/lodestone-schema";
+import {
+  cardFeedback,
+  cardRank,
+  cardSearch,
+  forgeCard,
+  type CardFeedbackVerdict,
+  type CardRankHit,
+  type CardSearchSources,
+} from "@/db/lodestone-schema";
 import { parseForgeIdea } from "@/harness/founder/forge";
 import { ingestWork, MIN_ABSTRACT_WORDS, type IngestResult } from "@/harness/papers/ingest";
 import { fetchWork as fetchOpenAlexWork, type OpenAlexWork } from "@/harness/papers/openalex";
 import { openalexLimiter } from "@/harness/papers/rate";
 import { searchS2 as searchSemanticScholar } from "@/harness/papers/s2";
 import { searchWorks as searchOpenAlex } from "@/harness/papers/search";
-import { cardBlocks, type CardBlock, type Embedder } from "./cards";
-import { CARD_SEARCH_QUERY_SET, embedPaperAbstracts, priorArtFor } from "./priorArt";
+import { BLOCKS, cardBlocks, type CardBlock, type Embedder } from "./cards";
+import { CARD_SEARCH_QUERY_SET, embedPaperAbstracts, priorArtFor, type PaperHit } from "./priorArt";
 import { ensureSentences } from "./sentences";
 
 export { CARD_SEARCH_QUERY_SET };
@@ -141,9 +149,14 @@ function message(error: unknown): string {
 }
 
 /** Search the card's planned blocks, ingest what comes back, embed it, and
- *  record each block's run. Never throws: a failure lands in the row. */
+ *  record each block's run, then snapshot the owner's list for this import.
+ *  Never throws: a failure lands in the row. */
 export async function searchCard(db: Db, ideaId: string, deps: SearchDeps): Promise<void> {
-  const [card] = await db.select({ doc: forgeCard.doc }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId)).limit(1);
+  const [card] = await db
+    .select({ doc: forgeCard.doc, ownerId: forgeCard.ownerId, importSeq: forgeCard.importSeq })
+    .from(forgeCard)
+    .where(eq(forgeCard.ideaId, ideaId))
+    .limit(1);
   if (!card) return;
   const purpose = parseForgeIdea(card.doc).purpose;
   const hashes = blockHashes(card.doc);
@@ -242,6 +255,97 @@ export async function searchCard(db: Db, ideaId: string, deps: SearchDeps): Prom
       // Left uncut, a hit is cut on its first read.
     }
   }
+
+  try {
+    // A card sent again while this ran is left to that send's search: its
+    // list already reads the newer card.
+    const [now] = await db.select({ importSeq: forgeCard.importSeq }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId)).limit(1);
+    if (now?.importSeq === card.importSeq) {
+      await snapshotRank(db, ideaId, card.importSeq, await priorArtFor(db, ideaId, WARM, { viewerId: card.ownerId }), hashes);
+    }
+  } catch {
+    // Unsnapshotted, the next import's diff is taken against an older list.
+  }
+}
+
+// --- The pivot diff. ---
+
+/** Keep the owner's ranked list for one import, with each block's hash, as
+ *  the next import's diff is taken against. Written once: a later call for
+ *  the same import does nothing. */
+export async function snapshotRank(db: Db, ideaId: string, importSeq: number, hits: PaperHit[], hashes: Map<string, string>): Promise<void> {
+  await db
+    .insert(cardRank)
+    .values({ ideaId, importSeq, hits: JSON.parse(JSON.stringify(hits)) as CardRankHit[], blockHashes: Object.fromEntries(hashes) })
+    .onConflictDoNothing();
+}
+
+export interface PaperChanges {
+  /** The card's `import_seq`, as a string: the send the diff is for. */
+  since: string;
+  /** Keys of the blocks whose entries changed, in grid order. */
+  blocks: string[];
+  added: PaperHit[];
+  /** Each with the owner's verdict on it for this card, or null. */
+  dropped: (PaperHit & { verdict: CardFeedbackVerdict | null })[];
+}
+
+/** What changed in the owner's list since the card was last sent: the
+ *  blocks whose text changed, by `card_search`'s hashes against the newest
+ *  earlier snapshot's, and the hits that came and went by document id. Null
+ *  with no earlier snapshot, while the search is running, and while this
+ *  import's search has yet to start (the blocks' rows still hold the old
+ *  text), so a diff is never shown against a list the search has not
+ *  reached. The owner's alone: callers show it to no one else. */
+export async function changesFor(db: Db, ideaId: string, hits: PaperHit[], now = new Date()): Promise<PaperChanges | null> {
+  const [card] = await db
+    .select({ doc: forgeCard.doc, ownerId: forgeCard.ownerId, importSeq: forgeCard.importSeq })
+    .from(forgeCard)
+    .where(eq(forgeCard.ideaId, ideaId))
+    .limit(1);
+  if (!card) return null;
+  if ((await searchState(db, ideaId, card.doc, now)).state === "running") return null;
+  const searched = new Map((await db.select().from(cardSearch).where(eq(cardSearch.ideaId, ideaId))).map((r) => [r.block, r.textHash]));
+  const current = blockHashes(card.doc);
+  if ([...current].some(([block, hash]) => searched.get(block) !== hash)) return null;
+
+  const [last] = await db
+    .select()
+    .from(cardRank)
+    .where(and(eq(cardRank.ideaId, ideaId), lt(cardRank.importSeq, card.importSeq)))
+    .orderBy(desc(cardRank.importSeq))
+    .limit(1);
+  if (!last) return null;
+
+  const blocks = BLOCKS.map(([key]) => key).filter((key) => (last.blockHashes[key] ?? null) !== (searched.get(key) ?? null));
+  // Dates come back from the snapshot as strings, as a client reads them anyway.
+  const then = last.hits as unknown as PaperHit[];
+  const thenIds = new Set(then.map((h) => h.documentId));
+  const nowIds = new Set(hits.map((h) => h.documentId));
+  const gone = then.filter((h) => !nowIds.has(h.documentId));
+  const verdicts = new Map(
+    gone.length
+      ? (
+          await db
+            .select({ targetId: cardFeedback.targetId, verdict: cardFeedback.verdict })
+            .from(cardFeedback)
+            .where(
+              and(
+                eq(cardFeedback.personId, card.ownerId),
+                eq(cardFeedback.ideaId, ideaId),
+                eq(cardFeedback.kind, "paper"),
+                inArray(cardFeedback.targetId, gone.map((h) => h.documentId)),
+              ),
+            )
+        ).map((f) => [f.targetId, f.verdict])
+      : [],
+  );
+  return {
+    since: String(card.importSeq),
+    blocks,
+    added: hits.filter((h) => !thenIds.has(h.documentId)),
+    dropped: gone.map((h) => ({ ...h, verdict: verdicts.get(h.documentId) ?? null })),
+  };
 }
 
 export interface SearchState {

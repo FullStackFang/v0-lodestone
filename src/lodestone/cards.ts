@@ -81,7 +81,7 @@ export interface ImportOutcome {
 /** Project the document into the ledger under the owner, keep the document
  *  as the card, and embed what the projection left without a vector. A card
  *  that already exists keeps its visibility; a document for someone else's
- *  idea id is refused. */
+ *  idea id is refused. Every import bumps `import_seq`. */
 export async function importCard(
   db: Db,
   owner: { id: string; email: string },
@@ -99,8 +99,11 @@ export async function importCard(
   const now = new Date();
   const [card] = await db
     .insert(forgeCard)
-    .values({ ideaId: parsed.ideaId, ownerId: owner.id, title, line, doc: input as Record<string, unknown>, updatedAt: now })
-    .onConflictDoUpdate({ target: forgeCard.ideaId, set: { title, line, doc: input as Record<string, unknown>, updatedAt: now } })
+    .values({ ideaId: parsed.ideaId, ownerId: owner.id, title, line, doc: input as Record<string, unknown>, updatedAt: now, importSeq: 1 })
+    .onConflictDoUpdate({
+      target: forgeCard.ideaId,
+      set: { title, line, doc: input as Record<string, unknown>, updatedAt: now, importSeq: sql`${forgeCard.importSeq} + 1` },
+    })
     .returning();
 
   const pending = await pendingEmbeds(db, parsed.ideaId);

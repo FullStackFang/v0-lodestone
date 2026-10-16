@@ -4,7 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { COHORT, forgeDocument } from "../../evals/lodestone/cohort";
 import { createPgliteDb, type Db } from "@/db/client";
-import { artifactTexts, cardSearch, documentSentence } from "@/db/schema";
+import { artifactTexts, cardRank, cardSearch, document, documentSentence } from "@/db/schema";
+import { putArtifactText } from "@/harness/canonical";
 import { ensurePerson } from "@/harness/ledger";
 import type { OpenAlexWork } from "@/harness/papers/openalex";
 import type { SearchOptions } from "@/harness/papers/search";
@@ -15,13 +16,15 @@ import {
   PROVENANCE_KEYS,
   STALE_MS,
   blockHashes,
+  changesFor,
   plannedBlocks,
   queryFor,
   searchCard,
   searchState,
   type SearchDeps,
 } from "./search";
-import { priorArtFor } from "./priorArt";
+import { recordFeedback } from "./api";
+import { embedPaperAbstracts, priorArtFor } from "./priorArt";
 import { testEmbed } from "./test-embed";
 
 const block = (key: string, label: string, texts: string[]): CardBlock => ({
@@ -242,5 +245,83 @@ describe("searchCard", () => {
       found: 0,
       abstracted: false,
     });
+  });
+});
+
+// --- The pivot diff. ---
+
+describe("the pivot diff", () => {
+  const maren = COHORT[4];
+  let marenId = "";
+  const names = ["amber", "birch", "cedar", "delta", "ember", "fjord", "garnet", "harbor", "indigo", "juniper"];
+  const dairy: string[] = [];
+  const brewery: string[] = [];
+  /** Searches that find nothing: the corpus below is the whole story. */
+  const quiet = () =>
+    fakes({ searchWorks: async () => ({ seen: 0, stopped: false, cursor: null }), searchS2: async () => ({ hits: [], skippedNoDoi: 0 }) }).deps;
+  const ranked = () => priorArtFor(db, maren.ideaId, 10, { viewerId: marenId });
+  const snapshots = () => db.select().from(cardRank).where(eq(cardRank.ideaId, maren.ideaId)).orderBy(cardRank.importSeq);
+  const pivoted = forgeDocument({
+    ...maren,
+    entries: maren.entries.map((e) => (e.block === "customer_segments" ? { ...e, text: "Craft breweries cooling wort in small towns" } : e)),
+  });
+
+  /** Ten papers on the card's segment and ten on the one it pivots to, each
+   *  in a field of its own so the quota keeps all ten. */
+  beforeAll(async () => {
+    marenId = await ensurePerson(db, { name: maren.name, email: maren.email });
+    const paper = async (title: string, abstract: string, field: string) => {
+      const [row] = await db.insert(document).values({ sessionId: null, source: "paper", title, text: null }).returning({ id: document.id });
+      await putArtifactText(db, { artifactId: row.id, sourceFormat: "abstract", parser: "test", text: abstract, provenance: { field } });
+      return row.id;
+    };
+    for (const n of names) {
+      dairy.push(await paper(`Dairy ${n}`, `Dairies under three hundred cows in the Northeast: the ${n} survey.`, `Dairy ${n}`));
+      brewery.push(await paper(`Brewery ${n}`, `Craft breweries cooling wort in small towns: the ${n} survey.`, `Brewing ${n}`));
+    }
+    await embedPaperAbstracts(db, testEmbed);
+  });
+
+  it("snapshots the owner's list once per import, when its search is done, with no diff on the first", async () => {
+    await importCard(db, { id: marenId, email: maren.email }, forgeDocument(maren), testEmbed);
+    expect(await snapshots()).toHaveLength(0);
+    await searchCard(db, maren.ideaId, quiet());
+    const rows = await snapshots();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].importSeq).toBe(1);
+    expect(rows[0].hits.map((h) => h.documentId)).toEqual((await ranked()).map((h) => h.documentId));
+    expect(new Set(rows[0].hits.map((h) => h.documentId))).toEqual(new Set(dairy));
+    // A second search of the same import plans nothing and writes nothing.
+    await searchCard(db, maren.ideaId, quiet());
+    expect(await snapshots()).toHaveLength(1);
+    expect(await changesFor(db, maren.ideaId, await ranked())).toBeNull();
+  });
+
+  it("names the block that changed, the hits added and dropped, and the verdict a dropped hit had", async () => {
+    await recordFeedback(db, marenId, { ideaId: maren.ideaId, kind: "paper", targetId: dairy[0], verdict: "useful" });
+    await importCard(db, { id: marenId, email: maren.email }, pivoted, testEmbed);
+    // Sent, its search not yet run: the blocks' rows still hold the old text.
+    expect(await changesFor(db, maren.ideaId, await ranked())).toBeNull();
+
+    await searchCard(db, maren.ideaId, quiet());
+    expect((await snapshots()).map((r) => r.importSeq)).toEqual([1, 2]);
+    const hits = await ranked();
+    const changes = await changesFor(db, maren.ideaId, hits);
+    expect(changes?.since).toBe("2");
+    expect(changes?.blocks).toEqual(["customer_segments"]);
+    expect(new Set(changes?.added.map((h) => h.documentId))).toEqual(new Set(brewery));
+    expect(new Set(changes?.dropped.map((h) => h.documentId))).toEqual(new Set(dairy));
+    expect(changes?.dropped.find((h) => h.documentId === dairy[0])?.verdict).toBe("useful");
+    expect(changes?.dropped.filter((h) => h.verdict === null)).toHaveLength(9);
+    // Dropped, not re-added.
+    expect(hits.map((h) => h.documentId)).not.toContain(dairy[0]);
+  });
+
+  it("is null while the card's search is running", async () => {
+    const where = and(eq(cardSearch.ideaId, maren.ideaId), eq(cardSearch.block, "customer_segments"));
+    await db.update(cardSearch).set({ state: "running", startedAt: new Date() }).where(where);
+    expect(await changesFor(db, maren.ideaId, await ranked())).toBeNull();
+    await db.update(cardSearch).set({ state: "done" }).where(where);
+    expect(await changesFor(db, maren.ideaId, await ranked())).not.toBeNull();
   });
 });

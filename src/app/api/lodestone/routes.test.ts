@@ -30,8 +30,8 @@ import { GET as listCards, POST as sendCard } from "./cards/route";
 import { GET as readCard, PATCH as patchCard } from "./cards/[ideaId]/route";
 import { GET as readFeedback, POST as sendFeedback } from "./cards/[ideaId]/feedback/route";
 import { GET as readPaper } from "./papers/[documentId]/route";
-import { sql } from "drizzle-orm";
-import { artifactTexts, document } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { artifactTexts, cardRank, document, forgeCard } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
 import { embedPaperAbstracts } from "@/lodestone/priorArt";
 
@@ -254,5 +254,50 @@ describe("client routes", () => {
     expect((await readPaper(req(`/api/lodestone/papers/${halfway.id}`), paperParams(halfway.id))).status).toBe(404);
     const [deck] = await db.insert(document).values({ sessionId: null, source: "deck", title: "a deck", text: "slides" }).returning({ id: document.id });
     expect((await readPaper(req(`/api/lodestone/papers/${deck.id}`), paperParams(deck.id))).status).toBe(404);
+  });
+  it("diffs the owner's list against the last send once its search is done, never snapshotting on the first read", async () => {
+    const db = await getDb();
+    const snapshots = async (ideaId: string) => db.select().from(cardRank).where(eq(cardRank.ideaId, ideaId));
+    const read = async (ideaId: string, auth = token) => (await readCard(req(`/api/lodestone/cards/${ideaId}`, {}, auth), params(ideaId))).json();
+    const before = (await snapshots(sam.ideaId)).length;
+    expect(before).toBeGreaterThan(0);
+    const pivot = { ...sam, entries: sam.entries.map((e) => (e.block === "customer_segments" ? { ...e, text: "Visiting scholars on one-term appointments" } : e)) };
+    expect((await sendCard(req("/api/lodestone/cards", { method: "POST", body: JSON.stringify(forgeDocument(pivot)) }))).status).toBe(200);
+    const [{ importSeq }] = await db.select({ importSeq: forgeCard.importSeq }).from(forgeCard).where(eq(forgeCard.ideaId, sam.ideaId));
+
+    // Its search queued, not run: no snapshot, and nothing to diff yet.
+    const first = await read(sam.ideaId);
+    expect(first.changes).toBeNull();
+    expect(await snapshots(sam.ideaId)).toHaveLength(before);
+
+    await searchCard(db, sam.ideaId, {
+      searchWorks: async () => ({ seen: 0, stopped: false, cursor: null }),
+      searchS2: async () => ({ hits: [], skippedNoDoi: 0 }),
+      fetchWork: async () => null,
+      embed: testEmbed,
+      now: () => new Date(),
+    });
+    expect(await snapshots(sam.ideaId)).toHaveLength(before + 1);
+    const after = await read(sam.ideaId);
+    expect(after.changes).toMatchObject({ since: String(importSeq), blocks: ["customer_segments"] });
+    expect(Array.isArray(after.changes.added)).toBe(true);
+    expect(Array.isArray(after.changes.dropped)).toBe(true);
+  });
+  it("snapshots a card not sent since snapshots began on its first read, once over three, and shows no one else the diff", async () => {
+    const db = await getDb();
+    const priya = COHORT[1];
+    const priyaId = await ensurePerson(db, { name: priya.name, email: priya.email });
+    const priyaToken = (await mintToken(db, priyaId, "second client")).token;
+    // As a card imported before `import_seq` existed reads.
+    await db.update(forgeCard).set({ importSeq: 0 }).where(eq(forgeCard.ideaId, priya.ideaId));
+    for (let i = 0; i < 3; i++) {
+      const own = await (await readCard(req(`/api/lodestone/cards/${priya.ideaId}`, {}, priyaToken), params(priya.ideaId))).json();
+      expect(own.changes).toBeNull();
+    }
+    const rows = await db.select().from(cardRank).where(eq(cardRank.ideaId, priya.ideaId));
+    expect(rows.map((r) => r.importSeq)).toEqual([0]);
+    // Sam reads Priya's published card: no diff, not even a null one.
+    const seen = await (await readCard(req(`/api/lodestone/cards/${priya.ideaId}`), params(priya.ideaId))).json();
+    expect(seen).not.toHaveProperty("changes");
   });
 });

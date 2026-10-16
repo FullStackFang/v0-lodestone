@@ -13,11 +13,20 @@
 
 ## 2. Pivot diff
 
-- [ ] 2.1 Migration (the next number, after `0017_verdict_graph`): `forge_card.import_seq` int default 0; `card_rank(idea_id, import_seq, taken_at, hits jsonb, primary key (idea_id, import_seq))`. `paper_block_verdict` (`halfvec(1024) not null`, the unique key) already shipped alone in `0017_verdict_graph` with section 3; these two tables follow in a later migration
-- [ ] 2.2 `importCard` bumps `import_seq`
-- [ ] 2.3 Failing tests: `searchCard` reaching `done` writes one `card_rank` row for the current `import_seq`; the first `GET` after import does not; a card with no `card_search` row gets its snapshot from `GET`; re-send with one block changed → `changes.blocks`, `added`, `dropped`; a dropped `useful` hit carries its verdict; `changes` is null while `search.state` is `running`; three reads → one snapshot
-- [ ] 2.4 `snapshotRank(db, ideaId, importSeq, hits)` (insert on conflict do nothing) called from `searchCard` on `done`; `changesFor(db, ideaId, hits)` keyed on block keys from `card_search`; wired into the `GET` route and the card page for the owner only
-- [ ] 2.5 `docs/api.md`: `changes`; null while running; what a client should say with it
+- [x] 2.1 Migration `0018_card_rank`: `forge_card.import_seq` int default 0; `card_rank(idea_id, import_seq, taken_at, hits jsonb, block_hashes jsonb, primary key (idea_id, import_seq))`. `paper_block_verdict` (`halfvec(1024) not null`, the unique key) shipped alone in `0017_verdict_graph` with section 3
+- [x] 2.2 `importCard` bumps `import_seq` (a new card starts at 1; 0 marks a card not sent since the column existed)
+- [x] 2.3 Failing tests: `searchCard` reaching `done` writes one `card_rank` row for the current `import_seq`; the first `GET` after import does not; a card not sent since `import_seq` existed gets its snapshot from `GET`; re-send with one block changed → `changes.blocks`, `added`, `dropped`; a dropped `useful` hit carries its verdict; `changes` is null while `search.state` is `running`; three reads → one snapshot
+- [x] 2.4 `snapshotRank(db, ideaId, importSeq, hits, hashes)` (insert on conflict do nothing) called from `searchCard` on `done`; `changesFor(db, ideaId, hits)` keyed on block keys from `card_search`; wired into the `GET` route and the card page for the owner only
+- [x] 2.5 `docs/api.md`: `changes`; null while running; what a client should say with it
+
+Departures from `design.md` §3–4 and the `pivot-diff` spec, to match the shape Whetstone is built against (`changes: { since: string, blocks: string[], added: PaperHit[], dropped: (PaperHit & { verdict })[] } | null`):
+
+- `since` is the card's `import_seq` as a string (the send the diff is for; the client dismisses by it), not the time of the previous snapshot.
+- `card_rank.hits` keeps each hit whole, not ids, scores and first block keys, so `dropped` can be `PaperHit`s. `dropped` carries `verdict` for every hit: the owner's verdict, or `null`.
+- `card_rank.block_hashes` keeps each block's text hash at snapshot time; `changes.blocks` are the keys whose `card_search.text_hash` differs from it, which also names a block that was emptied. `card_search` holds only the latest hash, so it alone cannot say what changed.
+- The `GET` route snapshots a card whose `import_seq` is 0, not one with no `card_search` row: a fresh import has no row until its queued search starts, and a read in that gap would snapshot the pre-search list.
+- `changes` is also null after a send whose search has not started (a block's `card_search.text_hash` differs from the card's), so a diff is never shown against the previous search's list.
+- `searchCard` skips its snapshot when the card was sent again while it ran; that send's search writes its own.
 
 ## 3. Verdict graph, table and write only
 

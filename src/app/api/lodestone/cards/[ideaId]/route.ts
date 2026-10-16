@@ -1,5 +1,6 @@
 /** One card and what the network found for it. The owner gets the nine
- *  blocks, prior art, peers (members only) and their own feedback so far;
+ *  blocks, prior art, what changed in it since the last send, peers (members
+ *  only) and their own feedback so far;
  *  another member gets a cohort card's blocks and nothing else. `PATCH`
  *  changes visibility, under the same rule as the page: publishing needs
  *  membership, going private is never refused. */
@@ -9,7 +10,7 @@ import { cardSummary as summary, feedbackFor } from "@/lodestone/api";
 import { canView, cardBlocks, cardById, setVisibility } from "@/lodestone/cards";
 import { peersFor } from "@/lodestone/peers";
 import { corpusSize, priorArtFor } from "@/lodestone/priorArt";
-import { searchState } from "@/lodestone/search";
+import { blockHashes, changesFor, searchState, snapshotRank } from "@/lodestone/search";
 import { withSentences } from "@/lodestone/sentences";
 import { embed } from "@/harness/embed";
 import { isActiveMember } from "@/pilot/membership";
@@ -36,6 +37,10 @@ export async function GET(request: Request, { params }: Params) {
       member ? peersFor(db, ideaId, 10) : Promise.resolve([]),
       feedbackFor(db, person.id, ideaId),
     ]);
+    // A card not sent since snapshots began has no search to write its
+    // list, so its first read does; every later import's search writes one.
+    if (card.importSeq === 0) await snapshotRank(db, ideaId, 0, priorArt, blockHashes(card.doc));
+    const changes = await changesFor(db, ideaId, priorArt);
     return NextResponse.json({
       card: summary(card),
       owner,
@@ -45,6 +50,7 @@ export async function GET(request: Request, { params }: Params) {
       corpus,
       search,
       priorArt,
+      changes,
       peers,
       feedback: feedback.map((f) => ({ kind: f.kind, targetId: f.targetId, verdict: f.verdict, at: f.updatedAt })),
     });
