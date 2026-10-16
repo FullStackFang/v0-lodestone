@@ -6,6 +6,8 @@ import { requirePerson } from "@/lib/session";
 import { canView, cardBlocks, cardById } from "@/lodestone/cards";
 import { peersFor } from "@/lodestone/peers";
 import { corpusSize, priorArtFor } from "@/lodestone/priorArt";
+import { withSentences } from "@/lodestone/sentences";
+import { embed } from "@/harness/embed";
 import { cohortCards } from "@/lodestone/cards";
 import { isActiveMember } from "@/pilot/membership";
 import { ActionForm, SubmitButton } from "@/review/ActionForm";
@@ -27,7 +29,7 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
   const member = await isActiveMember(db, person.id);
   const { blocks, confirmed } = cardBlocks(card.doc);
   const [priorArt, corpus, peers, published] = await Promise.all([
-    priorArtFor(db, ideaId, 5),
+    priorArtFor(db, ideaId, 5).then((hits) => withSentences(db, embed, ideaId, hits)),
     corpusSize(db),
     member ? peersFor(db, ideaId, 5) : Promise.resolve([]),
     cohortCards(db),
@@ -65,6 +67,7 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
           <span className="t">{p.url ? <a href={p.url} target="_blank" rel="noreferrer">{p.title}</a> : p.title}</span>
           <span className="n">{p.score.toFixed(2)}</span>
           <span className="why">closest to <b>{p.blocks.join(", ")}</b>{p.yours ? " · yours — the paper this idea started from" : ""}</span>
+          {p.sentences.length ? <span className="why">{p.sentences.map((s) => `“${s.text}”`).join(" … ")}</span> : null}
           <span className="meta">{[p.venue, p.year, p.field, p.querySet && `set ${p.querySet}`].filter(Boolean).join(" · ") || "no metadata"}</span>
           <span className="bar"><i style={{ width: pct(p.score) }} /></span>
         </div>)}</div> : <div className="ls-quiet"><p>{corpus === 0 ? "The corpus is empty." : "This card has no vectors yet."}</p><span>{corpus === 0 ? "Ingest papers and embed their abstracts; the match runs against whatever the corpus holds." : "Re-import the card once an embedding key is configured."}</span></div>}

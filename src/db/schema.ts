@@ -12,6 +12,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   real,
   text,
   timestamp,
@@ -205,6 +206,25 @@ export const documentChunk = pgTable(
     index("document_chunk_document_idx").on(t.documentId, t.ordinal),
     index("document_chunk_embedding_hnsw").using("hnsw", t.embedding.op("halfvec_cosine_ops")),
   ],
+);
+
+/** A corpus abstract cut into sentences, each embedded, so a hit can name
+ *  the sentences nearest its block without a model. The text is never
+ *  stored twice: the offsets (UTF-16 code units) slice the canonical text
+ *  whose hash the row carries, and a row whose hash is not the document's
+ *  newest is stale and re-cut. No index beyond the key: every read is by
+ *  document, and the key leads with it. */
+export const documentSentence = pgTable(
+  "document_sentence",
+  {
+    documentId: uuid("document_id").notNull().references(() => document.id, { onDelete: "cascade" }),
+    ordinal: integer("ordinal").notNull(),
+    textHash: text("text_hash").notNull(),
+    startOff: integer("start_off").notNull(),
+    endOff: integer("end_off").notNull(),
+    embedding: halfvec("embedding", { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.documentId, t.ordinal] })],
 );
 
 // ---------------------------------------------------------------------------

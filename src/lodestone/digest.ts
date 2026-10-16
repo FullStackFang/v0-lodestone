@@ -2,9 +2,11 @@
  *  member's cards. Retrieval and ranking only — every row is a stored record
  *  plus the block names it matched on, and no sentence is written for it. */
 import type { Db } from "@/db/client";
-import { cardsForOwner, cohortCards } from "./cards";
+import { embed } from "@/harness/embed";
+import { cardsForOwner, cohortCards, type Embedder } from "./cards";
 import { peersFor, type PeerHit } from "./peers";
 import { priorArtFor, type PaperHit } from "./priorArt";
+import { withSentences } from "./sentences";
 
 export interface DigestSection {
   ideaId: string;
@@ -30,6 +32,8 @@ export const PAPER_FLOOR = 0.75;
 export interface DigestOptions {
   /** The lowest paper score worth a row. Defaults to `PAPER_FLOOR`. */
   paperFloor?: number;
+  /** Embeds sentences of papers not yet cut. Defaults to Voyage. */
+  embed?: Embedder;
 }
 
 export function weekAgo(now = new Date()): Date {
@@ -43,7 +47,7 @@ export async function digestFor(db: Db, personId: string, since: Date, now = new
   const sections: DigestSection[] = [];
   for (const card of mine) {
     const peers = recent.length ? await peersFor(db, card.ideaId, 5, recent) : [];
-    const papers = (await priorArtFor(db, card.ideaId, 5, since)).filter((p) => p.score >= floor);
+    const papers = await withSentences(db, options.embed ?? embed, card.ideaId, (await priorArtFor(db, card.ideaId, 5, since)).filter((p) => p.score >= floor));
     sections.push({ ideaId: card.ideaId, title: card.title, peers, papers });
   }
   return { since, until: now, newCards: recent.length, sections };

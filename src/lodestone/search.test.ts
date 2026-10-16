@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { COHORT, forgeDocument } from "../../evals/lodestone/cohort";
 import { createPgliteDb, type Db } from "@/db/client";
-import { artifactTexts, cardSearch } from "@/db/schema";
+import { artifactTexts, cardSearch, documentSentence } from "@/db/schema";
 import { ensurePerson } from "@/harness/ledger";
 import type { OpenAlexWork } from "@/harness/papers/openalex";
 import type { SearchOptions } from "@/harness/papers/search";
@@ -21,6 +21,7 @@ import {
   searchState,
   type SearchDeps,
 } from "./search";
+import { priorArtFor } from "./priorArt";
 import { testEmbed } from "./test-embed";
 
 const block = (key: string, label: string, texts: string[]): CardBlock => ({
@@ -163,6 +164,16 @@ describe("searchCard", () => {
     expect(searched).toHaveLength(4);
     for (const t of searched) for (const key of Object.keys(t.provenance)) expect(PROVENANCE_KEYS).toContain(key);
     expect(searched.find((t) => t.provenance.doi === "10.5555/s2.one")?.provenance.tldr).toBe("Release empty rooms.");
+  });
+
+  it("cuts the sentences of the card's top hits once the search is done, so a read embeds nothing", async () => {
+    const searched = await db.select({ id: artifactTexts.artifactId, hash: artifactTexts.textHash, provenance: artifactTexts.provenance }).from(artifactTexts);
+    const cut = await db.selectDistinct({ id: documentSentence.documentId, hash: documentSentence.textHash }).from(documentSentence);
+    // None of the four works has a field, one bucket, so the quota keeps three.
+    const ids = (await priorArtFor(db, member.ideaId, 10)).map((h) => h.documentId).sort();
+    expect(ids).toHaveLength(3);
+    expect(cut.map((c) => c.id).sort()).toEqual(ids);
+    for (const c of cut) expect(searched.find((t) => t.id === c.id)?.hash).toBe(c.hash);
   });
 
   it("searches again only the block that changed", async () => {

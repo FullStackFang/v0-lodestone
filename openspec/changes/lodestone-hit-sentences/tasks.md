@@ -4,12 +4,12 @@
 
 ## 1. Sentences
 
-- [ ] 1.1 Failing tests for `splitSentences(text)`: abbreviations protected, short fragments joined, offsets slice back to the sentence; run over the eval set's abstracts and eyeball
-- [ ] 1.2 `src/lodestone/sentences.ts`: `splitSentences`; migration `0016_hit_sentences`: `document_sentence` with `(document_id, ordinal)` key, `text_hash`, offsets, `halfvec(1024)`, index on `document_id`; and `ALTER TYPE source_format ADD VALUE 'tldr'`; `SOURCE_FORMATS` gains `"tldr"`
-- [ ] 1.3 `ensureSentences(db, documentIds)`: split, embed in one Voyage batch, write; skip documents whose rows carry the current `text_hash`; re-cut those whose hash differs
-- [ ] 1.4 `sentencesFor(db, hit, blockVectors)`: top three by max cosine to the first block key's entries, abstract order, with the block key; test against a hand-built abstract and vectors
-- [ ] 1.5 `PaperHit.sentences` and `PaperHit.abstractHash`; `priorArtFor` callers (`GET` route, card page, digest) call `ensureSentences` then `sentencesFor` for the hits returned; `searchCard` warms the top ten on `done`
-- [ ] 1.6 Route test: each sentence is a substring of the abstract under the hit's `abstractHash`; a replaced abstract yields new sentences and a new hash
+- [x] 1.1 Failing tests for `splitSentences(text)`: abbreviations protected, short fragments joined, offsets slice back to the sentence; run over the eval set's abstracts and eyeball (1,039 abstracts, 9,786 sentences, median 8; many OpenAlex abstracts drop the space after a full stop, so `cities.It` splits too)
+- [x] 1.2 `src/lodestone/sentences.ts`: `splitSentences`; migration `0016_hit_sentences`: `document_sentence` with `(document_id, ordinal)` key, `text_hash`, offsets, `halfvec(1024)`, index on `document_id`; and `ALTER TYPE source_format ADD VALUE 'tldr'`; `SOURCE_FORMATS` gains `"tldr"` (offsets are `start_off`/`end_off` as on `assertions`; the primary key leads with `document_id`, so no second index)
+- [x] 1.3 `ensureSentences(db, documentIds)`: split, embed in one Voyage batch, write; skip documents whose rows carry the current `text_hash`; re-cut those whose hash differs
+- [x] 1.4 `sentencesFor(db, hit, blockVectors)`: top three by max cosine to the first block key's entries, abstract order, with the block key; test against a hand-built abstract and vectors
+- [x] 1.5 `PaperHit.sentences` and `PaperHit.abstractHash`; `priorArtFor` callers (`GET` route, card page, digest) call `ensureSentences` then `sentencesFor` for the hits returned; `searchCard` warms the top ten on `done`
+- [x] 1.6 Route test: each sentence is a substring of the abstract under the hit's `abstractHash`; a replaced abstract yields new sentences and a new hash
 
 ## 2. Thin documents
 

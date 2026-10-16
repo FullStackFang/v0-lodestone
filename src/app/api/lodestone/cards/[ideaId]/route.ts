@@ -10,6 +10,8 @@ import { canView, cardBlocks, cardById, setVisibility } from "@/lodestone/cards"
 import { peersFor } from "@/lodestone/peers";
 import { corpusSize, priorArtFor } from "@/lodestone/priorArt";
 import { searchState } from "@/lodestone/search";
+import { withSentences } from "@/lodestone/sentences";
+import { embed } from "@/harness/embed";
 import { isActiveMember } from "@/pilot/membership";
 import { IDEA_ID, fail, jsonBody, withToken } from "../../client";
 
@@ -29,7 +31,7 @@ export async function GET(request: Request, { params }: Params) {
     const member = await isActiveMember(db, person.id);
     const [search, priorArt, corpus, peers, feedback] = await Promise.all([
       searchState(db, ideaId, card.doc),
-      priorArtFor(db, ideaId, 10),
+      priorArtFor(db, ideaId, 10).then((hits) => withSentences(db, embed, ideaId, hits)),
       corpusSize(db),
       member ? peersFor(db, ideaId, 10) : Promise.resolve([]),
       feedbackFor(db, person.id, ideaId),

@@ -286,12 +286,16 @@ describe("the cohort", () => {
     expect(before.sections[0].papers).toHaveLength(0);
 
     const since = new Date("2020-01-01T00:00:00Z");
-    const digest = await digestFor(db, me, since, new Date(), { paperFloor: 0.2 });
+    const digest = await digestFor(db, me, since, new Date(), { paperFloor: 0.2, embed: testEmbed });
     expect(digest.newCards).toBe(COHORT.length - 1);
     const section = digest.sections.find((s) => s.ideaId === sam.ideaId)!;
     expect(section.peers.length).toBeGreaterThan(0);
     expect(section.peers.map((p) => p.owner.id)).not.toContain(me);
     expect(section.papers.length).toBeGreaterThan(0);
+    for (const p of section.papers) {
+      expect(p.sentences.length).toBeGreaterThan(0);
+      expect(p.sentences.every((s) => s.block === p.blockKeys[0])).toBe(true);
+    }
     const text = renderDigest(digest, "http://localhost:3000");
     expect(text).toContain("Lodestone digest");
     expect(text).toContain("new card ·");

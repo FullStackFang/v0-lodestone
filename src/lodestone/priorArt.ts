@@ -75,6 +75,21 @@ export interface PaperHit {
    *  holds it, but flagged: it is theirs, not a find. */
   yours: boolean;
   addedAt: Date;
+  /** The `text_hash` of the abstract the hit was read from. `sentences` are
+   *  cut from that text, so a client that stored anything against the hit
+   *  can tell the abstract changed without a second read. */
+  abstractHash: string | null;
+  /** Up to three abstract sentences nearest the first block, in abstract
+   *  order. Empty from `priorArtFor`; `withSentences` fills it. */
+  sentences: HitSentence[];
+}
+
+export interface HitSentence {
+  /** A substring of the abstract under `abstractHash`. */
+  text: string;
+  /** The block key it came closest to: always `blockKeys[0]`. */
+  block: string;
+  cosine: number;
 }
 
 /** A DOI as a key: lower-cased, with any resolver prefix dropped. */
@@ -111,6 +126,7 @@ interface PaperMeta {
   title: string | null;
   provenance: Record<string, unknown> | null;
   addedAt: Date;
+  abstractHash?: string | null;
 }
 
 export interface PaperRow extends PaperMeta {
@@ -153,6 +169,8 @@ function hitFrom(paper: PaperMeta, byBlock: Map<string, number>, held: Set<strin
     url: typeof p.url === "string" ? p.url : typeof p.doi === "string" ? `https://doi.org/${p.doi}` : null,
     yours: isHeld(held, p),
     addedAt: paper.addedAt,
+    abstractHash: paper.abstractHash ?? null,
+    sentences: [],
   };
 }
 
@@ -252,7 +270,7 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date, o
     byDocument.set(s.document_id, blocks);
   }
   const meta = await db
-    .select({ documentId: document.id, kind: document.source, title: document.title, provenance: artifactTexts.provenance, addedAt: document.createdAt })
+    .select({ documentId: document.id, kind: document.source, title: document.title, provenance: artifactTexts.provenance, addedAt: document.createdAt, abstractHash: artifactTexts.textHash })
     .from(document)
     .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
     .where(inArray(document.id, [...byDocument.keys()]))

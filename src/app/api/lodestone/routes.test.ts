@@ -19,6 +19,12 @@ vi.mock("next/server", async (original) => ({
   ...(await original<typeof import("next/server")>()),
   after: (task: () => unknown) => void queued.push(task),
 }));
+/** The routes embed with the hashed bag of words, never Voyage. Imported at
+ *  call time: `test-embed` itself imports this module. */
+vi.mock("@/harness/embed", async (original) => ({
+  ...(await original<typeof import("@/harness/embed")>()),
+  embed: async (texts: string[]) => (await import("@/lodestone/test-embed")).testEmbed(texts),
+}));
 import { GET as me } from "./me/route";
 import { GET as listCards, POST as sendCard } from "./cards/route";
 import { GET as readCard, PATCH as patchCard } from "./cards/[ideaId]/route";
@@ -27,6 +33,7 @@ import { GET as readPaper } from "./papers/[documentId]/route";
 import { sql } from "drizzle-orm";
 import { artifactTexts, document } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
+import { embedPaperAbstracts } from "@/lodestone/priorArt";
 
 const origin = "https://lodestone.invalid";
 const sam = COHORT[0];
@@ -134,6 +141,43 @@ describe("client routes", () => {
     expect(body.provenance.query_set).toBe(CARD_SEARCH_QUERY_SET);
     expect(body.provenance).not.toHaveProperty("query");
     for (const key of Object.keys(body.provenance)) expect(PROVENANCE_KEYS).toContain(key);
+  });
+  it("names each hit's nearest sentences, cut from the abstract under its hash, and re-cuts a replaced one", async () => {
+    const db = await getDb();
+    const paperParams = (documentId: string) => ({ params: Promise.resolve({ documentId }) });
+    const abstract = `${sam.said.join(" ")} We survey four hundred arriving students across three campuses. The deposit held in escrow reduced mid-lease moves.`;
+    const [paper] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Sentences under a hash", text: null }).returning({ id: document.id });
+    await putArtifactText(db, { artifactId: paper.id, sourceFormat: "abstract", parser: "test", text: abstract, provenance: { query_set: "sentences" } });
+    await embedPaperAbstracts(db, testEmbed);
+
+    const hitFor = async () => {
+      const body = await (await readCard(req(`/api/lodestone/cards/${sam.ideaId}`), params(sam.ideaId))).json();
+      const hit = body.priorArt.find((h: { documentId: string }) => h.documentId === paper.id);
+      const read = await (await readPaper(req(`/api/lodestone/papers/${paper.id}`), paperParams(paper.id))).json();
+      return { hit, read };
+    };
+    const first = await hitFor();
+    expect(first.hit).toBeDefined();
+    expect(first.hit.abstractHash).toBe(first.read.abstractHash);
+    expect(first.hit.sentences).toHaveLength(3);
+    for (const s of first.hit.sentences) {
+      expect(first.read.abstract).toContain(s.text);
+      expect(s.block).toBe(first.hit.blockKeys[0]);
+      expect(typeof s.cosine).toBe("number");
+    }
+    const at = first.hit.sentences.map((s: { text: string }) => first.read.abstract.indexOf(s.text));
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+
+    const replaced = "Incoming graduate students lease apartments months before arrival without seeing them. A recorded walkthrough from the departing student replaces the visit.";
+    await putArtifactText(db, { artifactId: paper.id, sourceFormat: "abstract", parser: "test", text: replaced, provenance: { query_set: "sentences" } });
+    const second = await hitFor();
+    expect(second.read.abstract).toBe(replaced);
+    expect(second.hit.abstractHash).toBe(second.read.abstractHash);
+    expect(second.hit.abstractHash).not.toBe(first.hit.abstractHash);
+    expect(second.hit.sentences.map((s: { text: string }) => s.text)).toEqual([
+      "Incoming graduate students lease apartments months before arrival without seeing them.",
+      "A recorded walkthrough from the departing student replaces the visit.",
+    ]);
   });
   it("404s a card the token cannot see and 400s a malformed id", async () => {
     const missing = await readCard(req(`/api/lodestone/cards/${"e".repeat(32)}`), params("e".repeat(32)));

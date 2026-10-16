@@ -57,7 +57,9 @@ export const SOURCE_TYPES = [
 export const SourceType = z.enum(SOURCE_TYPES);
 export type SourceType = z.infer<typeof SourceType>;
 
-export const SOURCE_FORMATS = ["abstract", "deck", "resume", "stage_event"] as const;
+/** `tldr`: a corpus work with no abstract, kept on its Semantic Scholar
+ *  TLDR and marked thin. */
+export const SOURCE_FORMATS = ["abstract", "deck", "resume", "stage_event", "tldr"] as const;
 export const SourceFormat = z.enum(SOURCE_FORMATS);
 export type SourceFormat = z.infer<typeof SourceFormat>;
 

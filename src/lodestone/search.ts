@@ -23,7 +23,8 @@ import { openalexLimiter } from "@/harness/papers/rate";
 import { searchS2 as searchSemanticScholar } from "@/harness/papers/s2";
 import { searchWorks as searchOpenAlex } from "@/harness/papers/search";
 import { cardBlocks, type CardBlock, type Embedder } from "./cards";
-import { CARD_SEARCH_QUERY_SET, embedPaperAbstracts } from "./priorArt";
+import { CARD_SEARCH_QUERY_SET, embedPaperAbstracts, priorArtFor } from "./priorArt";
+import { ensureSentences } from "./sentences";
 
 export { CARD_SEARCH_QUERY_SET };
 /** The only provenance keys a searched-in document may carry. */
@@ -34,6 +35,8 @@ export const STALE_MS = 5 * 60 * 1000;
 const SEMANTIC_MAX = 2000;
 const KEYWORDS = 8;
 const KEYWORD_LIMIT = 25;
+/** Hits whose sentences a finished search cuts: the card route's list. */
+const WARM = 10;
 
 export type Purpose = { l1: string; l2: string } | null;
 
@@ -230,6 +233,13 @@ export async function searchCard(db: Db, ideaId: string, deps: SearchDeps): Prom
       await embedPaperAbstracts(db, deps.embed);
     } catch {
       // Left unembedded, a document is picked up by the next embed pass.
+    }
+    try {
+      // The card's top ten cut now, so the first read embeds nothing.
+      const top = await priorArtFor(db, ideaId, WARM);
+      await ensureSentences(db, deps.embed, top.map((h) => h.documentId));
+    } catch {
+      // Left uncut, a hit is cut on its first read.
     }
   }
 }
