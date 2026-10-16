@@ -73,7 +73,7 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
             {card.visibility === "cohort" ? <Chip tone="lime">Cohort</Chip> : <Chip tone="glass">Private</Chip>}
             <span className="lab">Framework card · Business Model Canvas</span>
           </div>
-          <h1 className="h1 mast">{card.title}</h1>
+          <h1 className="h1 title">{card.title}</h1>
           {card.line ? <p className="line">{card.line}</p> : null}
           <p className="meta">{owner.name} · {card.publishedAt && card.visibility === "cohort" ? `published ${day(card.publishedAt)}` : "private"} · <b>{confirmed} of 9</b> blocks in the author&apos;s words · {drafts} drafted · {plural(open, "open question")}</p>
           <div className="hero-actions"><Pill href={`/lodestone/cards/${ideaId}/field`} variant="paper" arrow="right">See the field</Pill></div>

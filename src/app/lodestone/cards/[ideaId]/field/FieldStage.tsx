@@ -26,10 +26,21 @@ interface Placed extends FieldNode {
 
 const radius = (score: number) => 120 + (0.92 - score) * 1500;
 
-function place(nodes: FieldNode[]): Placed[] {
+/** Exponential ease-out that lands on exactly 1, so the entrance loop ends. */
+export const ease = (t: number) => (t >= 1 ? 1 : t <= 0 ? 0 : 1 - Math.pow(2, -10 * t));
+
+/** Shrink every radius by one factor when the farthest node would leave the
+ *  canvas, so the picture keeps its proportions instead of piling nodes on
+ *  the edge. The ring shrinks with it. */
+function fit(nodes: FieldNode[]): number {
+  const far = Math.max(...nodes.map((n) => radius(n.score)), 1);
+  return Math.min(1, (H / 2 - 80) / (far * 0.86), (W / 2 - 110) / (far * 1.55));
+}
+
+function place(nodes: FieldNode[], scale: number): Placed[] {
   const n = nodes.length;
   return nodes.map((node, i) => {
-    const r = radius(node.score);
+    const r = radius(node.score) * scale;
     const ang = -Math.PI / 2 + (i * (Math.PI * 2)) / n + (i % 2 ? 0.18 : -0.18);
     const x = CX + Math.cos(ang) * r * 1.55;
     const y = CY + Math.sin(ang) * r * 0.86;
@@ -37,8 +48,8 @@ function place(nodes: FieldNode[]): Placed[] {
   });
 }
 
-function draw(ctx: CanvasRenderingContext2D, field: Field, nodes: Placed[], hover: number) {
-  const ring = radius(field.line);
+function draw(ctx: CanvasRenderingContext2D, field: Field, nodes: Placed[], hover: number, scale: number) {
+  const ring = radius(field.line) * scale;
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = "rgba(15,25,34,.07)";
   for (let x = 20; x < W; x += 28) for (let y = 20; y < H; y += 28) { ctx.beginPath(); ctx.arc(x, y, 1, 0, 7); ctx.fill(); }
@@ -112,12 +123,12 @@ export function FieldStage({ field }: { field: Field }) {
     const dpr = window.devicePixelRatio || 1;
     cv.width = W * dpr; cv.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const nodes = place(field.nodes);
+    const scale = fit(field.nodes);
+    const nodes = place(field.nodes, scale);
     let hover = -1;
     let raf = 0;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const t0 = performance.now(), D = 900, STAG = 70;
-    const ease = (t: number) => 1 - Math.pow(2, -10 * Math.max(0, Math.min(1, t)));
     const tick = (now: number) => {
       let done = true;
       for (const nd of nodes) {
@@ -125,7 +136,7 @@ export function FieldStage({ field }: { field: Field }) {
         if (p < 1) done = false;
         nd.p = p; nd.x = CX + (nd.tx - CX) * p; nd.y = CY + (nd.ty - CY) * p;
       }
-      draw(ctx, field, nodes, hover);
+      draw(ctx, field, nodes, hover, scale);
       if (!done) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -141,7 +152,7 @@ export function FieldStage({ field }: { field: Field }) {
       const i = pick(e);
       if (i === hover) return;
       hover = i;
-      draw(ctx, field, nodes, hover);
+      draw(ctx, field, nodes, hover, scale);
       if (i < 0) { setTip(null); setHand(false); return; }
       const nd = nodes[i];
       const r = cv.getBoundingClientRect();
@@ -152,7 +163,7 @@ export function FieldStage({ field }: { field: Field }) {
         text: `${peer ? `${nd.meta} · peer card` : `${nd.kind}${nd.meta ? ` · ${nd.meta}` : ""}`} · cosine ${nd.score.toFixed(2)} · ${nd.close ? "within reach" : "below the line"}${peer ? " · click to open" : nd.href ? " · click to open the source" : ""}`,
       });
     };
-    const onLeave = () => { hover = -1; draw(ctx, field, nodes, hover); setTip(null); setHand(false); };
+    const onLeave = () => { hover = -1; draw(ctx, field, nodes, hover, scale); setTip(null); setHand(false); };
     const onClick = (e: MouseEvent) => {
       const i = pick(e);
       if (i < 0) return;

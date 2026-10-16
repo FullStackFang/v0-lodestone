@@ -21,7 +21,7 @@ export default async function MapPage() {
       <section className="panel paper split">
         <div className="sec">
           <Link className="back dark" href="/lodestone"><ArrowLeft size={14} />Your cards</Link>
-          <h1 className="h1 mast" style={{ color: "var(--ink)" }}>Directors only</h1>
+          <h1 className="h1 title" style={{ color: "var(--ink)" }}>Directors only</h1>
         </div>
         <div className="sec">
           <p className="lede" style={{ maxWidth: "52ch" }}>The map is the program&apos;s view. It counts and names regions; it never opens a private card. Ask an operator for the operator role to see it.</p>

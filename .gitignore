@@ -51,3 +51,6 @@ next-env.d.ts
 # Introductions written to a file because there is no Resend key. They name
 # real people and are not a fixture.
 /evals/harness/outbox/
+
+# Playwright MCP screenshots and traces taken during review
+/.playwright-mcp/

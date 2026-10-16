@@ -20,7 +20,7 @@ export default async function DigestPage() {
       <Link className="back" href="/lodestone"><ArrowLeft size={14} />Your cards</Link>
       <div className="mast-copy">
         <span className="lab">Weekly digest</span>
-        <h1 className="h1 mast">Week of {day(digest.since)} to {day(digest.until)}</h1>
+        <h1 className="h1 title">Week of {day(digest.since)} to {day(digest.until)}</h1>
         <p className="line">{plural(digest.newCards, "card")} published to the cohort this week. Every row is a stored record and the block it matched on; <b>nothing here was written by a model</b>.</p>
       </div>
     </header>
@@ -38,7 +38,7 @@ export default async function DigestPage() {
         {s.peers.length === 0 && s.papers.length === 0 ? <div className="empty"><p>Nothing new bears on this card.</p><span>The corpus grows nightly; the cohort publishes when it is ready.</span></div> : <>
           {s.peers.map((p) => <div className="drow" key={p.ideaId}>
             <Chip tone="lime">New card</Chip>
-            <div><div className="t"><Link href={`/lodestone/cards/${p.ideaId}`}>{p.title}</Link></div><div className="why">{p.owner.name} published{p.publishedAt ? ` ${day(p.publishedAt)}` : ""} · {p.shared.length ? <>shares <b>{p.shared.map((b) => b.mine.toLowerCase()).join(", ")}</b> with your card</> : "no block within reach"}</div></div>
+            <div><div className="t"><Link href={`/lodestone/cards/${p.ideaId}`}>{p.title}</Link></div><div className="why">{p.owner.name} published{p.publishedAt ? ` ${day(p.publishedAt)}` : ""} · {p.shared.length ? <>shares <b>{p.shared.map((b) => b.mine.toLowerCase()).join(", ")}</b> with your card</> : "nearest to your card, below the line"}</div></div>
             <span className="s">{p.score.toFixed(2)}</span>
           </div>)}
           {s.papers.map((p) => <div className="drow" key={p.documentId}>

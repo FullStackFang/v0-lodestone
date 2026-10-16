@@ -22,7 +22,7 @@ export default async function TokensPage() {
       <Link className="back" href="/lodestone"><ArrowLeft size={14} />Your cards</Link>
       <div className="mast-copy">
         <span className="lab">API tokens</span>
-        <h1 className="h1 mast">Connect a client.</h1>
+        <h1 className="h1 title">Connect a client.</h1>
         <p className="line">A token lets Whetstone, or anything else you run, send your cards here and read what the network found for them. Each token acts as <b>you and only you</b>. Revoke one and the client is signed out at once.</p>
       </div>
     </header>

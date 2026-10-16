@@ -72,7 +72,7 @@ export default async function LodestonePage() {
   const rows: DigestRow[] = digest.sections.flatMap((s) => [
     ...s.peers.map((p): DigestRow => ({
       key: `${s.ideaId}:${p.ideaId}`, kind: "peer", title: p.title, href: `/lodestone/cards/${p.ideaId}`, score: p.score,
-      why: <>{p.owner.name}{p.publishedAt ? ` published ${day(p.publishedAt)}` : ""} · shares {labels(sharedKeys(p))} with {s.title}</>,
+      why: <>{p.owner.name}{p.publishedAt ? ` published ${day(p.publishedAt)}` : ""}{sharedKeys(p).length ? <> · shares {labels(sharedKeys(p))} with {s.title}</> : <> · nearest to {s.title}, below the line</>}</>,
     })),
     ...s.papers.map((p): DigestRow => ({
       key: `${s.ideaId}:${p.documentId}`, kind: p.kind, title: p.title, href: p.url ?? `/lodestone/cards/${s.ideaId}`, score: p.score,
@@ -87,7 +87,7 @@ export default async function LodestonePage() {
       <div className="hero-copy">
         <span className="hero-rule" />
         <span className="lab">{member ? `${season(now)} cohort · week of ${day(monday(now))}` : "Not yet a member"}</span>
-        <h1 className="h1 hero">Where your idea sits in the field.</h1>
+        <h1 className="h1 display">Where your idea sits in the field.</h1>
         <p className="line">A card is matched to <b>prior art</b> and to <b>peers</b> before anyone else has published. No model is called on the server: every match is a stored record and the block it matched on.</p>
         <div className="hero-actions">
           <Pill href="#import" variant="paper" arrow="right">Import a Forge export</Pill>
@@ -175,7 +175,7 @@ export default async function LodestonePage() {
         {cohort.map(({ card, owner }) => {
           const near = nearest.get(card.ideaId);
           return <Link className="row" key={card.ideaId} href={`/lodestone/cards/${card.ideaId}`}>
-            <span className="t">{card.title}<small>{near ? <>Shares {labels(sharedKeys(near.hit))} with your {near.mine} card · {score(near.hit.score)}</> : "No block within reach of yours"}</small></span>
+            <span className="t">{card.title}<small>{near ? sharedKeys(near.hit).length ? <>Shares {labels(sharedKeys(near.hit))} with your {near.mine} card · {score(near.hit.score)}</> : <>Nearest to your {near.mine} card · {score(near.hit.score)}, below the line</> : "No block within reach of yours"}</small></span>
             <span className="m">{owner.name}</span>
             <span className="m">{card.publishedAt ? day(card.publishedAt) : ""}</span>
             <Go kind="right" />

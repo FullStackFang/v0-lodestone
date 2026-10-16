@@ -33,9 +33,10 @@ function shortName(name: string): string {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const db = await getDb();
-  const person = await currentVerifiedPerson(db);
-  const membership = person ? await membershipFor(db, person.id) : null;
+  // The session reads the request headers before it opens the database, which
+  // keeps every page dynamic and lets the build run without one.
+  const person = await currentVerifiedPerson();
+  const membership = person ? await membershipFor(await getDb(), person.id) : null;
   const operator = !!person && (isPilotOperatorEmail(person.email) || membership?.memberKind === "operator");
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>

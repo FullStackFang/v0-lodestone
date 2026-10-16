@@ -37,6 +37,7 @@ and says so.
 | --- | --- | --- |
 | Your cards and the import form | `/lodestone` | `src/lodestone/cards.ts` |
 | A card: nine blocks, prior art, peers, publish | `/lodestone/cards/<ideaId>` | `priorArt.ts`, `peers.ts` |
+| The field around a card: peers and prior art placed by closeness | `/lodestone/cards/<ideaId>/field` | `field.ts` |
 | The director's cohort map | `/lodestone/map` (operators) | `map.ts`, `geometry.ts` |
 | The weekly digest | `/lodestone/digest`, `npm run lodestone:digest` | `digest.ts` |
 | API tokens for a client such as Whetstone | `/lodestone/tokens` | `api.ts` |

@@ -16,7 +16,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
     <section className="mast drench auth-band">
       <div className="mast-copy">
         <span className="lab">Lodestone · the campus idea network</span>
-        <h1 className="h1 mast">Sign in to see your cards and the cohort.</h1>
+        <h1 className="h1 title">Sign in to see your cards and the cohort.</h1>
         <p className="line">A card is matched to <b>prior art</b> and to <b>peers</b> before anyone else has published. Private by default; the cohort sees nine blocks and a name.</p>
       </div>
     </section>

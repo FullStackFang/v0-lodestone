@@ -36,8 +36,8 @@
 .panel.navy .quiet, .panel.plum .quiet { color: rgba(252, 251, 248, 0.8); }
 .meta { font-size: 12.5px; color: var(--meta); }
 .h1 { font-family: var(--font-serif), Georgia, serif; font-weight: 500; line-height: 0.98; letter-spacing: -0.03em; margin: 0; }
-.h1.hero { font-size: clamp(40px, 4.8vw, 68px); max-width: 11ch; }
-.h1.mast { font-size: clamp(38px, 4.3vw, 60px); line-height: 1; max-width: 16ch; }
+.h1.display { font-size: clamp(40px, 4.8vw, 68px); max-width: 11ch; }
+.h1.title { font-size: clamp(38px, 4.3vw, 60px); line-height: 1; max-width: 16ch; }
 .h1.wide { font-size: clamp(38px, 4.4vw, 62px); max-width: 14ch; }
 .line { font-family: var(--font-serif), Georgia, serif; font-style: italic; font-size: 21px; line-height: 1.4; max-width: 46ch; margin: 0; color: rgba(252, 251, 248, 0.9); }
 .line b { font-style: normal; font-weight: 600; }
@@ -401,3 +401,9 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 .auth-stack .receipt { margin: 0; font-size: 13px; color: var(--ink); }
 .field-card input[type="email"] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; min-height: 46px; width: 100%; }
 .field-card input[type="email"]:focus { border-color: var(--ink); }
+
+/* Headings on the graphite field take the paper, not the ink. */
+.drench h1, .drench h2, .drench h3 { color: var(--paper); }
+
+/* The legacy Thesis Forge stylesheet makes .rail sticky; the tile rail is not. */
+.tile .rail { position: static; }

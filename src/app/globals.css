@@ -72,7 +72,7 @@ h2 { font-size: 19px; line-height: 1.15; letter-spacing: -0.01em; font-weight: 4
 
 a { color: var(--ink); text-underline-offset: 3px; transition: color 200ms var(--ease-out); }
 a:hover { color: var(--oxblood); }
-*:focus-visible { outline: none; box-shadow: var(--ring-focus); }
+*:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; box-shadow: var(--ring-focus); }
 .tabular { font-variant-numeric: tabular-nums; }
 
 /* The label voice: uppercase, wide-tracked Geist. */
