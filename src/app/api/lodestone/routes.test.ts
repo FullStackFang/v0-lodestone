@@ -2,18 +2,30 @@
  *  minted, a card is sent, read back with its matches, published, and judged.
  *  The handlers run as functions; `getDb()` is the in-memory PGlite under
  *  vitest, so the routes share one database for the file. */
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { COHORT, forgeDocument } from "../../../../evals/lodestone/cohort";
 import { getDb } from "@/db/client";
 import { ensurePerson } from "@/harness/ledger";
+import type { OpenAlexWork } from "@/harness/papers/openalex";
 import { mintToken } from "@/lodestone/api";
+import { CARD_SEARCH_QUERY_SET, PROVENANCE_KEYS, searchCard } from "@/lodestone/search";
+import { testEmbed } from "@/lodestone/test-embed";
 import { enrollTestMember } from "@/pilot/test-fixtures";
+
+/** `after` callbacks are queued, never run: the real card search would go to
+ *  the network. A test that wants a search runs `searchCard` with fakes. */
+const queued: (() => unknown)[] = [];
+vi.mock("next/server", async (original) => ({
+  ...(await original<typeof import("next/server")>()),
+  after: (task: () => unknown) => void queued.push(task),
+}));
 import { GET as me } from "./me/route";
 import { GET as listCards, POST as sendCard } from "./cards/route";
 import { GET as readCard, PATCH as patchCard } from "./cards/[ideaId]/route";
 import { GET as readFeedback, POST as sendFeedback } from "./cards/[ideaId]/feedback/route";
 import { GET as readPaper } from "./papers/[documentId]/route";
-import { document } from "@/db/schema";
+import { sql } from "drizzle-orm";
+import { artifactTexts, document } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
 
 const origin = "https://lodestone.invalid";
@@ -53,6 +65,8 @@ describe("client routes", () => {
     expect(a.card.ideaId).toBe(sam.ideaId);
     expect(a.card.visibility).toBe("private");
     expect(a.filed).toBeGreaterThan(0);
+    expect(a.search).toBe("queued");
+    expect(queued).toHaveLength(1);
     const second = await sendCard(req("/api/lodestone/cards", { method: "POST", body: JSON.stringify(forgeDocument(sam)) }));
     expect(second.status).toBe(200);
     expect((await second.json()).created).toBe(false);
@@ -75,6 +89,51 @@ describe("client routes", () => {
     expect(Array.isArray(body.priorArt)).toBe(true);
     expect(Array.isArray(body.peers)).toBe(true);
     expect(body.feedback).toEqual([]);
+    // Queued, never run here: no rows, so done with nothing found.
+    expect(body.search).toEqual({ state: "done", finishedAt: null, sources: {}, found: 0, abstracted: false });
+  });
+  it("accepts a forge-idea/5 card and never shows its purpose to another member", async () => {
+    const db = await getDb();
+    const priya = COHORT[1];
+    const priyaId = await ensurePerson(db, { name: priya.name, email: priya.email });
+    await enrollTestMember(db, priyaId);
+    const priyaToken = (await mintToken(db, priyaId, "test client")).token;
+    const doc = { ...forgeDocument(priya), format: "forge-idea/5", already_have: [], purpose: { l1: "Secret one", l2: "Secret two", note: "x" } };
+    const sent = await sendCard(req("/api/lodestone/cards", { method: "POST", body: JSON.stringify(doc) }, priyaToken));
+    expect(sent.status).toBe(201);
+    const pub = await patchCard(req(`/api/lodestone/cards/${priya.ideaId}`, { method: "PATCH", body: JSON.stringify({ visibility: "cohort" }) }, priyaToken), params(priya.ideaId));
+    expect(pub.status).toBe(200);
+    const own = await (await readCard(req(`/api/lodestone/cards/${priya.ideaId}`, {}, priyaToken), params(priya.ideaId))).json();
+    expect(own.search.abstracted).toBe(true);
+    const seen = await readCard(req(`/api/lodestone/cards/${priya.ideaId}`), params(priya.ideaId));
+    expect(seen.status).toBe(200);
+    const text = await seen.text();
+    expect(text).not.toMatch(/purpose|Secret one|Secret two/);
+  });
+  it("serves a searched-in paper with provenance inside the allowlist and no query", async () => {
+    const db = await getDb();
+    const words = "Groups that reserve a shared room and fail to arrive leave it empty while others queue, and a short grace period before release recovers most of that lost time across a semester of bookings.";
+    const index: Record<string, number[]> = {};
+    words.split(" ").forEach((w, i) => (index[w] ??= []).push(i));
+    const work: OpenAlexWork = { id: "https://openalex.org/W777001", doi: "https://doi.org/10.5555/grace", title: "Grace periods", publication_year: 2022, abstract_inverted_index: index };
+    await searchCard(db, sam.ideaId, {
+      searchWorks: async (options, onWork) => {
+        if (options.semantic) await onWork(work);
+        return { seen: 1, stopped: false, cursor: null };
+      },
+      searchS2: async () => ({ hits: [], skippedNoDoi: 0 }),
+      fetchWork: async () => null,
+      embed: testEmbed,
+      now: () => new Date(),
+    });
+    const [row] = await db
+      .select({ id: artifactTexts.artifactId })
+      .from(artifactTexts)
+      .where(sql`${artifactTexts.provenance}->>'openalex_id' = ${work.id}`);
+    const body = await (await readPaper(req(`/api/lodestone/papers/${row.id}`), { params: Promise.resolve({ documentId: row.id }) })).json();
+    expect(body.provenance.query_set).toBe(CARD_SEARCH_QUERY_SET);
+    expect(body.provenance).not.toHaveProperty("query");
+    for (const key of Object.keys(body.provenance)) expect(PROVENANCE_KEYS).toContain(key);
   });
   it("404s a card the token cannot see and 400s a malformed id", async () => {
     const missing = await readCard(req(`/api/lodestone/cards/${"e".repeat(32)}`), params("e".repeat(32)));

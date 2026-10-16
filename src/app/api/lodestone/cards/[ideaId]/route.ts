@@ -9,6 +9,7 @@ import { cardSummary as summary, feedbackFor } from "@/lodestone/api";
 import { canView, cardBlocks, cardById, setVisibility } from "@/lodestone/cards";
 import { peersFor } from "@/lodestone/peers";
 import { corpusSize, priorArtFor } from "@/lodestone/priorArt";
+import { searchState } from "@/lodestone/search";
 import { isActiveMember } from "@/pilot/membership";
 import { IDEA_ID, fail, jsonBody, withToken } from "../../client";
 
@@ -26,7 +27,8 @@ export async function GET(request: Request, { params }: Params) {
     const { blocks, segments } = cardBlocks(card.doc);
     if (!mine) return NextResponse.json({ card: summary(card), owner, blocks, segments });
     const member = await isActiveMember(db, person.id);
-    const [priorArt, corpus, peers, feedback] = await Promise.all([
+    const [search, priorArt, corpus, peers, feedback] = await Promise.all([
+      searchState(db, ideaId, card.doc),
       priorArtFor(db, ideaId, 10),
       corpusSize(db),
       member ? peersFor(db, ideaId, 10) : Promise.resolve([]),
@@ -39,6 +41,7 @@ export async function GET(request: Request, { params }: Params) {
       segments,
       member,
       corpus,
+      search,
       priorArt,
       peers,
       feedback: feedback.map((f) => ({ kind: f.kind, targetId: f.targetId, verdict: f.verdict, at: f.updatedAt })),

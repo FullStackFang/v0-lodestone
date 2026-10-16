@@ -12,15 +12,15 @@
 
 ## 2. The search
 
-- [ ] 2.1 `src/lodestone/search.ts`: `queryFor(block, entries, purpose)` → `{ semantic, keyword }`; tests for trimming to 2,000 characters, purpose leading, no purpose
-- [ ] 2.2 `blockHashes(doc)` keyed by block key; `plannedBlocks(db, ideaId, doc)` returns changed blocks and rows `running` past five minutes, deletes rows for emptied blocks; test
-- [ ] 2.3 `searchCard(db, ideaId)`: per planned block, the three sources in order under their limiters; `ingestWork` with provenance from the allowlist only and `query_set = "card-search"`; `embedPaperAbstracts`; write `card_search` rows with `sources` and `found`; errors land in `sources.<name>.error`, never thrown
-- [ ] 2.4 `importCard` callers (`POST /api/lodestone/cards`, the import form action) call `after(() => searchCard(db, ideaId))`; both routes export `maxDuration = 300`; the `POST` body gains `search: "queued"`
-- [ ] 2.5 `searchState(db, ideaId)` folded for `GET /api/lodestone/cards/<id>`: `{ state, finishedAt, sources, found, abstracted }`; no rows → `done`, `found: 0`
-- [ ] 2.6 `forge-idea/5` accepted by the import zod schema with `purpose: { l1, l2 }` and extra keys stripped; a test reads a published `/5` card as another member and finds no `purpose`
-- [ ] 2.7 Route test: `GET /papers/<id>` for a searched-in document has provenance keys within the allowlist and no `query`
-- [ ] 2.8 `digest.ts`: the `since` window excludes `query_set = 'card-search'`; test
-- [ ] 2.9 `docs/api.md`: `forge-idea/5` and `purpose`; the `search` field on `POST` and `GET`; the sentence on card text sent to OpenAlex and Semantic Scholar; the licences (OpenAlex CC0, S2 ODC-BY with attribution)
+- [x] 2.1 `src/lodestone/search.ts`: `queryFor(block, entries, purpose)` → `{ semantic, keyword }`; tests for trimming to 2,000 characters, purpose leading, no purpose
+- [x] 2.2 `blockHashes(doc)` keyed by block key; `plannedBlocks(db, ideaId, doc)` returns changed blocks and rows `running` past five minutes, deletes rows for emptied blocks; test
+- [x] 2.3 `searchCard(db, ideaId)`: per planned block, the three sources in order under their limiters; `ingestWork` with provenance from the allowlist only and `query_set = "card-search"`; `embedPaperAbstracts`; write `card_search` rows with `sources` and `found`; errors land in `sources.<name>.error`, never thrown
+- [x] 2.4 `importCard` callers (`POST /api/lodestone/cards`, the import form action) call `after(() => searchCard(db, ideaId))`; both routes export `maxDuration = 300`; the `POST` body gains `search: "queued"` (2026-10-16: the action's `maxDuration` sits on `src/app/lodestone/page.tsx`, the page that uses it, per the Next docs)
+- [x] 2.5 `searchState(db, ideaId)` folded for `GET /api/lodestone/cards/<id>`: `{ state, finishedAt, sources, found, abstracted }`; no rows → `done`, `found: 0` (2026-10-16: `searchState(db, ideaId, doc)` reads `abstracted` from the doc it is handed)
+- [x] 2.6 `forge-idea/5` accepted by the import zod schema with `purpose: { l1, l2 }` and extra keys stripped; a test reads a published `/5` card as another member and finds no `purpose`
+- [x] 2.7 Route test: `GET /papers/<id>` for a searched-in document has provenance keys within the allowlist and no `query`
+- [x] 2.8 `digest.ts`: the `since` window excludes `query_set = 'card-search'`; test
+- [x] 2.9 `docs/api.md`: `forge-idea/5` and `purpose`; the `search` field on `POST` and `GET`; the sentence on card text sent to OpenAlex and Semantic Scholar; the licences (OpenAlex CC0, S2 ODC-BY with attribution)
 
 ## 3. Field quota and block keys
 

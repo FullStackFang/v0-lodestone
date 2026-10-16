@@ -1,0 +1,230 @@
+/** Card search with every source faked: the queries it builds, which blocks
+ *  it plans, what it ingests and records, and the state a client reads. */
+import { and, eq } from "drizzle-orm";
+import { beforeAll, describe, expect, it } from "vitest";
+import { COHORT, forgeDocument } from "../../evals/lodestone/cohort";
+import { createPgliteDb, type Db } from "@/db/client";
+import { artifactTexts, cardSearch } from "@/db/schema";
+import { ensurePerson } from "@/harness/ledger";
+import type { OpenAlexWork } from "@/harness/papers/openalex";
+import type { SearchOptions } from "@/harness/papers/search";
+import { enrollTestMember } from "@/pilot/test-fixtures";
+import { cardBlocks, importCard, type CardBlock } from "./cards";
+import {
+  CARD_SEARCH_QUERY_SET,
+  PROVENANCE_KEYS,
+  STALE_MS,
+  blockHashes,
+  plannedBlocks,
+  queryFor,
+  searchCard,
+  searchState,
+  type SearchDeps,
+} from "./search";
+import { testEmbed } from "./test-embed";
+
+const block = (key: string, label: string, texts: string[]): CardBlock => ({
+  key,
+  label,
+  entries: texts.map((text) => ({ text, origin: "confirmed", evidence: null, segment: null })),
+});
+
+describe("queryFor", () => {
+  const vp = block("value_proposition", "Value proposition", ["Booked study rooms released when nobody shows", "Rooms handed to the waitlist"]);
+
+  it("leads the semantic query with the purpose, then the block", () => {
+    const q = queryFor(vp, { l1: "x", l2: "Reallocate a reserved shared resource when the holder fails to appear" });
+    expect(q.semantic).toBe(
+      "Reallocate a reserved shared resource when the holder fails to appear. Value proposition: Booked study rooms released when nobody shows; Rooms handed to the waitlist",
+    );
+  });
+
+  it("is the block alone without a purpose", () => {
+    expect(queryFor(vp, null).semantic).toBe("Value proposition: Booked study rooms released when nobody shows; Rooms handed to the waitlist");
+  });
+
+  it("trims the entries, never the purpose, to 2,000 characters", () => {
+    const l2 = "p".repeat(300);
+    const long = block("channels", "Channels", ["word ".repeat(1000)]);
+    const q = queryFor(long, { l1: "", l2 });
+    expect(q.semantic.length).toBe(2000);
+    expect(q.semantic.startsWith(`${l2}. Channels: `)).toBe(true);
+  });
+
+  it("keys on at most eight content words, most frequent across the card first", () => {
+    const card = [vp, block("customer_segments", "Customer segments", ["Students who need study rooms during finals"])];
+    const q = queryFor(vp, null, card);
+    const words = q.keyword.split(" ");
+    expect(words.length).toBeLessThanOrEqual(8);
+    expect(words.slice(0, 2)).toEqual(["rooms", "study"]);
+    expect(words).not.toContain("when");
+    expect(words).not.toContain("the");
+  });
+});
+
+describe("blockHashes", () => {
+  it("hashes each block with entries by its key, and only those", () => {
+    const doc = forgeDocument(COHORT[0]);
+    const hashes = blockHashes(doc);
+    const withEntries = cardBlocks(doc).blocks.filter((b) => b.entries.length > 0).map((b) => b.key);
+    expect([...hashes.keys()].sort()).toEqual(withEntries.sort());
+    for (const h of hashes.values()) expect(h).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+// --- The database half. ---
+
+let db: Db;
+let ownerId: string;
+const member = COHORT[0];
+
+beforeAll(async () => {
+  db = await createPgliteDb();
+  ownerId = await ensurePerson(db, { name: member.name, email: member.email });
+  await enrollTestMember(db, ownerId);
+}, 60_000);
+
+/** OpenAlex's inverted index for a text: each word with every position it holds. */
+function invert(text: string): Record<string, number[]> {
+  const index: Record<string, number[]> = {};
+  text.split(" ").forEach((w, i) => (index[w] ??= []).push(i));
+  return index;
+}
+const abstract = (n: number) =>
+  `Study ${n} examines how a shared reservation system releases rooms that were booked but left empty, and how often the next group in the queue takes them up within ten minutes across three campus libraries over two semesters.`;
+const work = (n: number, doi?: string): OpenAlexWork => ({
+  id: `https://openalex.org/W${9000 + n}`,
+  doi: doi ? `https://doi.org/${doi}` : null,
+  title: `Work ${n}`,
+  publication_year: 2020,
+  abstract_inverted_index: invert(abstract(n)),
+});
+
+/** Fakes for the three sources, recording what each was asked. */
+function fakes(over: Partial<SearchDeps> = {}) {
+  const asked: { semantic: string[]; keyword: string[]; s2: string[] } = { semantic: [], keyword: [], s2: [] };
+  const deps: SearchDeps = {
+    searchWorks: async (options: SearchOptions, onWork: (w: OpenAlexWork) => Promise<void>) => {
+      (options.semantic ? asked.semantic : asked.keyword).push(options.query);
+      const works = options.semantic ? [work(1), work(2)] : [work(2), work(3)];
+      for (const w of works) await onWork(w);
+      return { seen: works.length, stopped: false, cursor: null };
+    },
+    searchS2: async ({ query }) => {
+      asked.s2.push(query);
+      return { hits: [{ doi: "10.5555/s2.one", tldr: "Release empty rooms." }], skippedNoDoi: 1 };
+    },
+    fetchWork: async (id: string) => (id.includes("10.5555/s2.one") ? work(4, "10.5555/s2.one") : null),
+    embed: testEmbed,
+    now: () => new Date(),
+    ...over,
+  };
+  return { deps, asked };
+}
+
+async function importMember(doc: Record<string, unknown>) {
+  await importCard(db, { id: ownerId, email: member.email }, doc, testEmbed);
+}
+
+describe("searchCard", () => {
+  it("searches every block with entries, ingests the union once, and records each block", async () => {
+    const doc = forgeDocument(member);
+    await importMember(doc);
+    const { deps, asked } = fakes();
+    await searchCard(db, member.ideaId, deps);
+
+    const planned = blockHashes(doc).size;
+    expect(asked.semantic).toHaveLength(planned);
+    expect(asked.keyword).toHaveLength(planned);
+    expect(asked.s2).toHaveLength(planned);
+
+    const rows = await db.select().from(cardSearch).where(eq(cardSearch.ideaId, member.ideaId));
+    expect(rows).toHaveLength(planned);
+    expect(rows.every((r) => r.state === "done" && r.finishedAt)).toBe(true);
+    // Four distinct works across all blocks; the first block finds them new.
+    expect(rows.reduce((n, r) => n + r.found, 0)).toBe(4);
+    const first = rows.find((r) => r.found > 0)!;
+    expect(first.sources.openalex_semantic).toMatchObject({ new: 2, existing: 0 });
+    expect(first.sources.openalex_keyword).toMatchObject({ new: 1, existing: 1 });
+    expect(first.sources.s2).toMatchObject({ new: 1, existing: 0, skipped_no_doi: 1 });
+
+    const state = await searchState(db, member.ideaId, doc);
+    expect(state).toMatchObject({ state: "done", found: 4, abstracted: false });
+  });
+
+  it("stores no card text in a searched-in paper's provenance", async () => {
+    const texts = await db.select({ provenance: artifactTexts.provenance }).from(artifactTexts);
+    const searched = texts.filter((t) => t.provenance.query_set === CARD_SEARCH_QUERY_SET);
+    expect(searched).toHaveLength(4);
+    for (const t of searched) for (const key of Object.keys(t.provenance)) expect(PROVENANCE_KEYS).toContain(key);
+    expect(searched.find((t) => t.provenance.doi === "10.5555/s2.one")?.provenance.tldr).toBe("Release empty rooms.");
+  });
+
+  it("searches again only the block that changed", async () => {
+    const changed = { ...member, entries: member.entries.map((e, i) => (i === 0 ? { ...e, text: `${e.text} on weekends` } : e)) };
+    const doc = forgeDocument(changed);
+    await importMember(doc);
+    const plan = await plannedBlocks(db, member.ideaId, doc);
+    expect(plan.map((b) => b.key)).toEqual([member.entries[0].block]);
+    const { deps, asked } = fakes();
+    await searchCard(db, member.ideaId, deps);
+    expect(asked.semantic).toHaveLength(1);
+  });
+
+  it("re-plans a block stuck running past the stale window, and drops an emptied block", async () => {
+    const doc = forgeDocument(member);
+    await importMember(doc);
+    await searchCard(db, member.ideaId, fakes().deps);
+    const stuck = member.entries[1].block;
+    await db
+      .update(cardSearch)
+      .set({ state: "running", startedAt: new Date(Date.now() - STALE_MS - 1000) })
+      .where(and(eq(cardSearch.ideaId, member.ideaId), eq(cardSearch.block, stuck)));
+    expect(await searchState(db, member.ideaId, doc)).toMatchObject({ state: "stale" });
+    expect((await plannedBlocks(db, member.ideaId, doc)).map((b) => b.key)).toEqual([stuck]);
+
+    const emptied = member.entries[2].block;
+    const fewer = forgeDocument({ ...member, entries: member.entries.filter((e) => e.block !== emptied) });
+    await importMember(fewer);
+    await plannedBlocks(db, member.ideaId, fewer);
+    const blocks = (await db.select().from(cardSearch).where(eq(cardSearch.ideaId, member.ideaId))).map((r) => r.block);
+    expect(blocks).not.toContain(emptied);
+  });
+
+  it("records a source's failure in its row and carries on", async () => {
+    const doc = forgeDocument({ ...member, entries: member.entries.map((e) => ({ ...e, text: `${e.text} again` })) });
+    await importMember(doc);
+    const { deps } = fakes({
+      searchS2: async () => ({ hits: [], skippedNoDoi: 0, error: "s2 429: Too Many Requests" }),
+      searchWorks: async () => {
+        throw new Error("network down");
+      },
+    });
+    await expect(searchCard(db, member.ideaId, deps)).resolves.toBeUndefined();
+    const [row] = await db.select().from(cardSearch).where(eq(cardSearch.ideaId, member.ideaId)).limit(1);
+    expect(row.state).toBe("done");
+    expect(row.sources.s2.error).toMatch(/429/);
+    expect(row.sources.openalex_semantic.error).toMatch(/network down/);
+  });
+
+  it("leads with the purpose and reports abstracted for a /5 card", async () => {
+    const other = COHORT[1];
+    const id = await ensurePerson(db, { name: other.name, email: other.email });
+    const doc = { ...forgeDocument(other), format: "forge-idea/5", already_have: [], purpose: { l1: "Help one group", l2: "Match supply to uncertain demand", extra: "dropped" } };
+    await importCard(db, { id, email: other.email }, doc, testEmbed);
+    const { deps, asked } = fakes();
+    await searchCard(db, other.ideaId, deps);
+    expect(asked.semantic.every((q) => q.startsWith("Match supply to uncertain demand. "))).toBe(true);
+    expect(await searchState(db, other.ideaId, doc)).toMatchObject({ abstracted: true });
+  });
+
+  it("reports a card with no rows as done with nothing found", async () => {
+    expect(await searchState(db, "f".repeat(32), forgeDocument(member))).toEqual({
+      state: "done",
+      finishedAt: null,
+      sources: {},
+      found: 0,
+      abstracted: false,
+    });
+  });
+});

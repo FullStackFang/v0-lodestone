@@ -297,6 +297,22 @@ describe("the cohort", () => {
     expect(text).toContain("corpus · Patent · Verified student sublet with walkthrough video");
   });
 
+  it("leaves a searched-in paper out of the digest window but ranks it on the card", async () => {
+    const me = people.get(sam.email)!;
+    const since = new Date(Date.now() - 1000);
+    const text = `${sam.line} ${sam.said.join(" ")}`;
+    const searched = await addPaper("Searched in for one card", text, { query_set: "card-search" });
+    await embedPaperAbstracts(db, testEmbed);
+    expect((await priorArtFor(db, sam.ideaId, 10)).map((h) => h.documentId)).toContain(searched.id);
+    const digest = await digestFor(db, me, since, new Date(), { paperFloor: 0 });
+    const section = digest.sections.find((s) => s.ideaId === sam.ideaId)!;
+    expect(section.papers.map((p) => p.documentId)).not.toContain(searched.id);
+    // Gone again, so the corpus counts below see only the seeded sets.
+    await db.delete(documentChunk).where(eq(documentChunk.documentId, searched.id));
+    await db.delete(artifactTexts).where(eq(artifactTexts.artifactId, searched.id));
+    await db.delete(document).where(eq(document.id, searched.id));
+  });
+
   it("drops a revoked member's card from every cohort list without touching the ledger", async () => {
     const jonas = COHORT[7];
     const [row] = await db.select().from(forgeCard).where(eq(forgeCard.ideaId, jonas.ideaId));

@@ -154,6 +154,9 @@ function hitFrom(paper: PaperMeta, byBlock: Map<string, number>, held: Set<strin
 
 const corpusSources = sql.join(CORPUS_SOURCES.map((s) => sql`${s}`), sql`, `);
 
+/** The `query_set` of a document a card search brought in. */
+export const CARD_SEARCH_QUERY_SET = "card-search";
+
 /** The k closest papers to this card, or an empty list when the card has no
  *  vectors yet. `since` narrows to papers added after a date, for the digest.
  *  A paper the author listed as already held is ranked like any other and
@@ -165,7 +168,9 @@ const corpusSources = sql.join(CORPUS_SOURCES.map((s) => sql`${s}`), sql`, `);
  *  row's top k, since anything nearer that row also scores above it. The
  *  candidates are then scored exactly, the corpus side cast up from half
  *  precision. `since` skips the index and scores every document added since,
- *  a week of ingest, which a filtered index scan could under-return. */
+ *  a week of ingest, which a filtered index scan could under-return. It
+ *  leaves out documents a card search brought in: one member's private card
+ *  must not surface its topic in everyone's digest. */
 export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): Promise<PaperHit[]> {
   const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
   if (rows.length === 0) return [];
@@ -178,7 +183,9 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): 
   );
   const candidates = since
     ? sql`select d.id as document_id from document d
-          where d.source in (${corpusSources}) and d.created_at >= ${since.toISOString()}`
+          where d.source in (${corpusSources}) and d.created_at >= ${since.toISOString()}
+            and not exists (select 1 from artifact_texts a
+                            where a.artifact_id = d.id and a.provenance->>'query_set' = ${CARD_SEARCH_QUERY_SET})`
     : sql`select distinct n.document_id from q cross join lateral (
             select c.document_id from document_chunk c join document d on d.id = c.document_id
             where d.source in (${corpusSources}) and c.embedding is not null

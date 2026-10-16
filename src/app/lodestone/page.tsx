@@ -10,6 +10,8 @@ import { importForgeCard } from "./actions";
 import "./lodestone.css";
 
 export const dynamic = "force-dynamic";
+/** The import action's card search runs after it responds, inside this limit. */
+export const maxDuration = 300;
 
 export default async function LodestonePage() {
   const db = await getDb();
