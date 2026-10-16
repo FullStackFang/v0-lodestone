@@ -24,10 +24,10 @@
 
 ## 3. Field quota and block keys
 
-- [ ] 3.1 Failing tests: `fieldQuota` on a hand-built list (cap, null bucket, short list); `scorePaper` path and `priorArtFor` agree on the eval cards; `hitFrom` returns `blockKeys` aligned with `blocks`
-- [ ] 3.2 `fieldQuota(hits, k, perField = 3)` and `blockKeys` in `priorArt.ts`; `priorArtFor` requests `3k` from SQL and applies it; `scorePaper` callers apply it
-- [ ] 3.3 `network.test.ts`: a cohort fixture where one field dominates
-- [ ] 3.4 `docs/api.md`: `blockKeys` on a hit; clients send `blockKeys` in a verdict's `context`
+- [x] 3.1 Failing tests: `fieldQuota` on a hand-built list (cap, null bucket, short list); `scorePaper` path and `priorArtFor` agree on the eval cards; `hitFrom` returns `blockKeys` aligned with `blocks` (2026-10-16: the agreement is checked on the network cohort, whose corpus has fields; `priorArtFor` takes `{ perField }`, `Infinity` for the eval's no-quota rows)
+- [x] 3.2 `fieldQuota(hits, k, perField = 3)` and `blockKeys` in `priorArt.ts`; `priorArtFor` requests `3k` from SQL and applies it; `scorePaper` callers apply it
+- [x] 3.3 `network.test.ts`: a cohort fixture where one field dominates
+- [x] 3.4 `docs/api.md`: `blockKeys` on a hit; clients send `blockKeys` in a verdict's `context`
 
 ## 4. Eval
 

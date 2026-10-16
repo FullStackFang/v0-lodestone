@@ -9,11 +9,11 @@ import { artifactTexts, document, documentChunk, forgeCard, assertions } from "@
 import { putArtifactText } from "@/harness/canonical";
 import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
-import { canView, cardBlocks, cardsForOwner, cohortCards, cohortCounts, importCard, setVisibility } from "./cards";
+import { blockLabel, canView, cardBlocks, cardsForOwner, cohortCards, cohortCounts, importCard, setVisibility } from "./cards";
 import { digestFor, renderDigest } from "./digest";
 import { cohortMap, corpusSummary } from "./map";
 import { peersFor } from "./peers";
-import { corpusSize, embedPaperAbstracts, heldPapers, priorArtFor, scorePaper, type CorpusKind } from "./priorArt";
+import { corpusSize, embedPaperAbstracts, fieldQuota, heldPapers, priorArtFor, scorePaper, type CorpusKind } from "./priorArt";
 import { testEmbed } from "./test-embed";
 import { ideaVectors } from "./vectors";
 
@@ -55,10 +55,10 @@ async function exactScan(ideaId: string, k: number, since?: Date) {
     .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
     .where(and(inArray(document.source, ["paper", "patent"]), isNotNull(documentChunk.embedding), since ? gte(document.createdAt, since) : undefined))
     .orderBy(desc(document.createdAt));
-  return corpus
+  const scored = corpus
     .map((p) => scorePaper(rows, { ...p, kind: p.kind as CorpusKind, embedding: p.embedding as number[] }, heldPapers(card.doc)))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k);
+    .sort((a, b) => b.score - a.score);
+  return fieldQuota(scored, k);
 }
 
 const owner = (email: string) => ({ id: people.get(email)!, email });
@@ -240,6 +240,8 @@ describe("the cohort", () => {
         for (const [at, h] of got.entries()) {
           expect(h.score).toBeCloseTo(want[at].score, 5);
           expect(h.blocks).toEqual(want[at].blocks);
+          expect(h.blockKeys).toEqual(want[at].blockKeys);
+          expect(h.blockKeys.map(blockLabel)).toEqual(h.blocks);
           expect(h.yours).toBe(want[at].yours);
         }
         if (since) expect(got.every((h) => h.addedAt >= since)).toBe(true);
@@ -311,6 +313,23 @@ describe("the cohort", () => {
     await db.delete(documentChunk).where(eq(documentChunk.documentId, searched.id));
     await db.delete(artifactTexts).where(eq(artifactTexts.artifactId, searched.id));
     await db.delete(document).where(eq(document.id, searched.id));
+  });
+
+  it("holds at most three hits per field when one field dominates", async () => {
+    const text = `${sam.line} ${sam.said.join(" ")}`;
+    const crowd = [];
+    for (let i = 0; i < 6; i++) crowd.push(await addPaper(`Crowd ${i}`, `${text} Variant ${i}.`, { field: "Crowding Studies" }));
+    await embedPaperAbstracts(db, testEmbed);
+    const off = await priorArtFor(db, sam.ideaId, 10, undefined, { perField: Infinity });
+    expect(off.filter((h) => h.field === "Crowding Studies").length).toBeGreaterThan(3);
+    const hits = await priorArtFor(db, sam.ideaId, 10);
+    expect(hits.filter((h) => h.field === "Crowding Studies")).toHaveLength(3);
+    expect(hits.map((h) => h.documentId)).toEqual((await exactScan(sam.ideaId, 10)).map((h) => h.documentId));
+    for (const p of crowd) {
+      await db.delete(documentChunk).where(eq(documentChunk.documentId, p.id));
+      await db.delete(artifactTexts).where(eq(artifactTexts.artifactId, p.id));
+      await db.delete(document).where(eq(document.id, p.id));
+    }
   });
 
   it("drops a revoked member's card from every cohort list without touching the ledger", async () => {

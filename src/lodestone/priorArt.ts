@@ -64,6 +64,8 @@ export interface PaperHit {
   score: number;
   /** The block that came closest, then any other within a hair of it. */
   blocks: string[];
+  /** The same blocks by key (`value_proposition`), in the same order. */
+  blockKeys: string[];
   year: number | null;
   venue: string | null;
   field: string | null;
@@ -131,10 +133,11 @@ export function scorePaper(rows: IdeaVector[], paper: PaperRow, held: Set<string
  *  explanation is that block and any other within a hair of it. */
 function hitFrom(paper: PaperMeta, byBlock: Map<string, number>, held: Set<string>): PaperHit {
   const best = Math.max(...byBlock.values());
-  const blocks = [...byBlock.entries()]
+  const blockKeys = [...byBlock.entries()]
     .filter(([, c]) => c >= best - 0.03)
     .sort((a, b) => b[1] - a[1])
-    .map(([b]) => blockLabel(b));
+    .map(([b]) => b);
+  const blocks = blockKeys.map(blockLabel);
   const p = paper.provenance ?? {};
   return {
     documentId: paper.documentId,
@@ -143,6 +146,7 @@ function hitFrom(paper: PaperMeta, byBlock: Map<string, number>, held: Set<strin
     title: paper.title ?? (paper.kind === "patent" ? "Untitled patent" : "Untitled paper"),
     score: best,
     blocks,
+    blockKeys,
     year: typeof p.year === "number" ? p.year : null,
     venue: typeof p.venue === "string" ? p.venue : null,
     field: typeof p.field === "string" ? p.field : null,
@@ -157,6 +161,27 @@ const corpusSources = sql.join(CORPUS_SOURCES.map((s) => sql`${s}`), sql`, `);
 /** The `query_set` of a document a card search brought in. */
 export const CARD_SEARCH_QUERY_SET = "card-search";
 
+/** How many hits one field may hold in a ranked list. */
+export const PER_FIELD = 3;
+/** Candidates ranked per hit returned, so the quota has others to reach for. */
+const CANDIDATE_DEPTH = 3;
+
+/** Walk the hits in order, taking one while its field holds fewer than
+ *  `perField`, until `k` are taken. A missing field is a bucket of its own. A
+ *  short list means the candidates ran out, not that the quota bent. */
+export function fieldQuota<T extends { field: string | null }>(hits: T[], k: number, perField = PER_FIELD): T[] {
+  const taken = new Map<string | null, number>();
+  const out: T[] = [];
+  for (const h of hits) {
+    if (out.length >= k) break;
+    const n = taken.get(h.field) ?? 0;
+    if (n >= perField) continue;
+    taken.set(h.field, n + 1);
+    out.push(h);
+  }
+  return out;
+}
+
 /** The k closest papers to this card, or an empty list when the card has no
  *  vectors yet. `since` narrows to papers added after a date, for the digest.
  *  A paper the author listed as already held is ranked like any other and
@@ -170,8 +195,15 @@ export const CARD_SEARCH_QUERY_SET = "card-search";
  *  precision. `since` skips the index and scores every document added since,
  *  a week of ingest, which a filtered index scan could under-return. It
  *  leaves out documents a card search brought in: one member's private card
- *  must not surface its topic in everyone's digest. */
-export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): Promise<PaperHit[]> {
+ *  must not surface its topic in everyone's digest.
+ *
+ *  The database ranks `3k` and `fieldQuota` keeps at most `perField` per
+ *  field among the `k` returned. A document outside the dominant fields
+ *  appears only if fewer than `3k` outrank it; `perField: Infinity` turns
+ *  the quota off, for the eval. */
+export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date, options: { perField?: number } = {}): Promise<PaperHit[]> {
+  const perField = options.perField ?? PER_FIELD;
+  const depth = Number.isFinite(perField) ? k * CANDIDATE_DEPTH : k;
   const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
   if (rows.length === 0) return [];
   const [card] = await db.select({ doc: forgeCard.doc }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId)).limit(1);
@@ -190,7 +222,7 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): 
             select c.document_id from document_chunk c join document d on d.id = c.document_id
             where d.source in (${corpusSources}) and c.embedding is not null
             order by c.embedding <=> q.v::halfvec(${sql.raw(String(EMBEDDING_DIMENSIONS))})
-            limit ${k}
+            limit ${depth}
           ) n`;
   const result = await db.execute(sql`
     with q(block, v) as (values ${q}),
@@ -205,7 +237,7 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): 
       select p.document_id from per_block p join document d on d.id = p.document_id
       group by p.document_id, d.created_at
       order by max(p.cos) desc, d.created_at desc
-      limit ${k}
+      limit ${depth}
     )
     select p.document_id, p.block, p.cos from per_block p join best using (document_id)`);
   const scored = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { document_id: string; block: string; cos: number | string }[];
@@ -226,10 +258,11 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): 
     .where(inArray(document.id, [...byDocument.keys()]))
     .orderBy(desc(document.createdAt), desc(artifactTexts.version));
   const seen = new Set<string>();
-  return meta
+  const ranked = meta
     .filter((m) => (seen.has(m.documentId) ? false : (seen.add(m.documentId), true)))
     .map((m) => hitFrom({ ...m, kind: m.kind as CorpusKind }, byDocument.get(m.documentId)!, held))
     .sort((a, b) => b.score - a.score);
+  return fieldQuota(ranked, k, perField);
 }
 
 /** How many papers the corpus holds with a vector. */

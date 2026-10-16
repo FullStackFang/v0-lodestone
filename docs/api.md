@@ -110,7 +110,7 @@ One card and what the network found for it. For the owner:
                            "openalex_keyword": { "new": 9, "existing": 16 },
                            "s2": { "new": 8, "existing": 12, "skipped_no_doi": 5, "error": "…" } } },
   "priorArt": [ { "documentId": "…", "kind": "paper", "querySet": "food-waste", "title": "…",
-                  "score": 0.81, "blocks": ["Value proposition"], "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…" }, … ],
+                  "score": 0.81, "blocks": ["Value proposition"], "blockKeys": ["value_proposition"], "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…" }, … ],
   "peers": [ { "ideaId": "…", "title": "…", "line": "…", "owner": { "id": "…", "name": "…" },
                "publishedAt": "…", "score": 0.78,
                "shared": [ { "mine": "channels", "theirs": "channels", "similarity": 0.83 } ] }, … ],
@@ -127,7 +127,10 @@ the blocks and keeps the last error, which the next import retries.
 search existed reads `done` with `found: 0`.
 
 Prior art is the ten closest papers and patents, ranked in one list by the
-same cosine. `kind` is `paper` or `patent`; a patent's `url` is its Google
+same cosine, with at most three from any one `field` so the list is not the
+founder's own field ten times over (a shorter list means the closest
+candidates ran out). `blocks` are labels for display; `blockKeys` are the
+same blocks as keys, in the same order — key on those. `kind` is `paper` or `patent`; a patent's `url` is its Google
 Patents page and its `field` is the CPC section. `querySet` names the ingest
 set the document came from, `card-search` for one a card search brought in,
 or `null` for a seeded abstract. `yours` is
@@ -149,7 +152,7 @@ What the owner thought of one match the client showed them.
 
 ```json
 { "kind": "paper", "targetId": "<documentId>", "verdict": "useful",
-  "context": { "score": 0.81, "blocks": ["Value proposition"] } }
+  "context": { "score": 0.81, "blockKeys": ["value_proposition"] } }
 ```
 
 `kind` is `paper` (target a `documentId` from `priorArt`) or `peer` (target an
@@ -157,6 +160,7 @@ What the owner thought of one match the client showed them.
 but the author already knew it) or `not_relevant`. One verdict per owner,
 card and target; a second replaces the first. `context` is kept as sent, so a
 later threshold retune can be judged against what the person actually saw.
+Send the hit's `blockKeys` in it, not its labels: verdicts are keyed on them.
 
 `GET` on the same path lists the owner's verdicts for the card.
 
