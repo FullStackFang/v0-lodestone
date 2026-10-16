@@ -59,7 +59,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </div>
         </header>
         <main className="page">{children}</main>
-        <footer className="foot-grid">
+        {person ? <footer className="foot-grid">
           <div className="foot-card">
             <div>
               <span className="serif" style={{ fontSize: 24, color: "var(--ink)" }}>Lodestone</span>
@@ -82,7 +82,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <p>A token acts as you and only you. Revoke it and the client is signed out at once.</p>
             <Pill href="/lodestone/tokens" variant="paper" arrow="up" className="self-start">Create a token</Pill>
           </div>
-        </footer>
+        </footer> : null}
       </body>
     </html>
   );

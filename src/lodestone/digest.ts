@@ -5,6 +5,7 @@ import type { Db } from "@/db/client";
 import { cardsForOwner, cohortCards } from "./cards";
 import { peersFor, type PeerHit } from "./peers";
 import { priorArtFor, type PaperHit } from "./priorArt";
+import { isActiveMember } from "@/pilot/membership";
 
 export interface DigestSection {
   ideaId: string;
@@ -40,9 +41,11 @@ export async function digestFor(db: Db, personId: string, since: Date, now = new
   const floor = options.paperFloor ?? PAPER_FLOOR;
   const mine = await cardsForOwner(db, personId);
   const recent = (await cohortCards(db)).filter((c) => c.card.publishedAt && c.card.publishedAt >= since && c.owner.id !== personId);
+  // Only a member sees the cohort's cards; anyone with a card sees the corpus.
+  const member = await isActiveMember(db, personId);
   const sections: DigestSection[] = [];
   for (const card of mine) {
-    const peers = recent.length ? await peersFor(db, card.ideaId, 5, recent) : [];
+    const peers = member && recent.length ? await peersFor(db, card.ideaId, 5, recent) : [];
     const papers = (await priorArtFor(db, card.ideaId, 5, since)).filter((p) => p.score >= floor);
     sections.push({ ideaId: card.ideaId, title: card.title, peers, papers });
   }

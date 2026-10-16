@@ -263,7 +263,10 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 .field-card label { display: grid; gap: 6px; color: var(--ink); font-size: 13px; }
 .field-card input[type="text"] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; min-height: 46px; width: 100%; }
 .field-card input[type="text"]:focus { border-color: var(--ink); }
-.field-card .receipt, .field-card .error { font-size: 13px; margin: 0; }
+/* ActionForm's receipt and error paragraphs carry module classes, so the
+   element is the hook. A minted token is one unbreakable word. */
+.field-card > *, .choices > * { min-width: 0; }
+.field-card p, .choices p, .tile-form p { font-size: 13px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ── Figures and the map ────────────────────────────────────────────── */
 .figs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 56px 0 28px; }
@@ -374,7 +377,6 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 .h1 { overflow-wrap: anywhere; }
 .blocks-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; }
 .choices .button { align-self: flex-start; margin-top: 8px; border-radius: 999px; min-height: 46px; padding: 0 22px; }
-.choices .error, .choices .receipt { margin: 0; font-size: 13px; }
 .mast .hero-actions { margin-top: 4px; }
 
 /* The field page heading carries the card's title in the serif. */
@@ -389,7 +391,6 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 .rk-form .button { border-radius: 999px; min-height: 40px; padding: 0 18px; }
 .rk-form p { margin: 0; font-size: 12.5px; }
 .field-card .button { justify-self: start; border-radius: 999px; min-height: 46px; padding: 0 22px; }
-.field-card .receipt { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .rk.tok { grid-template-columns: 28px minmax(0, 1fr); } .rk-form { grid-column: 2; } }
 
 /* Login */

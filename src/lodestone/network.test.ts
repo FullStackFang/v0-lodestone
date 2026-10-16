@@ -297,6 +297,13 @@ describe("the cohort", () => {
     expect(text).toContain("corpus · Patent · Verified student sublet with walkthrough video");
   });
 
+  it("gives a non-member corpus rows but never a peer row", async () => {
+    await importCard(db, owner(stranger.email), forgeDocument({ ...priya, ideaId: "d".repeat(32), email: stranger.email }), testEmbed);
+    const digest = await digestFor(db, people.get(stranger.email)!, new Date("2020-01-01T00:00:00Z"), new Date(), { paperFloor: 0.2 });
+    expect(digest.sections.length).toBeGreaterThan(0);
+    for (const s of digest.sections) expect(s.peers).toHaveLength(0);
+  });
+
   it("drops a revoked member's card from every cohort list without touching the ledger", async () => {
     const jonas = COHORT[7];
     const [row] = await db.select().from(forgeCard).where(eq(forgeCard.ideaId, jonas.ideaId));

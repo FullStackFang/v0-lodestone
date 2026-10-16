@@ -26,6 +26,30 @@ interface Placed extends FieldNode {
 
 const radius = (score: number) => 120 + (0.92 - score) * 1500;
 
+/** Break a title into lines no wider than `max`: on spaces where it can, by
+ *  characters when a single word is wider than the tile. */
+export function wrapLines(width: (s: string) => number, text: string, max: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  const push = (word: string) => {
+    if (width(word) <= max) { lines.push(word); return; }
+    let chunk = "";
+    for (const ch of word) {
+      if (chunk && width(chunk + ch) > max) { lines.push(chunk); chunk = ch; } else chunk += ch;
+    }
+    if (chunk) lines.push(chunk);
+  };
+  for (const word of text.split(" ")) {
+    const t = line ? `${line} ${word}` : word;
+    if (width(t) <= max) { line = t; continue; }
+    if (line) push(line);
+    line = width(word) <= max ? word : "";
+    if (!line) push(word);
+  }
+  if (line) push(line);
+  return lines;
+}
+
 /** Exponential ease-out that lands on exactly 1, so the entrance loop ends. */
 export const ease = (t: number) => (t >= 1 ? 1 : t <= 0 ? 0 : 1 - Math.pow(2, -10 * t));
 
@@ -100,13 +124,7 @@ function draw(ctx: CanvasRenderingContext2D, field: Field, nodes: Placed[], hove
   ctx.fillStyle = field.center.mine ? LIME : PINK; ctx.font = "600 9px Geist, system-ui, sans-serif"; ctx.textAlign = "left";
   ctx.fillText(`${field.center.mine ? "YOUR CARD" : "PEER CARD"}  ·  ${field.center.owner.toUpperCase()}`, CX - w / 2 + 20, CY - h / 2 + 26);
   ctx.fillStyle = PAPER; ctx.font = '500 17px "Source Serif 4", Georgia, serif';
-  const lines: string[] = [];
-  let line = "";
-  for (const wd of field.center.title.split(" ")) {
-    const t = line ? `${line} ${wd}` : wd;
-    if (ctx.measureText(t).width > w - 40 && line) { lines.push(line); line = wd; } else line = t;
-  }
-  lines.push(line);
+  const lines = wrapLines((s) => ctx.measureText(s).width, field.center.title, w - 40);
   lines.slice(0, 2).forEach((ln, i) => ctx.fillText(i === 1 && lines.length > 2 ? `${ln}…` : ln, CX - w / 2 + 20, CY - h / 2 + 54 + i * 22));
 }
 
