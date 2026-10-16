@@ -24,7 +24,8 @@ export interface OpenAlexWork {
   publication_year?: number | null;
   abstract_inverted_index?: InvertedIndex | null;
   primary_topic?: { field?: { display_name?: string | null } | null } | null;
-  primary_location?: { source?: { display_name?: string | null } | null } | null;
+  type?: string | null;
+  primary_location?: { source?: { display_name?: string | null; type?: string | null } | null } | null;
   authorships?: ({ author?: { display_name?: string | null } | null } | null)[] | null;
 }
 

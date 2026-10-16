@@ -8,6 +8,10 @@ export interface CrossCard {
   slug: string;
   founder: string;
   field: string;
+  /** What a `forge-idea/5` card would carry: what the idea does for whom,
+   *  then the same with no product or market nouns. Sent only on a
+   *  `--purpose` eval run. */
+  purpose: { l1: string; l2: string };
   line: string;
   said: string[];
   blocks: Record<BlockKey, string>;
@@ -17,6 +21,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: kidney exchange (Medicine), house allocation (Economics).
     slug: "swap",
+    purpose: {
+      l1: "Let people who each hold something they would rather trade move to what they want, even when no two of them want each other's.",
+      l2: "Find exchange cycles among agents with preferences over each other's holdings when money cannot change hands.",
+    },
     founder: "Tomas Okafor",
     field: "Social Sciences",
     line: "Dorm room swaps arranged in chains so three unhappy students all move at once.",
@@ -39,6 +47,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: outpatient overbooking and appointment reminders (Health Professions).
     slug: "nook",
+    purpose: {
+      l1: "Give a reserved shared space to someone waiting when the person who reserved it does not arrive.",
+      l2: "Decide how far to overbook and when to release a reservation given uncertain no-shows.",
+    },
     founder: "Priya Raman",
     field: "Social Sciences",
     line: "Library study rooms released to the waitlist when the booker does not show.",
@@ -61,6 +73,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: predictive maintenance by machine learning (Engineering).
     slug: "spin",
+    purpose: {
+      l1: "Repair shared machines before they stop working instead of after.",
+      l2: "Predict equipment failure from usage and error records early enough to schedule maintenance.",
+    },
     founder: "Hannah Brooks",
     field: "Business, Management and Accounting",
     line: "Laundry machines in the residence halls fixed before they break, not after a week of out-of-order signs.",
@@ -83,6 +99,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: the WHO surgical safety checklist trial and its meta-analysis (Health Professions).
     slug: "preflight",
+    purpose: {
+      l1: "Have the people running a risky event confirm the known hazards aloud before it starts.",
+      l2: "Reduce harm in a team procedure with a short spoken checklist before the critical step.",
+    },
     founder: "Marcus Lee",
     field: "Social Sciences",
     line: "A short sign-off checklist student clubs run before every large party or event.",
@@ -105,6 +125,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: school start times and adolescent sleep (Psychology).
     slug: "dawn",
+    purpose: {
+      l1: "Keep the youngest learners out of the earliest time slots.",
+      l2: "Schedule required activities to fit the sleep timing of adolescents and young adults.",
+    },
     founder: "Elif Demir",
     field: "Social Sciences",
     line: "Course timetables built so first-years are not stuck in 8 a.m. sections.",
@@ -127,6 +151,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: newsvendor decision bias and the data-driven newsvendor (Business).
     slug: "slice",
+    purpose: {
+      l1: "Order the right amount of a perishable good for a group whose turnout is uncertain.",
+      l2: "Choose a single order quantity under uncertain demand when both shortage and leftover cost something.",
+    },
     founder: "Diego Alvarez",
     field: "Social Sciences",
     line: "How much pizza to order for a club meeting, from who said they would come.",
@@ -149,6 +177,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: noise effects on learning and background-noise distraction (Health Professions).
     slug: "hush",
+    purpose: {
+      l1: "Show people where they can work without being distracted by noise.",
+      l2: "Reduce the effect of background noise and speech on concentration and learning.",
+    },
     founder: "Grace Whitfield",
     field: "Social Sciences",
     line: "A live map of the quietest open seats in the library.",
@@ -171,6 +203,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: reusable-cup messaging trial and cup life-cycle performance (Environmental Science).
     slug: "tumbler",
+    purpose: {
+      l1: "Replace disposable containers with shared reusable ones that can be returned anywhere.",
+      l2: "Shift consumers from single-use to reusable items and know when reuse actually lowers environmental impact.",
+    },
     founder: "Sofia Lindqvist",
     field: "Business, Management and Accounting",
     line: "A deposit cup shared across every campus café, returned at any of them.",
@@ -193,6 +229,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: wireless and IoT cold-chain monitoring (Agricultural and Biological Sciences).
     slug: "chill",
+    purpose: {
+      l1: "Prove that donated food was kept cold the whole time it sat out.",
+      l2: "Monitor temperature continuously across a cold chain and act on excursions.",
+    },
     founder: "Kwame Asante",
     field: "Business, Management and Accounting",
     line: "Temperature sensors for the community fridges where dining halls leave unsold food.",
@@ -215,6 +255,10 @@ export const CROSS_CARDS: CrossCard[] = [
   {
     // Marks: pedestrian crowd dynamics and walking groups (Engineering).
     slug: "movein",
+    purpose: {
+      l1: "Stop crowds jamming narrow passages when everyone arrives at once.",
+      l2: "Stagger arrivals to keep pedestrian flow moving through bottlenecks.",
+    },
     founder: "Lena Hoffmann",
     field: "Social Sciences",
     line: "Move-in day arrival slots so hall stairwells and lifts do not jam.",

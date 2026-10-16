@@ -123,6 +123,16 @@ export function defaultSearchDeps(embed: Embedder): SearchDeps {
 
 type Tally = CardSearchSources[string];
 
+const SCHOLARLY_TYPES = new Set(["article", "review"]);
+const SCHOLARLY_SOURCES = new Set(["journal", "conference"]);
+
+/** An article or review in a journal or conference. OpenAlex types library
+ *  guides, annual reports and repository copies as `article` too, and its
+ *  semantic search filters by type only, so the source is checked here. */
+export function isScholarly(work: OpenAlexWork): boolean {
+  return SCHOLARLY_TYPES.has(work.type ?? "") && SCHOLARLY_SOURCES.has(work.primary_location?.source?.type ?? "");
+}
+
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -162,9 +172,13 @@ export async function searchCard(db: Db, ideaId: string, deps: SearchDeps): Prom
       const tally: Tally = { new: 0, existing: 0 };
       sources[name] = tally;
       try {
-        const result = await deps.searchWorks({ query: text, semantic, limit: semantic ? undefined : KEYWORD_LIMIT }, async (work) => {
+        const result = await deps.searchWorks({ query: text, semantic, scholarly: true, limit: semantic ? undefined : KEYWORD_LIMIT }, async (work) => {
           const id = work.id ?? "";
           if (!id) return;
+          if (!isScholarly(work)) {
+            tally.skipped_not_scholarly = (tally.skipped_not_scholarly ?? 0) + 1;
+            return;
+          }
           if (seen.has(id)) {
             tally.existing += 1;
             return;
@@ -190,7 +204,15 @@ export async function searchCard(db: Db, ideaId: string, deps: SearchDeps): Prom
       for (const hit of result.hits) {
         const provenance: Record<string, unknown> = { query_set: CARD_SEARCH_QUERY_SET };
         if (hit.tldr) provenance.tldr = hit.tldr;
-        count(s2, await ingestWork(db, hit.doi, { fetchWork: deps.fetchWork, provenance, minWords: MIN_ABSTRACT_WORDS }));
+        const fetchScholarly = async (identifier: string) => {
+          const work = await deps.fetchWork(identifier);
+          if (work && !isScholarly(work)) {
+            s2.skipped_not_scholarly = (s2.skipped_not_scholarly ?? 0) + 1;
+            return null;
+          }
+          return work;
+        };
+        count(s2, await ingestWork(db, hit.doi, { fetchWork: fetchScholarly, provenance, minWords: MIN_ABSTRACT_WORDS }));
       }
     } catch (error) {
       s2.error = message(error);
@@ -238,6 +260,7 @@ export async function searchState(db: Db, ideaId: string, doc: Record<string, un
       sum.new += t.new;
       sum.existing += t.existing;
       if (t.skipped_no_doi !== undefined) sum.skipped_no_doi = (sum.skipped_no_doi ?? 0) + t.skipped_no_doi;
+      if (t.skipped_not_scholarly !== undefined) sum.skipped_not_scholarly = (sum.skipped_not_scholarly ?? 0) + t.skipped_not_scholarly;
       if (t.error) sum.error = t.error;
     }
   }

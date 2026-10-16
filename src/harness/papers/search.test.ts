@@ -181,3 +181,15 @@ describe("semantic search", () => {
     expect(result.reason).toMatch(/429/);
   });
 });
+
+describe("scholarly filter", () => {
+  it("keeps keyword search to journal and conference articles and reviews", () => {
+    const url = new URL(searchUrl({ query: "q", cursor: "*", perPage: 25, scholarly: true }));
+    expect(url.searchParams.get("filter")).toBe("has_abstract:true,type:article|review,primary_location.source.type:journal|conference");
+  });
+
+  it("keeps semantic search to articles and reviews, the only type filter it takes", () => {
+    const url = new URL(searchUrl({ query: "q", cursor: "*", perPage: 50, semantic: true, scholarly: true }));
+    expect(url.searchParams.get("filter")).toBe("has_abstract:true,type:article|review");
+  });
+});

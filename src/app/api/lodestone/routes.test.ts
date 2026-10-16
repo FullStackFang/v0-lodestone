@@ -115,7 +115,7 @@ describe("client routes", () => {
     const words = "Groups that reserve a shared room and fail to arrive leave it empty while others queue, and a short grace period before release recovers most of that lost time across a semester of bookings.";
     const index: Record<string, number[]> = {};
     words.split(" ").forEach((w, i) => (index[w] ??= []).push(i));
-    const work: OpenAlexWork = { id: "https://openalex.org/W777001", doi: "https://doi.org/10.5555/grace", title: "Grace periods", publication_year: 2022, abstract_inverted_index: index };
+    const work: OpenAlexWork = { id: "https://openalex.org/W777001", doi: "https://doi.org/10.5555/grace", title: "Grace periods", publication_year: 2022, type: "article", primary_location: { source: { display_name: "Library Quarterly", type: "journal" } }, abstract_inverted_index: index };
     await searchCard(db, sam.ideaId, {
       searchWorks: async (options, onWork) => {
         if (options.semantic) await onWork(work);

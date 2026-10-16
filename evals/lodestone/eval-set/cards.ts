@@ -18,6 +18,8 @@ export interface EvalCard {
   name: string;
   email: string;
   doc: Record<string, unknown>;
+  /** The same card as `forge-idea/5` with a purpose; cross-field cards only. */
+  docWithPurpose?: Record<string, unknown>;
 }
 
 /** Firm slug → the OpenAlex field its idea belongs to. Education and
@@ -79,7 +81,8 @@ const CROSS: EvalCard[] = CROSS_CARDS.map((c) => {
     said: c.said,
     entries: Object.entries(c.blocks).map(([block, text]) => ({ block, text })),
   };
-  return { slug: c.slug, ideaId, field: c.field, name: c.founder, email, doc: { ...forgeDocument(member), format: "forge-idea/4", already_have: [] } };
+  const doc = { ...forgeDocument(member), format: "forge-idea/4", already_have: [] };
+  return { slug: c.slug, ideaId, field: c.field, name: c.founder, email, doc, docWithPurpose: { ...doc, format: "forge-idea/5", purpose: c.purpose } };
 });
 
 export const EVAL_CARDS: EvalCard[] = [...FIRM_CARDS, ...CROSS];

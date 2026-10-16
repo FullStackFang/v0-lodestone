@@ -26,10 +26,18 @@ export interface SearchUrlInput {
   mailto?: string;
   apiKey?: string;
   semantic?: boolean;
+  /** Articles and reviews only, and for keyword search only those in a
+   *  journal or conference: no library guides, reports, book chapters or
+   *  repository copies. Semantic search takes no source-type filter. */
+  scholarly?: boolean;
 }
 
-export function searchUrl({ query, since, cursor, perPage, mailto, apiKey, semantic }: SearchUrlInput): string {
-  const filter = ["has_abstract:true", ...(since ? [`from_publication_date:${since}-01-01`] : [])].join(",");
+export function searchUrl({ query, since, cursor, perPage, mailto, apiKey, semantic, scholarly }: SearchUrlInput): string {
+  const filter = [
+    "has_abstract:true",
+    ...(since ? [`from_publication_date:${since}-01-01`] : []),
+    ...(scholarly ? ["type:article|review", ...(semantic ? [] : ["primary_location.source.type:journal|conference"])] : []),
+  ].join(",");
   const params = semantic
     ? new URLSearchParams({ "search.semantic": query, filter, "per-page": String(Math.min(perPage, SEMANTIC_PER_PAGE)) })
     : new URLSearchParams({ search: query, filter, "per-page": String(perPage), cursor });
@@ -51,6 +59,8 @@ export interface SearchOptions {
   apiKey?: string;
   /** `search.semantic`: one page of at most fifty, never a cursor. */
   semantic?: boolean;
+  /** See `SearchUrlInput.scholarly`. */
+  scholarly?: boolean;
   fetchImpl?: typeof fetch;
   wait?: Limiter;
   /** Called once per page read, with the cursor that read it. */
@@ -91,7 +101,7 @@ export async function searchWorks(
     let page: WorksPage;
     try {
       await wait();
-      const response = await fetchImpl(searchUrl({ query: options.query, since: options.since, cursor, perPage, mailto, apiKey, semantic }), {
+      const response = await fetchImpl(searchUrl({ query: options.query, since: options.since, cursor, perPage, mailto, apiKey, semantic, scholarly: options.scholarly }), {
         headers: { accept: "application/json" },
       });
       if (!response.ok) {

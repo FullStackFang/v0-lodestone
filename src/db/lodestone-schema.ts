@@ -37,7 +37,10 @@ export type ForgeCardRow = typeof forgeCard.$inferSelect;
 export type CardSearchState = "running" | "done";
 /** Per source: documents new to the corpus, already held, Semantic Scholar
  *  hits without a DOI, and the error that stopped it, if any. */
-export type CardSearchSources = Record<string, { new: number; existing: number; skipped_no_doi?: number; error?: string }>;
+export type CardSearchSources = Record<
+  string,
+  { new: number; existing: number; skipped_no_doi?: number; skipped_not_scholarly?: number; error?: string }
+>;
 
 /** The last search run for one block of one card. `text_hash` is the sha256
  *  of the block's entry texts in canvas order: a re-import searches a block

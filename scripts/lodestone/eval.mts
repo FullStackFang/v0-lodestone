@@ -1,4 +1,4 @@
-/** `npm run lodestone:eval -- [--label <text>] [--no-search]`
+/** `npm run lodestone:eval -- [--label <text>] [--no-search] [--no-quota] [--purpose] [--data pglite-eval-<name>]`
  *
  * Score the current prior-art ranking against the fixed eval set in
  * `evals/lodestone/eval-set/`. In its own PGlite (`data/pglite-eval`, never
@@ -13,8 +13,12 @@
  * system) and `OPENALEX_API_KEY` (a thousand single-work fetches do not fit
  * the keyless budget); without either it writes nothing. Works already held
  * cost no request, so after the first run the embedder is the only network
- * call. `--no-search` imports cards with card search off; card search does
- * not exist yet, so today it is recorded and changes nothing.
+ * call. Without `--no-search` each card is searched after import
+ * (`searchCard`), which adds documents to the database for good: run search
+ * against a copy (`--data pglite-eval-search`, any `pglite-eval-*` under
+ * `data/`) so the clean corpus stays comparable with the baseline.
+ * `--no-quota` ranks without the per-field cap. `--purpose` files the
+ * cross-field cards as `forge-idea/5` with their purposes.
  *
  * On a rate limit or a network failure the ingest stops and the run exits 2;
  * running it again resumes. */
@@ -30,6 +34,13 @@ const flag = (name: string): string | null => {
 };
 const label = (flag("--label") ?? "run").replace(/[^a-z0-9._-]+/gi, "-");
 const noSearch = args.includes("--no-search");
+const noQuota = args.includes("--no-quota");
+const withPurpose = args.includes("--purpose");
+const dataDir = flag("--data") ?? "pglite-eval";
+if (!/^pglite-eval(-[a-z0-9-]+)?$/.test(dataDir)) {
+  console.error(`--data must name a pglite-eval-<name> directory under data/, not ${dataDir}.`);
+  process.exit(1);
+}
 
 const missing = ["VOYAGE_API_KEY", "OPENALEX_API_KEY"].filter((k) => !process.env[k]?.trim());
 if (missing.length) {
@@ -42,7 +53,7 @@ if (process.env.NODE_ENV === "production") {
 }
 // Set before the client module is loaded: the eval never touches another database.
 delete process.env.DATABASE_URL;
-process.env.THESIS_DATA_DIR = "data/pglite-eval";
+process.env.THESIS_DATA_DIR = `data/${dataDir}`;
 
 const { EVAL_CARDS } = await import("../../evals/lodestone/eval-set/cards");
 const { MARKS } = await import("../../evals/lodestone/eval-set/marks");
@@ -56,6 +67,7 @@ const { ingestWork, MIN_ABSTRACT_WORDS, parseList } = await import("../../src/ha
 const { openalexLimiter } = await import("../../src/harness/papers/rate");
 const { BLOCKS, importCard } = await import("../../src/lodestone/cards");
 const { corpusSize, embedPaperAbstracts, priorArtFor } = await import("../../src/lodestone/priorArt");
+const { defaultSearchDeps, searchCard, searchState } = await import("../../src/lodestone/search");
 const { enrollTestMember } = await import("../../src/pilot/test-fixtures");
 
 const SET_DIR = path.join(process.cwd(), "evals/lodestone/eval-set");
@@ -98,11 +110,19 @@ const embedded = await embedPaperAbstracts(db, embed);
 console.log(`# corpus: ${tally.new} new, ${tally.existing} held, ${tally.absent.length} not in the corpus; ${embedded} embedded, ${await corpusSize(db)} with a vector`);
 for (const line of tally.absent) console.log(`#   ${line}`);
 
-// The cards, search off: with `--no-search` or not, nothing searches yet.
+// The cards, each searched after import unless `--no-search`.
+const searchDeps = defaultSearchDeps(embed);
 for (const card of scored) {
   const personId = await ensurePerson(db, { name: card.name, email: card.email });
   await enrollTestMember(db, personId);
-  await importCard(db, { id: personId, email: card.email }, card.doc, embed);
+  const doc = withPurpose && card.docWithPurpose ? card.docWithPurpose : card.doc;
+  await importCard(db, { id: personId, email: card.email }, doc, embed);
+  if (noSearch) continue;
+  const started = Date.now();
+  await searchCard(db, card.ideaId, searchDeps);
+  const state = await searchState(db, card.ideaId, doc);
+  const errors = Object.entries(state.sources).filter(([, t]) => t.error).map(([name]) => name);
+  console.log(`# searched ${card.slug}: ${state.found} new in ${Math.round((Date.now() - started) / 1000)}s${errors.length ? `; errors from ${errors.join(", ")}` : ""}`);
 }
 
 // Ranking and scoring.
@@ -110,7 +130,7 @@ const keyOfLabel = new Map<string, string>(BLOCKS.map(([key, text]) => [text, ke
 const rows: { slug: string; field: string; score: ReturnType<typeof scoreCard>; hits: Awaited<ReturnType<typeof priorArtFor>>; misses: string[] }[] = [];
 for (const card of scored) {
   const marks = MARKS[card.slug];
-  const hits = await priorArtFor(db, card.ideaId, 10);
+  const hits = await priorArtFor(db, card.ideaId, 10, undefined, noQuota ? { perField: Infinity } : {});
   const provenance = hits.length
     ? await db.select({ id: artifactTexts.artifactId, p: artifactTexts.provenance }).from(artifactTexts).where(inArray(artifactTexts.artifactId, hits.map((h) => h.documentId)))
     : [];
@@ -142,7 +162,7 @@ const cell = (s: string) => s.replaceAll("|", "\\|").replace(/\s+/g, " ").trim()
 const out = [
   `# Eval run ${date} — ${label}`,
   "",
-  `Embedder \`${EMBEDDING_MODEL}\`; corpus ${await corpusSize(db)} documents with a vector (${distractorIds.length} distractors listed); card search ${noSearch ? "off (`--no-search`)" : "off (card search not built)"}.`,
+  `Embedder \`${EMBEDDING_MODEL}\`; corpus ${await corpusSize(db)} documents with a vector (${distractorIds.length} distractors listed); card search ${noSearch ? "off (`--no-search`)" : "on"}; field quota ${noQuota ? "off (`--no-quota`)" : "on"}; purposes ${withPurpose ? "on the cross-field cards (`--purpose`)" : "off"}; database \`data/${dataDir}\`.`,
   ...(unmarked.length ? ["", `Not scored, no marks yet: ${unmarked.join(", ")}.`] : []),
   ...(tally.absent.length ? ["", `Listed but not in the corpus: ${tally.absent.join("; ")}.`] : []),
   "",

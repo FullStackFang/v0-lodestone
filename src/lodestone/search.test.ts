@@ -97,16 +97,21 @@ const work = (n: number, doi?: string): OpenAlexWork => ({
   doi: doi ? `https://doi.org/${doi}` : null,
   title: `Work ${n}`,
   publication_year: 2020,
+  type: "article",
+  primary_location: { source: { display_name: "Journal of Shared Spaces", type: "journal" } },
   abstract_inverted_index: invert(abstract(n)),
 });
+/** Typed `article` by OpenAlex but with no source: a library guide page. */
+const guide: OpenAlexWork = { ...work(5), primary_location: { source: null } };
 
 /** Fakes for the three sources, recording what each was asked. */
 function fakes(over: Partial<SearchDeps> = {}) {
   const asked: { semantic: string[]; keyword: string[]; s2: string[] } = { semantic: [], keyword: [], s2: [] };
   const deps: SearchDeps = {
     searchWorks: async (options: SearchOptions, onWork: (w: OpenAlexWork) => Promise<void>) => {
+      expect(options.scholarly).toBe(true);
       (options.semantic ? asked.semantic : asked.keyword).push(options.query);
-      const works = options.semantic ? [work(1), work(2)] : [work(2), work(3)];
+      const works = options.semantic ? [work(1), work(2), guide] : [work(2), work(3)];
       for (const w of works) await onWork(w);
       return { seen: works.length, stopped: false, cursor: null };
     },
@@ -144,7 +149,7 @@ describe("searchCard", () => {
     // Four distinct works across all blocks; the first block finds them new.
     expect(rows.reduce((n, r) => n + r.found, 0)).toBe(4);
     const first = rows.find((r) => r.found > 0)!;
-    expect(first.sources.openalex_semantic).toMatchObject({ new: 2, existing: 0 });
+    expect(first.sources.openalex_semantic).toMatchObject({ new: 2, existing: 0, skipped_not_scholarly: 1 });
     expect(first.sources.openalex_keyword).toMatchObject({ new: 1, existing: 1 });
     expect(first.sources.s2).toMatchObject({ new: 1, existing: 0, skipped_no_doi: 1 });
 
