@@ -16,7 +16,7 @@ npm install
 cp .env.example .env.local                        # VOYAGE_API_KEY makes matching real
 npm run lodestone:seed -- --me you@example.edu    # eight members, five papers, real vectors
 npm run lodestone:seed -- --me you@example.edu --set firms   # or 24 fictional "fang-" firms, 15 papers
-npm run dev                                       # http://localhost:3000, PGlite under ./data/
+npm run dev                                       # http://localhost:3010; kills whatever held the port first (PORT= to change), PGlite under ./data/
 npm test                                          # vitest, in-memory PGlite, fake embedder
 npm run typecheck
 ```
