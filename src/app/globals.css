@@ -23,6 +23,29 @@
   --tint-navy: color-mix(in oklab, var(--deep-navy) 6%, var(--pill-face));
   --ring-focus: 0 0 0 2px rgba(15, 25, 34, 0.3);
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* The redesign (DESIGN.md): HAI's section colours on the Forge paper. */
+  --meta: #6f736e;
+  --paper: #fcfbf8;
+  --navy-block: #0b3e6e;
+  --blue: #005fa3;
+  --pale-blue: #e6f1fa;
+  --lilac: #f0eaf1;
+  --plum: #72307c;
+  --teal: #14494f;
+  --teal-tint: #e3f7f6;
+  --lime: #e5ff66;
+  --aqua: #9cf2f2;
+  --pink: #f3adff;
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The graphite drench field: heroes, mastheads, the footer CTA. */
+.drench {
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1.2px) 0 0 / 7px 7px,
+    linear-gradient(168deg, #595d61, #4e5256 55%, #45494d);
+  color: var(--paper);
 }
 
 * { box-sizing: border-box; }
@@ -32,8 +55,8 @@ body {
   background: var(--page);
   color: var(--body);
   font-family: var(--font-sans), system-ui, sans-serif;
-  font-size: 13.5px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-wrap: pretty;
 }
@@ -63,26 +86,43 @@ a:hover { color: var(--oxblood); }
 }
 .eyebrow { font-size: 9.5px; font-weight: 600; letter-spacing: 0.22em; }
 
-/* Chrome */
+/* Chrome: solid paper, one hairline, no blur. The row's contents are in
+   layout.tsx; the pill tabs and the pills are in lodestone.css. */
 .chrome {
-  position: sticky; top: 0; z-index: 2;
-  background: var(--chrome);
-  border-bottom: 1px solid var(--ink);
-  padding: 12px 32px;
-  display: flex; align-items: baseline; justify-content: space-between;
+  position: sticky; top: 0; z-index: 5;
+  background: var(--page);
+  border-bottom: 1px solid var(--rule);
 }
+.chrome-row {
+  max-width: 1392px; margin: 0 auto; padding: 0 24px;
+  min-height: 68px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+}
+.chrome-right { display: flex; align-items: center; gap: 18px; }
 .wordmark {
   font-family: var(--font-serif), Georgia, serif;
-  font-size: 19px; text-decoration: none; color: var(--ink);
-  display: flex; flex-direction: column; gap: 2px;
+  font-size: 22px; letter-spacing: -0.01em; text-decoration: none; color: var(--ink);
+  display: flex; flex-direction: column; gap: 1px;
 }
 .wordmark .kicker {
   font-family: var(--font-sans), system-ui, sans-serif;
-  font-size: 9.5px; font-weight: 600; letter-spacing: 0.22em;
-  text-transform: uppercase; color: var(--taupe);
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.24em;
+  text-transform: uppercase; color: var(--meta);
 }
-.page { max-width: 72rem; margin: 0 auto; padding: 40px 32px 80px; }
-@media (max-width: 640px) { .chrome { padding: 10px 20px; } .page { padding: 24px 20px 60px; } }
+.who {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 6px 0 16px;
+  border-radius: 999px; background: var(--ink); color: var(--pill-face); text-decoration: none;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+}
+.who i { width: 22px; height: 22px; border-radius: 50%; background: var(--lime); display: inline-block; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: #2fb77a; display: inline-block; }
+.search-affordance {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  background: none; border: 0; cursor: pointer; color: var(--body); font: inherit;
+}
+.kbd { font-size: 10px; letter-spacing: 0.06em; padding: 3px 6px; border-radius: 4px; border: 1px solid #d7dbe0; background: #fff; color: var(--body); }
+.page { max-width: 1440px; margin: 0 auto; padding: 0 0 56px; }
+@media (max-width: 760px) { .chrome-row { padding: 10px 16px; gap: 12px; } .chrome-right { gap: 12px; } }
 
 /* Section marker */
 .section { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
