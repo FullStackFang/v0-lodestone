@@ -380,3 +380,14 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 /* The field page heading carries the card's title in the serif. */
 .h1-inline { overflow-wrap: anywhere; }
 .h1-inline em { font-style: italic; }
+
+/* Tokens: ranked rows without a bar, the revoke form at the end. */
+.rk.tok { grid-template-columns: 36px minmax(0, 1fr) auto; }
+.rk.tok:hover { background: transparent; }
+.rk.muted { opacity: 0.55; }
+.rk-form { display: flex; align-items: center; gap: 10px; }
+.rk-form .button { border-radius: 999px; min-height: 40px; padding: 0 18px; }
+.rk-form p { margin: 0; font-size: 12.5px; }
+.field-card .button { justify-self: start; border-radius: 999px; min-height: 46px; padding: 0 22px; }
+.field-card .receipt { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 900px) { .rk.tok { grid-template-columns: 28px minmax(0, 1fr); } .rk-form { grid-column: 2; } }
