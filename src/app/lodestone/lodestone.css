@@ -369,3 +369,10 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 .tile-form .button:hover { background: var(--paper); color: var(--navy-block); opacity: 1; }
 .tile-form p { margin: 0; font-size: 13px; color: var(--paper); }
 .tile-form p a { color: var(--aqua); }
+
+/* The card page */
+.h1 { overflow-wrap: anywhere; }
+.blocks-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; }
+.choices .button { align-self: flex-start; margin-top: 8px; border-radius: 999px; min-height: 46px; padding: 0 22px; }
+.choices .error, .choices .receipt { margin: 0; font-size: 13px; }
+.mast .hero-actions { margin-top: 4px; }
