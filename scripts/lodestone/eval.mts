@@ -152,10 +152,10 @@ const out = [
   "",
   "| card | field | P@5 | R@10 | RR | fields | wrong-block |",
   "|---|---|---|---|---|---|---|",
-  ...rows.map((r) => `| fang-${r.slug} | ${r.field} | ${fixed(r.score.precisionAt5)} | ${fixed(r.score.recallAt10)} | ${fixed(r.score.reciprocalRank)} | ${r.score.fields} | ${r.score.wrongBlock} |`),
+  ...rows.map((r) => `| ${r.slug} | ${r.field} | ${fixed(r.score.precisionAt5)} | ${fixed(r.score.recallAt10)} | ${fixed(r.score.reciprocalRank)} | ${r.score.fields} | ${r.score.wrongBlock} |`),
   ...rows.flatMap((r) => [
     "",
-    `## fang-${r.slug}`,
+    `## ${r.slug}`,
     "",
     "| # | status | score | blocks | field | title |",
     "|---|---|---|---|---|---|",

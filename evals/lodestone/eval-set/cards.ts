@@ -1,5 +1,6 @@
-/** The eval set's twenty firms cards: the same twenty `fang-` firms the
- *  threshold retune sampled (`thresholds.md`), filed as `forge-idea/4`
+/** The eval set: twenty firms cards and ten cross-field cards. The firms
+ *  cards are the same twenty `fang-` firms the threshold retune sampled
+ *  (`thresholds.md`); every card is filed as a `forge-idea/4`
  *  documents under ids of their own, so a run never collides with a seeded
  *  `--set firms` card and an id never moves when `firms.ts` is reordered.
  *
@@ -8,6 +9,7 @@
 import { createHash } from "node:crypto";
 import { forgeDocument } from "../cohort";
 import { FIRMS } from "../firms";
+import { CROSS_CARDS } from "./cross";
 
 export interface EvalCard {
   slug: string;
@@ -49,7 +51,7 @@ export function evalIdeaId(slug: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-export const EVAL_CARDS: EvalCard[] = Object.entries(FIELDS).map(([slug, field]) => {
+const FIRM_CARDS: EvalCard[] = Object.entries(FIELDS).map(([slug, field]) => {
   const firm = FIRMS.find((f) => f.title === `fang-${slug}`);
   if (!firm) throw new Error(`no firm fang-${slug}`);
   const ideaId = evalIdeaId(slug);
@@ -63,3 +65,21 @@ export const EVAL_CARDS: EvalCard[] = Object.entries(FIELDS).map(([slug, field])
     doc: { ...forgeDocument({ ...firm, ideaId, email }), format: "forge-idea/4", already_have: [] },
   };
 });
+
+/** The ten cross-field cards (`cross.ts`), filed the same way. */
+const CROSS: EvalCard[] = CROSS_CARDS.map((c) => {
+  const ideaId = evalIdeaId(c.slug);
+  const email = `${c.slug}@eval.test`;
+  const member = {
+    name: c.founder,
+    email,
+    ideaId,
+    title: c.slug,
+    line: c.line,
+    said: c.said,
+    entries: Object.entries(c.blocks).map(([block, text]) => ({ block, text })),
+  };
+  return { slug: c.slug, ideaId, field: c.field, name: c.founder, email, doc: { ...forgeDocument(member), format: "forge-idea/4", already_have: [] } };
+});
+
+export const EVAL_CARDS: EvalCard[] = [...FIRM_CARDS, ...CROSS];

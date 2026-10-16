@@ -6,8 +6,8 @@ import { EVAL_CARDS, evalIdeaId } from "./cards";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe("eval-set cards", () => {
-  it("files twenty forge-idea/4 cards, every one with all nine blocks", () => {
-    expect(EVAL_CARDS).toHaveLength(20);
+  it("files thirty forge-idea/4 cards, every one with all nine blocks", () => {
+    expect(EVAL_CARDS).toHaveLength(30);
     for (const card of EVAL_CARDS) {
       const parsed = parseForgeIdea(card.doc);
       expect(parsed.format).toBe("forge-idea/4");
@@ -18,7 +18,7 @@ describe("eval-set cards", () => {
 
   it("gives each card a stable uuid of its own", () => {
     const ids = EVAL_CARDS.map((c) => c.ideaId);
-    expect(new Set(ids).size).toBe(20);
+    expect(new Set(ids).size).toBe(30);
     for (const id of ids) expect(id).toMatch(UUID);
     expect(evalIdeaId("pulse")).toBe(EVAL_CARDS.find((c) => c.slug === "pulse")!.ideaId);
     expect(evalIdeaId("pulse")).toMatchInlineSnapshot(`"7f231fbc-2b40-4fae-8f24-a2c66d8aa5a1"`);

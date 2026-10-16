@@ -5,10 +5,10 @@
 ## 1. The set
 
 - [x] 1.1 `evals/lodestone/eval-set/cards.ts`: twenty cards from the firms cohort fixtures, exported as `forge-idea/4` documents with stable idea ids (2026-10-15: the twenty cards `thresholds.md` sampled, uuid ids derived from the slug, each with its OpenAlex `field`)
-- [ ] 1.2 Choose the marked documents: for each of the twenty, two to five papers from the ingested sets (DOI or OpenAlex id) and the block each bears on; record them in `marks.ts`. Patent marks wait for `lodestone-sources-repair` §2 and go in `marks-patents.ts` then
-- [ ] 1.3 Write the ten cross-field cards against papers chosen first from a field other than the card's own; mark them the same way
+- [x] 1.2 Choose the marked documents: for each of the twenty, two to five papers from the ingested sets (DOI or OpenAlex id) and the block each bears on; record them in `marks.ts`. Patent marks wait for `lodestone-sources-repair` §2 and go in `marks-patents.ts` then (2026-10-16: 66 marks, Claude's strong/ok calls, not hand-ticked by the owner's choice; `split` topped up with two papers; each mark carries its OpenAlex `field`)
+- [x] 1.3 Write the ten cross-field cards against papers chosen first from a field other than the card's own; mark them the same way (2026-10-16: `eval-set/cross.ts`, two marks each, 20 papers, none a distractor by id or DOI)
 - [x] 1.4 `distractors.txt`: the DOIs of the six query sets in `thresholds.md`, one per line, committed (2026-10-15: 953 works from `data/pglite-ingest` — 732 by DOI, 221 without one by OpenAlex id so the corpus stays the ~950 the design names)
-- [ ] 1.5 Test: thirty cards, every mark names a block key, every id parses as DOI or OpenAlex id; at least ten cards have a mark whose field differs from the card's; no distractor is a mark
+- [x] 1.5 Test: thirty cards, every mark names a block key, every id parses as DOI or OpenAlex id; at least ten cards have a mark whose field differs from the card's; no distractor is a mark (2026-10-16: `marks.test.ts`; by id as written, DOI overlap checked when chosen)
 
 ## 2. The runner
 
@@ -20,5 +20,5 @@
 
 ## 3. The baseline
 
-- [ ] 3.1 Run once with `--no-search` against the current ranking; commit as `baseline.md`
-- [ ] 3.2 Note the four numbers in `docs/competitive-landscape.md` step 0
+- [x] 3.1 Run once with `--no-search` against the current ranking; commit as `baseline.md` (2026-10-16: P@5 0.207, R@10 0.517, MRR 0.502, fields 4.63)
+- [x] 3.2 Note the four numbers in `docs/competitive-landscape.md` step 0
