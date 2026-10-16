@@ -47,7 +47,7 @@ export async function digestFor(db: Db, personId: string, since: Date, now = new
   const sections: DigestSection[] = [];
   for (const card of mine) {
     const peers = recent.length ? await peersFor(db, card.ideaId, 5, recent) : [];
-    const papers = await withSentences(db, options.embed ?? embed, card.ideaId, (await priorArtFor(db, card.ideaId, 5, since)).filter((p) => p.score >= floor));
+    const papers = await withSentences(db, options.embed ?? embed, card.ideaId, (await priorArtFor(db, card.ideaId, 5, { since, viewerId: personId })).filter((p) => p.score >= floor));
     sections.push({ ideaId: card.ideaId, title: card.title, peers, papers });
   }
   return { since, until: now, newCards: recent.length, sections };

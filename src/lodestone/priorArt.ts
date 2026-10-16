@@ -11,7 +11,7 @@ import type { Db } from "@/db/client";
 import { EMBEDDING_DIMENSIONS, artifactTexts, document, documentChunk } from "@/db/schema";
 import type { Embedder } from "./cards";
 import { blockLabel } from "./cards";
-import { forgeCard } from "@/db/lodestone-schema";
+import { forgeCard, type CardFeedbackVerdict } from "@/db/lodestone-schema";
 import { parseForgeIdea } from "@/harness/founder/forge";
 import { cosine, ideaVectors, type IdeaVector } from "./vectors";
 import { citationLine } from "@/harness/papers/openalex";
@@ -82,6 +82,10 @@ export interface PaperHit {
   /** Up to three abstract sentences nearest the first block, in abstract
    *  order. Empty from `priorArtFor`; `withSentences` fills it. */
   sentences: HitSentence[];
+  /** Present only in the owner's own list, on a hit within `NEAR_USEFUL` of
+   *  a document they marked `useful`: that document. It moved the hit up;
+   *  `score` is still the hit's own cosine. */
+  via?: { useful: string };
 }
 
 export interface HitSentence {
@@ -184,6 +188,55 @@ export const PER_FIELD = 3;
 /** Candidates ranked per hit returned, so the quota has others to reach for. */
 const CANDIDATE_DEPTH = 3;
 
+/** How close to a document the owner marked `useful` a candidate must sit
+ *  to be pulled up by it. Provisional, until the verdict eval sets it. */
+export const NEAR_USEFUL = 0.85;
+/** What such a candidate's place is ranked as if its score were higher by.
+ *  Its `score` stays its cosine. Provisional, like `NEAR_USEFUL`. */
+export const USEFUL_BOOST = 0.05;
+/** Corpus neighbours of each useful document added to the candidates. */
+const USEFUL_NEIGHBOURS = 10;
+
+/** What a hit is ranked by: its score, raised by `USEFUL_BOOST` when it
+ *  came near a useful document. */
+const rankKey = (h: PaperHit) => h.score + (h.via ? USEFUL_BOOST : 0);
+const byRank = (a: PaperHit, b: PaperHit) => rankKey(b) - rankKey(a);
+
+export interface PaperVerdict {
+  documentId: string;
+  verdict: CardFeedbackVerdict;
+}
+
+/** The cosine between a document and a useful one. */
+export interface UsefulNeighbour {
+  documentId: string;
+  via: string;
+  near: number;
+}
+
+/** An owner's verdicts on a ranked list, in Node: `not_relevant` documents
+ *  gone, a hit within `NEAR_USEFUL` of a `useful` one given `via` (the
+ *  nearest, then the lowest id) and ranked by the boost, `known` ignored.
+ *  `priorArtFor` does this in the database; this is the definition it is
+ *  tested against, as `scorePaper` is for the cosines. */
+export function applyVerdicts(hits: PaperHit[], verdicts: PaperVerdict[], neighbours: UsefulNeighbour[]): PaperHit[] {
+  const excluded = new Set(verdicts.filter((v) => v.verdict === "not_relevant").map((v) => v.documentId));
+  const useful = new Set(verdicts.filter((v) => v.verdict === "useful").map((v) => v.documentId));
+  const nearest = new Map<string, UsefulNeighbour>();
+  for (const n of neighbours) {
+    if (!useful.has(n.via) || n.via === n.documentId || n.near < NEAR_USEFUL) continue;
+    const at = nearest.get(n.documentId);
+    if (!at || n.near > at.near || (n.near === at.near && n.via < at.via)) nearest.set(n.documentId, n);
+  }
+  return hits
+    .filter((h) => !excluded.has(h.documentId))
+    .map((h) => {
+      const n = nearest.get(h.documentId);
+      return n ? { ...h, via: { useful: n.via } } : h;
+    })
+    .sort(byRank);
+}
+
 /** Walk the hits in order, taking one while its field holds fewer than
  *  `perField`, until `k` are taken. A missing field is a bucket of its own. A
  *  short list means the candidates ran out, not that the quota bent. */
@@ -218,20 +271,57 @@ export function fieldQuota<T extends { field: string | null }>(hits: T[], k: num
  *  The database ranks `3k` and `fieldQuota` keeps at most `perField` per
  *  field among the `k` returned. A document outside the dominant fields
  *  appears only if fewer than `3k` outrank it; `perField: Infinity` turns
- *  the quota off, for the eval. */
-export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date, options: { perField?: number } = {}): Promise<PaperHit[]> {
+ *  the quota off, for the eval.
+ *
+ *  When `viewerId` is the card's owner, their verdicts apply, as
+ *  `applyVerdicts` defines: each row reaches past as many candidates as
+ *  they excluded, so the list stays exact; the ten nearest neighbours of
+ *  each useful document within `NEAR_USEFUL` join the candidates (not with
+ *  `since`: the digest window is the window); and every candidate within
+ *  `NEAR_USEFUL` of one is ranked by the boost and carries `via`. Anyone
+ *  else gets the plain ranking — the owner's verdicts shape no one else's
+ *  list. A useful document with more than ten neighbours that close can
+ *  miss one the index did not otherwise return. */
+export async function priorArtFor(db: Db, ideaId: string, k = 5, options: { since?: Date; viewerId?: string; perField?: number } = {}): Promise<PaperHit[]> {
+  const { since } = options;
   const perField = options.perField ?? PER_FIELD;
   const depth = Number.isFinite(perField) ? k * CANDIDATE_DEPTH : k;
   const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
   if (rows.length === 0) return [];
-  const [card] = await db.select({ doc: forgeCard.doc }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId)).limit(1);
+  const [card] = await db.select({ doc: forgeCard.doc, ownerId: forgeCard.ownerId }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId)).limit(1);
   const held = card ? heldPapers(card.doc) : new Set<string>();
+  const owner = card && options.viewerId === card.ownerId ? card.ownerId : null;
 
+  const dims = sql.raw(String(EMBEDDING_DIMENSIONS));
   const q = sql.join(
-    rows.map((r) => sql`(${r.block}, ${JSON.stringify(r.embedding)}::vector(${sql.raw(String(EMBEDDING_DIMENSIONS))}))`),
+    rows.map((r) => sql`(${r.block}, ${JSON.stringify(r.embedding)}::vector(${dims}))`),
     sql`, `,
   );
-  const candidates = since
+  // A peer verdict's target is an idea id, so the cast is guarded twice: a
+  // planner that evaluates it before the filter still sees the `case`.
+  const verdicts = owner
+    ? sql`verdicts as (
+            select case when f.target_id ~* ${UUID.source} then f.target_id::uuid end as document_id, f.verdict
+            from card_feedback f
+            where f.person_id = ${owner} and f.idea_id = ${ideaId} and f.kind = 'paper' and f.target_id ~* ${UUID.source}
+          ),
+          excluded as (select document_id from verdicts where verdict = 'not_relevant'),
+          useful as (
+            select v.document_id, c.embedding from verdicts v join document_chunk c on c.document_id = v.document_id
+            where v.verdict = 'useful' and c.embedding is not null
+          ),
+          neighbours as (
+            select n.document_id from useful u cross join lateral (
+              select c.document_id, c.embedding from document_chunk c join document d on d.id = c.document_id
+              where d.source in (${corpusSources}) and c.embedding is not null and c.document_id <> u.document_id
+              order by c.embedding <=> u.embedding
+              limit ${USEFUL_NEIGHBOURS}
+            ) n
+            where 1 - (n.embedding::vector <=> u.embedding::vector) >= ${NEAR_USEFUL}
+          ),`
+    : sql``;
+  const reach = owner ? sql`${depth}::int + (select count(*)::int from excluded)` : sql`${depth}`;
+  const found = since
     ? sql`select d.id as document_id from document d
           where d.source in (${corpusSources}) and d.created_at >= ${since.toISOString()}
             and not exists (select 1 from artifact_texts a
@@ -239,12 +329,25 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date, o
     : sql`select distinct n.document_id from q cross join lateral (
             select c.document_id from document_chunk c join document d on d.id = c.document_id
             where d.source in (${corpusSources}) and c.embedding is not null
-            order by c.embedding <=> q.v::halfvec(${sql.raw(String(EMBEDDING_DIMENSIONS))})
-            limit ${depth}
+            order by c.embedding <=> q.v::halfvec(${dims})
+            limit ${reach}
           ) n`;
+  const candidates = owner
+    ? sql`select document_id from (${found}${since ? sql`` : sql` union select document_id from neighbours`}) f
+          where document_id not in (select document_id from excluded)`
+    : found;
+  const via = owner
+    ? sql`select distinct on (c.document_id) c.document_id, u.document_id as useful
+          from candidates join document_chunk c on c.document_id = candidates.document_id cross join useful u
+          where c.embedding is not null and c.document_id <> u.document_id
+            and 1 - (c.embedding::vector <=> u.embedding::vector) >= ${NEAR_USEFUL}
+          order by c.document_id, c.embedding::vector <=> u.embedding::vector, u.document_id`
+    : sql`select null::uuid as document_id, null::uuid as useful where false`;
   const result = await db.execute(sql`
     with q(block, v) as (values ${q}),
+    ${verdicts}
     candidates as (${candidates}),
+    via as (${via}),
     per_block as (
       select c.document_id, q.block, max(1 - (c.embedding::vector <=> q.v)) as cos
       from candidates join document_chunk c on c.document_id = candidates.document_id cross join q
@@ -253,21 +356,25 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date, o
     ),
     best as (
       select p.document_id from per_block p join document d on d.id = p.document_id
-      group by p.document_id, d.created_at
-      order by max(p.cos) desc, d.created_at desc
+        left join via on via.document_id = p.document_id
+      group by p.document_id, d.created_at, via.useful
+      order by max(p.cos) + case when via.useful is null then 0 else ${USEFUL_BOOST}::float8 end desc, d.created_at desc
       limit ${depth}
     )
-    select p.document_id, p.block, p.cos from per_block p join best using (document_id)`);
-  const scored = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { document_id: string; block: string; cos: number | string }[];
+    select p.document_id, p.block, p.cos, via.useful as via
+    from per_block p join best using (document_id) left join via on via.document_id = p.document_id`);
+  const scored = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { document_id: string; block: string; cos: number | string; via: string | null }[];
   if (scored.length === 0) return [];
 
   // Each map is seeded in the card's row order, as `scorePaper` fills it, so
   // blocks that tie are named in the same order.
   const byDocument = new Map<string, Map<string, number>>();
+  const usefulVia = new Map<string, string>();
   for (const s of scored) {
     const blocks = byDocument.get(s.document_id) ?? new Map(rows.map((r) => [r.block, -Infinity]));
     blocks.set(s.block, Number(s.cos));
     byDocument.set(s.document_id, blocks);
+    if (s.via) usefulVia.set(s.document_id, s.via);
   }
   const meta = await db
     .select({ documentId: document.id, kind: document.source, title: document.title, provenance: artifactTexts.provenance, addedAt: document.createdAt, abstractHash: artifactTexts.textHash })
@@ -278,8 +385,12 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date, o
   const seen = new Set<string>();
   const ranked = meta
     .filter((m) => (seen.has(m.documentId) ? false : (seen.add(m.documentId), true)))
-    .map((m) => hitFrom({ ...m, kind: m.kind as CorpusKind }, byDocument.get(m.documentId)!, held))
-    .sort((a, b) => b.score - a.score);
+    .map((m) => {
+      const hit = hitFrom({ ...m, kind: m.kind as CorpusKind }, byDocument.get(m.documentId)!, held);
+      const useful = usefulVia.get(m.documentId);
+      return useful ? { ...hit, via: { useful } } : hit;
+    })
+    .sort(byRank);
   return fieldQuota(ranked, k, perField);
 }
 
@@ -318,7 +429,7 @@ export interface CorpusDocument {
   citation: string;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** One paper or patent as the read endpoint serves it, or null for any id
  *  that is not one — a card's idea id included, and a corpus row whose

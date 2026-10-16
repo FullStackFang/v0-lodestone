@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getDb } from "@/db/client";
 import { requirePerson } from "@/lib/session";
-import { cohortMap, corpusSummary } from "@/lodestone/map";
+import { cohortMap, corpusSummary, verdictGraph } from "@/lodestone/map";
 import { isOperator } from "@/pilot/membership";
 import { OperatorsOnly } from "../OperatorsOnly";
 import "../lodestone.css";
@@ -13,7 +13,7 @@ export default async function MapPage() {
   const db = await getDb();
   const person = await requirePerson(db);
   if (!(await isOperator(db, person))) return <OperatorsOnly page="cohort map" />;
-  const [map, corpus] = await Promise.all([cohortMap(db), corpusSummary(db)]);
+  const [map, corpus, graph] = await Promise.all([cohortMap(db), corpusSummary(db), verdictGraph(db)]);
   const biggest = Math.max(1, ...map.regions.map((r) => r.cards.length));
   const tallest = Math.max(1, ...map.profile.rows.map((r) => r.count));
   return <article>
@@ -32,6 +32,7 @@ export default async function MapPage() {
       <div className="ls-fig"><b className="accent">{map.counts.published}</b><span>cards published to the cohort</span></div>
       <div className="ls-fig"><b>{map.regions.length}</b><span>regions the cards form</span></div>
       <div className="ls-fig"><b>{map.papersTouched}</b><span>papers within {map.close.toFixed(2)} of a card</span></div>
+      <div className="ls-fig"><b>{graph.ideas}</b><span>idea{graph.ideas === 1 ? "" : "s"} the verdicts come from; prior off</span></div>
     </div>
 
     <div className="ls-two" style={{ marginTop: 0 }}>

@@ -2,9 +2,9 @@
  *  published, the regions the published cards form, how close the cards sit
  *  to each other, and which papers they touched. Counts and names, never a
  *  grade, and never the text of a card its author kept private. */
-import { and, eq, inArray, isNotNull, max, sql } from "drizzle-orm";
+import { and, countDistinct, eq, inArray, isNotNull, max, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { artifactTexts, document } from "@/db/schema";
+import { artifactTexts, document, paperBlockVerdict } from "@/db/schema";
 import { cardBlocks, cohortCards, cohortCounts, type CohortCard } from "./cards";
 import { CLOSE, distanceProfile, kmeans, regionCount, regionLabels, type ProfileRow } from "./geometry";
 import { CORPUS_SOURCES, priorArtFor, type CorpusKind } from "./priorArt";
@@ -52,7 +52,7 @@ export async function cohortMap(db: Db, options: MapOptions = {}): Promise<Cohor
   const touched = new Map<string, Set<string>>();
   const all = new Set<string>();
   for (const x of placed) {
-    const hits = await priorArtFor(db, x.c.card.ideaId, 10);
+    const hits = await priorArtFor(db, x.c.card.ideaId, 10, { viewerId: x.c.card.ownerId });
     const near = new Set(hits.filter((h) => h.score >= close).map((h) => h.documentId));
     touched.set(x.c.card.ideaId, near);
     for (const id of near) all.add(id);
@@ -79,6 +79,14 @@ export async function cohortMap(db: Db, options: MapOptions = {}): Promise<Cohor
     papersTouched: all.size,
     close,
   };
+}
+
+/** How far the verdict graph has filled, for the operator: the distinct
+ *  ideas with a row. No ranking reads the table yet, so the prior is off
+ *  whatever this says. */
+export async function verdictGraph(db: Db): Promise<{ ideas: number }> {
+  const [row] = await db.select({ ideas: countDistinct(paperBlockVerdict.ideaId) }).from(paperBlockVerdict);
+  return { ideas: row?.ideas ?? 0 };
 }
 
 export interface CorpusSummary {

@@ -12,13 +12,16 @@ import type { Db } from "@/db/client";
 import {
   apiToken,
   cardFeedback,
+  paperBlockVerdict,
   type ApiTokenRow,
   type CardFeedbackKind,
   type CardFeedbackRow,
   type CardFeedbackVerdict,
 } from "@/db/lodestone-schema";
-import { person } from "@/db/schema";
-import { cardBlocks, ownedCard } from "./cards";
+import { document, person } from "@/db/schema";
+import { BLOCKS, cardBlocks, ownedCard } from "./cards";
+import { UUID } from "./priorArt";
+import { blockVector, ideaVectors } from "./vectors";
 
 export const TOKEN_PREFIX = "lst_";
 export const FEEDBACK_KINDS: readonly CardFeedbackKind[] = ["paper", "peer"];
@@ -110,7 +113,37 @@ export async function recordFeedback(db: Db, personId: string, input: FeedbackIn
       set: { verdict: input.verdict, context: input.context ?? {}, updatedAt: now },
     })
     .returning();
+  await recordGraphVerdict(db, personId, input, now);
   return row;
+}
+
+/** The block a verdict's context judged, as a key: its first `blockKeys`,
+ *  else its first label mapped back. Null when it names neither. */
+function judgedBlock(context: Record<string, unknown>): string | null {
+  const first = (v: unknown) => (Array.isArray(v) && typeof v[0] === "string" ? v[0] : null);
+  const label = first(context.blocks);
+  return first(context.blockKeys) ?? BLOCKS.find(([, l]) => l === label)?.[0] ?? null;
+}
+
+/** A paper verdict into the verdict graph, against the block it judged as
+ *  that block stands now. Nothing to anchor — a peer, a target that is not a
+ *  document, no block named, a block with no vector — writes nothing and
+ *  leaves the verdict itself stored. */
+async function recordGraphVerdict(db: Db, personId: string, input: FeedbackInput, now: Date): Promise<void> {
+  if (input.kind !== "paper" || !UUID.test(input.targetId)) return;
+  const block = judgedBlock(input.context ?? {});
+  if (!block) return;
+  const vector = blockVector((await ideaVectors(db, [input.ideaId])).get(input.ideaId) ?? [], block);
+  if (!vector) return;
+  const [paper] = await db.select({ id: document.id }).from(document).where(eq(document.id, input.targetId)).limit(1);
+  if (!paper) return;
+  await db
+    .insert(paperBlockVerdict)
+    .values({ documentId: paper.id, block, ideaId: input.ideaId, personId, verdict: input.verdict, blockEmbedding: vector, at: now })
+    .onConflictDoUpdate({
+      target: [paperBlockVerdict.documentId, paperBlockVerdict.block, paperBlockVerdict.ideaId, paperBlockVerdict.personId],
+      set: { verdict: input.verdict, blockEmbedding: vector, at: now },
+    });
 }
 
 export async function feedbackFor(db: Db, personId: string, ideaId: string): Promise<CardFeedbackRow[]> {

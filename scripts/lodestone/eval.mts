@@ -130,7 +130,7 @@ const keyOfLabel = new Map<string, string>(BLOCKS.map(([key, text]) => [text, ke
 const rows: { slug: string; field: string; score: ReturnType<typeof scoreCard>; hits: Awaited<ReturnType<typeof priorArtFor>>; misses: string[] }[] = [];
 for (const card of scored) {
   const marks = MARKS[card.slug];
-  const hits = await priorArtFor(db, card.ideaId, 10, undefined, noQuota ? { perField: Infinity } : {});
+  const hits = await priorArtFor(db, card.ideaId, 10, noQuota ? { perField: Infinity } : {});
   const provenance = hits.length
     ? await db.select({ id: artifactTexts.artifactId, p: artifactTexts.provenance }).from(artifactTexts).where(inArray(artifactTexts.artifactId, hits.map((h) => h.documentId)))
     : [];

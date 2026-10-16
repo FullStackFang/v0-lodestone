@@ -29,12 +29,13 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
   const member = await isActiveMember(db, person.id);
   const { blocks, confirmed } = cardBlocks(card.doc);
   const [priorArt, corpus, peers, published] = await Promise.all([
-    priorArtFor(db, ideaId, 5).then((hits) => withSentences(db, embed, ideaId, hits)),
+    priorArtFor(db, ideaId, 5, { viewerId: person.id }).then((hits) => withSentences(db, embed, ideaId, hits)),
     corpusSize(db),
     member ? peersFor(db, ideaId, 5) : Promise.resolve([]),
     cohortCards(db),
   ]);
   const others = published.filter((c) => c.card.ideaId !== ideaId).length;
+  const titleOf = (documentId: string) => priorArt.find((h) => h.documentId === documentId)?.title;
 
   return <article>
     <header className="ls-header">
@@ -66,7 +67,7 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
           {p.kind === "patent" ? <span className="eyebrow">Patent</span> : null}
           <span className="t">{p.url ? <a href={p.url} target="_blank" rel="noreferrer">{p.title}</a> : p.title}</span>
           <span className="n">{p.score.toFixed(2)}</span>
-          <span className="why">closest to <b>{p.blocks.join(", ")}</b>{p.yours ? " · yours — the paper this idea started from" : ""}</span>
+          <span className="why">closest to <b>{p.blocks.join(", ")}</b>{p.yours ? " · yours — the paper this idea started from" : ""}{mine && p.via ? ` · because you found ${titleOf(p.via.useful) ?? "a nearby paper"} useful` : ""}</span>
           {p.sentences.length ? <span className="why">{p.sentences.map((s) => `“${s.text}”`).join(" … ")}</span> : null}
           <span className="meta">{[p.venue, p.year, p.field, p.querySet && `set ${p.querySet}`].filter(Boolean).join(" · ") || "no metadata"}</span>
           <span className="bar"><i style={{ width: pct(p.score) }} /></span>

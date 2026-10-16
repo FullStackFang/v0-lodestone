@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { person } from "./schema";
+import { check, halfvec, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { document, person } from "./schema";
 
 /** Where a Forge card can be seen. `private` is the default and the state a
  *  card returns to when its owner withdraws it. `cohort` is every active
@@ -111,3 +111,27 @@ export const cardFeedback = pgTable("card_feedback", {
 ]);
 
 export type CardFeedbackRow = typeof cardFeedback.$inferSelect;
+
+/** The verdict graph: one row per paper verdict, keyed by the block it
+ *  judged, carrying that block's unit-mean vector as it stood when the
+ *  person judged. A snapshot on purpose — it stays meaningful after the card
+ *  pivots. Written by `recordFeedback`; no ranking reads it yet. A revoked
+ *  member's rows stay and are left out at read time. */
+export const paperBlockVerdict = pgTable("paper_block_verdict", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id").notNull().references(() => document.id, { onDelete: "cascade" }),
+  /** The block key: `value_proposition`, never its label. */
+  block: text("block").notNull(),
+  ideaId: text("idea_id").notNull().references(() => forgeCard.ideaId),
+  personId: uuid("person_id").notNull().references(() => person.id),
+  verdict: text("verdict").$type<CardFeedbackVerdict>().notNull(),
+  // 1024 is `EMBEDDING_DIMENSIONS`, which `schema.ts` re-exports this file
+  // before defining, so it cannot be imported here.
+  blockEmbedding: halfvec("block_embedding", { dimensions: 1024 }).notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("paper_block_verdict_one_opinion").on(t.documentId, t.block, t.ideaId, t.personId),
+  check("paper_block_verdict_verdict_valid", sql`${t.verdict} in ('useful', 'known', 'not_relevant')`),
+]);
+
+export type PaperBlockVerdictRow = typeof paperBlockVerdict.$inferSelect;

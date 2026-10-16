@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: Params) {
     const member = await isActiveMember(db, person.id);
     const [search, priorArt, corpus, peers, feedback] = await Promise.all([
       searchState(db, ideaId, card.doc),
-      priorArtFor(db, ideaId, 10).then((hits) => withSentences(db, embed, ideaId, hits)),
+      priorArtFor(db, ideaId, 10, { viewerId: person.id }).then((hits) => withSentences(db, embed, ideaId, hits)),
       corpusSize(db),
       member ? peersFor(db, ideaId, 10) : Promise.resolve([]),
       feedbackFor(db, person.id, ideaId),

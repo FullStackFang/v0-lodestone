@@ -141,6 +141,18 @@ when the owner is an active member. For a cohort card the token
 may view but does not own, the response is `card`, `owner`, `blocks` and
 `segments` alone.
 
+The owner's verdicts on the card shape their own list. A document they
+marked `not_relevant` is left out, and the list is still ten long when the
+corpus allows. A document within 0.85 of one they marked `useful` joins the
+candidates, is ranked as if its score were 0.05 higher, and carries
+`"via": { "useful": "<documentId>" }`, naming the useful one — say "because
+you found <title> useful". Its `score` is still its own cosine; only its
+place moved. A hit with no `via` has no such key. `known` changes nothing.
+Verdicts never leave the server: no verdict is sent to OpenAlex, Semantic
+Scholar or any other service. And they shape no one else's view: a member
+who is not the owner never sees `via`, nor anything else a verdict
+produced, on any route or page.
+
 ### `PATCH /api/lodestone/cards/<ideaId>`
 
 Body `{ "visibility": "cohort" }` or `{ "visibility": "private" }`. Publishing
@@ -161,6 +173,10 @@ but the author already knew it) or `not_relevant`. One verdict per owner,
 card and target; a second replaces the first. `context` is kept as sent, so a
 later threshold retune can be judged against what the person actually saw.
 Send the hit's `blockKeys` in it, not its labels: verdicts are keyed on them.
+A paper verdict is also recorded against the first block named (a label is
+mapped to its key), with that block's vector as it stands at that moment; a
+context naming no block, or a block with no vector yet, records the verdict
+alone. No ranking reads that record yet.
 
 `GET` on the same path lists the owner's verdicts for the card.
 
