@@ -30,6 +30,19 @@ describe("login continuation", () => {
       expect(html).toContain('data-email="false"');
     } finally { vi.unstubAllEnvs(); }
   });
+  it("offers the development bypass only while mail is the local outbox", async () => {
+    state.signedIn = false;
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("AUTH_EMAIL_FROM", "");
+    vi.stubEnv("RESEND_API_KEY", "");
+    try {
+      const html = renderToStaticMarkup(await Login({ searchParams: Promise.resolve({ next: "/lodestone/map" }) }));
+      expect(html).toContain('action="/api/auth/dev-login"');
+      expect(html).toContain('name="next" value="/lodestone/map"');
+      vi.stubEnv("NODE_ENV", "production");
+      expect(renderToStaticMarkup(await Login({ searchParams: Promise.resolve({}) }))).not.toContain("/api/auth/dev-login");
+    } finally { vi.unstubAllEnvs(); }
+  });
   it("sends an unsafe return destination to the default workspace", async () => {
     state.signedIn = false;
     const page = await Login({ searchParams: Promise.resolve({ next: "//outside.example" }) });

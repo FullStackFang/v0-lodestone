@@ -3,6 +3,7 @@ import { ensureSession } from "@/lib/session";
 import { mailConfigured } from "@/auth/delivery";
 import { safeReturnPath } from "@/auth/return-path";
 import { googleConfigured } from "@/auth/server";
+import { Pill } from "../lodestone/ui";
 import { SignIn } from "./SignIn";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   // The magic link needs somewhere to go: a provider in production, the
   // local outbox otherwise.
   const email = mailConfigured() || process.env.NODE_ENV !== "production";
+  // Until Google is wired up, development signs in without the outbox.
+  const bypass = !mailConfigured() && process.env.NODE_ENV !== "production";
   return <div className="wrap stack">
     <section className="mast drench auth-band">
       <div className="mast-copy">
@@ -22,6 +25,12 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
     </section>
     <section className="panel paper auth-surface">
       <SignIn callbackURL={callbackURL} google={googleConfigured()} email={email} />
+      {bypass && <form method="get" action="/api/auth/dev-login" className="field-card dev-bypass">
+        <span className="lab">Development only</span>
+        <input type="hidden" name="next" value={callbackURL} />
+        <label>Sign in as<input type="email" name="email" defaultValue="you@example.edu" required maxLength={254} /></label>
+        <Pill variant="line" type="submit" arrow="right" small className="self-start">Sign in without a link</Pill>
+      </form>}
     </section>
   </div>;
 }

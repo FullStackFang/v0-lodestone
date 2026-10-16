@@ -398,6 +398,8 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 .auth-stack { display: flex; flex-direction: column; gap: 18px; }
 .auth-stack .pill { align-self: stretch; justify-content: space-between; }
 .auth-stack .field-card .pill { align-self: flex-start; }
+.dev-bypass { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--rule); }
+.dev-bypass .lab { color: var(--meta); }
 .auth-stack .error { margin: 0; font-size: 13px; color: var(--oxblood); }
 .auth-stack .receipt { margin: 0; font-size: 13px; color: var(--ink); }
 .field-card input[type="email"] { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; min-height: 46px; width: 100%; }
