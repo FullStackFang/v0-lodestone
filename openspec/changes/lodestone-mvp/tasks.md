@@ -13,7 +13,7 @@ worked at the same time as the row before them.
 
 ## 2. Measure (parallel with 3 and 4a)
 
-- [ ] 2.1 `lodestone-eval-set` complete. Gate: `baseline.md` from `--no-search` over marks + distractors. P@5 / R@10 / MRR / fields:
+- [x] 2.1 `lodestone-eval-set` complete. Gate: `baseline.md` from `--no-search` over marks + distractors. P@5 / R@10 / MRR / fields: 2026-10-16 — 0.207 / 0.517 / 0.502 / 4.63 over 30 cards, 86 marks, 953 distractors (marks are Claude's calls, not hand-ticked; cross-field cards MRR 0.303)
 
 ## 3. Patents (parallel with 2 and 4a)
 

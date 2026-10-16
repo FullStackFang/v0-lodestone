@@ -1,6 +1,6 @@
 ## 0. Gate
 
-- [ ] 0.1 `lodestone-sources-repair` section 1 merged (keyed `workUrl`, limiter by key); section 1 below can be authored before that, section 2 cannot run
+- [x] 0.1 `lodestone-sources-repair` section 1 merged (keyed `workUrl`, limiter by key); section 1 below can be authored before that, section 2 cannot run (2026-10-15: MVP row 1.1)
 
 ## 1. The set
 
