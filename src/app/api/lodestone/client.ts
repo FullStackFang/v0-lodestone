@@ -5,7 +5,11 @@ import { z } from "zod";
 import { getDb, type Db } from "@/db/client";
 import { personFromRequest, type TokenPerson } from "@/lodestone/api";
 
-export const IDEA_ID = z.string().regex(/^[0-9a-f]{32}$/, "an idea id is 32 hex characters");
+/** A card's id as the send filed it: Whetstone's own `crypto.randomUUID()`
+ *  for `/2` and later, or the 32 hex a `/1` document's id is derived as. */
+export const IDEA_ID = z
+  .string()
+  .regex(/^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/, "an idea id is a uuid or 32 hex characters");
 
 export function fail(status: number, error: string) {
   return NextResponse.json({ error }, { status });

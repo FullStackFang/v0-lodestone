@@ -9,6 +9,7 @@ import { requirePerson } from "@/lib/session";
 import { importCard, setVisibility } from "@/lodestone/cards";
 import { defaultSearchDeps, searchCard } from "@/lodestone/search";
 import type { ActionState } from "@/review/ActionForm";
+import { IDEA_ID } from "@/app/api/lodestone/client";
 
 const read = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
 
@@ -47,7 +48,7 @@ export async function setCardVisibility(_previous: ActionState, data: FormData):
   const db = await getDb();
   const person = await requirePerson(db);
   try {
-    const ideaId = z.string().regex(/^[0-9a-f]{32}$/).parse(read(data, "ideaId"));
+    const ideaId = IDEA_ID.parse(read(data, "ideaId"));
     const visibility = z.enum(["private", "cohort"]).parse(read(data, "visibility"));
     const card = await setVisibility(db, person.id, ideaId, visibility);
     revalidatePath("/lodestone");
