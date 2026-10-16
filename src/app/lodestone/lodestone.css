@@ -362,3 +362,10 @@ a:hover > .circ, .row:hover .circ, .insight:hover .circ, .peer:hover .circ, .til
 }
 
 .self-start { align-self: flex-start; }
+
+/* The import form inside the "next card" tile. */
+.tile-form { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+.tile-form .button { align-self: flex-start; border-radius: 999px; border-color: rgba(252, 251, 248, 0.74); background: transparent; color: var(--paper); min-height: 44px; padding: 0 22px; }
+.tile-form .button:hover { background: var(--paper); color: var(--navy-block); opacity: 1; }
+.tile-form p { margin: 0; font-size: 13px; color: var(--paper); }
+.tile-form p a { color: var(--aqua); }
