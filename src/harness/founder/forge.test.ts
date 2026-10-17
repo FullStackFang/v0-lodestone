@@ -205,6 +205,38 @@ describe("projectForgeIdea — origin", () => {
   });
 });
 
+describe("embedForgeRows", () => {
+  it("writes each row its own vector and the model, in one statement", async () => {
+    await projectForgeIdea(db, fixture.document);
+    const pending = await pendingEmbeds(db, IDEA);
+    expect(pending.length).toBeGreaterThan(2);
+    // A distinct vector per text, so a row given another's would show.
+    const vectorFor = (text: string) => Array.from({ length: EMBEDDING_DIMENSIONS }, (_, d) => (d === text.length % EMBEDDING_DIMENSIONS ? 1 : d === 7 ? 0.5 : 0));
+    const embed = async (texts: string[]): Promise<EmbedResult> => ({ vectors: texts.map(vectorFor), embedded: true, model: "voyage-test", tokens: texts.length });
+    const execute = vi.spyOn(db, "execute");
+    const update = vi.spyOn(db, "update");
+    const out = await embedForgeRows(db, pending, embed);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(update).not.toHaveBeenCalled();
+    expect(out.embedded).toBe(pending.length);
+    const rows = await db.select().from(assertions).where(sql`${assertions.id} in (${sql.join(pending.map((r) => sql`${r.id}`), sql`, `)})`);
+    expect(rows).toHaveLength(pending.length);
+    for (const row of rows) {
+      expect(row.embeddingModel).toBe("voyage-test");
+      expect(row.embedding).toEqual(vectorFor(row.text));
+    }
+  });
+
+  it("writes nothing when the embedder has no key", async () => {
+    await projectForgeIdea(db, fixture.document);
+    const pending = await pendingEmbeds(db, IDEA);
+    const execute = vi.spyOn(db, "execute");
+    const out = await embedForgeRows(db, pending, async (texts) => ({ vectors: texts.map(() => null), embedded: false, model: null, tokens: null }));
+    expect(out.embedded).toBe(0);
+    expect(execute).not.toHaveBeenCalled();
+  });
+});
+
 describe("projectForgeIdea — anchoring", () => {
   it("places a sentence that occurs once, quote equal to the slice", async () => {
     await projectForgeIdea(db, fixture.document);

@@ -35,7 +35,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
-import { assertions, extractionRuns, type AssertionRow, type ExtractionRunRow } from "@/db/schema";
+import { EMBEDDING_DIMENSIONS, assertions, extractionRuns, type AssertionRow, type ExtractionRunRow } from "@/db/schema";
 import { TURN_SEPARATOR, normalize, putArtifactText } from "../canonical";
 import type { EmbedResult } from "../embed";
 import { anchor } from "../extract/anchor";
@@ -731,17 +731,16 @@ export async function embedForgeRows(
     "document",
   );
   if (!result.embedded) return { embedded: 0, tokens: result.tokens };
-  let embedded = 0;
-  for (const [at, row] of sendable.entries()) {
-    const vector = result.vectors[at];
-    if (!vector) continue;
-    await db
-      .update(assertions)
-      .set({ embedding: vector, embeddingModel: result.model })
-      .where(eq(assertions.id, row.id));
-    embedded += 1;
-  }
-  return { embedded, tokens: result.tokens };
+  const written = sendable.flatMap((row, at) => (result.vectors[at] ? [{ id: row.id, vector: result.vectors[at]! }] : []));
+  if (written.length === 0) return { embedded: 0, tokens: result.tokens };
+  // Every vector in one statement: a card is dozens of rows, and a write
+  // per row was a round trip per row inside the import's request.
+  const values = sql.join(written.map((w) => sql`(${w.id}, ${JSON.stringify(w.vector)})`), sql`, `);
+  await db.execute(sql`
+    update ${assertions} set embedding = v.e::vector(${sql.raw(String(EMBEDDING_DIMENSIONS))}), embedding_model = ${result.model}
+    from (values ${values}) as v(id, e)
+    where ${assertions.id} = v.id::uuid`);
+  return { embedded: written.length, tokens: result.tokens };
 }
 
 // ---------------------------------------------------------------------------

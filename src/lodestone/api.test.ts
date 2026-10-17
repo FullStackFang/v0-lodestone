@@ -44,6 +44,18 @@ describe("tokens", () => {
     const [stored] = await listTokens(db, sam);
     expect(stored.lastUsedAt).not.toBeNull();
   });
+  it("stamps last use at most once in five minutes", async () => {
+    const { token, row } = await mintToken(db, sam, "stamp");
+    const used = async () => (await listTokens(db, sam)).find((t) => t.id === row.id)!.lastUsedAt?.getTime();
+    const t0 = new Date("2026-10-17T12:00:00Z");
+    await personForToken(db, token, t0);
+    expect(await used()).toBe(t0.getTime());
+    await personForToken(db, token, new Date(t0.getTime() + 60_000));
+    expect(await used()).toBe(t0.getTime());
+    const later = new Date(t0.getTime() + 5 * 60_000);
+    await personForToken(db, token, later);
+    expect(await used()).toBe(later.getTime());
+  });
   it("reads the bearer header and rejects anything else", async () => {
     const { token } = await mintToken(db, sam, "desk");
     const ok = new Request("https://lodestone.invalid/api/lodestone/me", { headers: { authorization: `Bearer ${token}` } });

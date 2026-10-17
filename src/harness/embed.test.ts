@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, embed } from "./embed";
+import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, EMBED_TIMEOUT_MS, embed } from "./embed";
 import { EMBEDDING_DIMENSIONS as SCHEMA_DIMENSIONS } from "@/db/schema";
 
 /** A recorded Voyage response, trimmed to the shape the wrapper reads. */
@@ -112,5 +112,26 @@ describe("embed", () => {
       jsonResponse({ data: [{ index: 0, embedding: [0, 1, 2] }], usage: { total_tokens: 1 } }),
     );
     await expect(embed(["one"])).rejects.toThrow(/dimensions/);
+  });
+
+  it("gives up on a provider that never answers, and says so", async () => {
+    process.env.VOYAGE_API_KEY = "vk-test";
+    vi.useFakeTimers();
+    // Never resolves; rejects only when aborted, as a real fetch does.
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("This operation was aborted", "AbortError")));
+    }));
+    let settled: Error | null = null;
+    const pending = embed(["one"]).catch((e: Error) => (settled = e));
+    await vi.advanceTimersByTimeAsync(EMBED_TIMEOUT_MS - 1);
+    expect(settled).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+    // Nothing left running: the ceiling's timer is cleared with the request.
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
+    expect(settled).toBeInstanceOf(Error);
+    expect(settled!.message).toBe("voyage timeout after 20s");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

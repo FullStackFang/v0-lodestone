@@ -44,6 +44,26 @@ interface VoyageResponse {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** One request's ceiling, the response body included. A guess at Voyage's
+ *  slow tail; past it the import reports the timeout instead of holding the
+ *  function until the platform kills it. */
+export const EMBED_TIMEOUT_MS = 20_000;
+
+/** Run one request under the ceiling. A controller and the global timer, not
+ *  `AbortSignal.timeout`, so a test's fake clock can reach it. */
+async function timed<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), EMBED_TIMEOUT_MS);
+  try {
+    return await work(controller.signal);
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`voyage timeout after ${EMBED_TIMEOUT_MS / 1000}s`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function postBatch(
   key: string,
   texts: string[],
@@ -51,20 +71,25 @@ async function postBatch(
 ): Promise<{ vectors: number[][]; tokens: number }> {
   let wait = 500;
   for (let attempt = 0; ; attempt++) {
-    const response = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({ input: texts, model: EMBEDDING_MODEL, input_type: inputType }),
+    const reply = await timed(async (signal) => {
+      const response = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify({ input: texts, model: EMBEDDING_MODEL, input_type: inputType }),
+        signal,
+      });
+      if (response.status === 429 && attempt < RETRIES) return null;
+      if (!response.ok) {
+        throw new Error(`voyage ${response.status}: ${(await response.text()).slice(0, 300)}`);
+      }
+      return (await response.json()) as VoyageResponse;
     });
-    if (response.status === 429 && attempt < RETRIES) {
+    if (reply === null) {
       await sleep(wait);
       wait *= 2;
       continue;
     }
-    if (!response.ok) {
-      throw new Error(`voyage ${response.status}: ${(await response.text()).slice(0, 300)}`);
-    }
-    const body = (await response.json()) as VoyageResponse;
+    const body = reply;
     const data = body.data ?? [];
     if (data.length !== texts.length) {
       throw new Error(`voyage returned ${data.length} vectors for ${texts.length} texts`);

@@ -340,6 +340,23 @@ the excluded PGlite packages (never loaded in production), and one SDK chunk
 reached only through the lazy `--ladder` import in `forge.ts`, which ships
 in the function but is not evaluated at cold start.
 
+**After** (every group but 4, 2026-10-17, same setup, the CPU back near
+50%, nine warm runs):
+
+| Route | Status | TTFB ms (before) | Statements (before) | Writes (before) |
+| --- | --- | --- | --- | --- |
+| `/` | 307 | 2 (119) | 0 (6) | 0 (1) |
+| `/login` | 307 | 113 (138) | 4 (11) | 0 (2) |
+| `/lodestone` | 200 | 289 (374) | 15 (29) | 0 (2) |
+| `/lodestone/digest` | 200 | 168 (210) | 11 (19) | 0 (2) |
+| `/lodestone/map` | 200 | 293 (567) | 15 (47) | 0 (2) |
+| `/lodestone/tokens` | 200 | 95 (152) | 5 (12) | 0 (2) |
+| `/lodestone/cards/[ideaId]` | 200 | 243 (317) | 14 (23) | 0 (2) |
+| `/lodestone/cards/[ideaId]/field` | 200 | 202 (256) | 15 (22) | 0 (2) |
+
+Every route's `<main>` is identical to the "before" render, but for a
+dev-mode stack trace inside `/login`'s redirect body.
+
 **Group 4 skipped.** `/lodestone` was under the 400 ms gate before this
 change (374 ms) and after it (261 ms), and the pilot has not asked for an
 earlier first paint. The design in decision 8 stands for when it does.

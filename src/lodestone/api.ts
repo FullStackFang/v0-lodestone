@@ -65,18 +65,26 @@ export interface TokenPerson {
   tokenId: string;
 }
 
-/** The member behind a live token, or null. Stamps `last_used_at`. */
+/** How stale `last_used_at` may get before a call stamps it again. The tokens
+ *  page shows it to the day; a write on every API call buys nothing. */
+const STAMP_EVERY_MS = 5 * 60 * 1000;
+
+/** The member behind a live token, or null. Stamps `last_used_at`, at most
+ *  once per `STAMP_EVERY_MS`. */
 export async function personForToken(db: Db, token: string, now = new Date()): Promise<TokenPerson | null> {
   if (!token.startsWith(TOKEN_PREFIX)) return null;
   const [row] = await db
-    .select({ tokenId: apiToken.id, id: person.id, name: person.name, email: person.email })
+    .select({ tokenId: apiToken.id, lastUsedAt: apiToken.lastUsedAt, id: person.id, name: person.name, email: person.email })
     .from(apiToken)
     .innerJoin(person, eq(person.id, apiToken.personId))
     .where(and(eq(apiToken.tokenHash, hashToken(token)), isNull(apiToken.revokedAt)))
     .limit(1);
   if (!row) return null;
-  await db.update(apiToken).set({ lastUsedAt: now }).where(eq(apiToken.id, row.tokenId));
-  return row;
+  const { lastUsedAt, ...who } = row;
+  if (!lastUsedAt || now.getTime() - lastUsedAt.getTime() >= STAMP_EVERY_MS) {
+    await db.update(apiToken).set({ lastUsedAt: now }).where(eq(apiToken.id, who.tokenId));
+  }
+  return who;
 }
 
 /** `Authorization: Bearer lst_...` on a request, resolved. Anything else is null. */

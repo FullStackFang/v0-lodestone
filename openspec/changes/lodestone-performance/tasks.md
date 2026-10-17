@@ -44,7 +44,7 @@
 
 ## 5. Guards
 
-- [ ] 5.1 `src/harness/embed.ts`: `AbortSignal.timeout(20_000)`; test with a never-resolving fetch and fake timers
-- [ ] 5.2 `embedForgeRows`: one `UPDATE … FROM (VALUES …)`; equality test on the written vectors
-- [ ] 5.3 Optional: `personForToken` stamps at most every five minutes; test two calls in a minute write once
-- [ ] 5.4 Re-run 0.1; put the "after" table in `design.md`; `npm run typecheck`, `npm test`, `npm run build` green
+- [x] 5.1 `src/harness/embed.ts`: a 20 s ceiling (an `AbortController` on the global timer: `AbortSignal.timeout` runs on timers fake ones cannot reach); test with a never-resolving fetch and fake timers
+- [x] 5.2 `embedForgeRows`: one `UPDATE … FROM (VALUES …)`; equality test on the written vectors
+- [x] 5.3 Optional: `personForToken` stamps at most every five minutes; test two calls in a minute write once
+- [x] 5.4 Re-run 0.1; put the "after" table in `design.md`; `npm run typecheck`, `npm test`, `npm run build` green
