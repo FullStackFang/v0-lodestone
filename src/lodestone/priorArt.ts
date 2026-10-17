@@ -195,19 +195,22 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): 
       group by c.document_id, q.block
     ),
     best as (
-      select p.document_id from per_block p join document d on d.id = p.document_id
+      select p.document_id, row_number() over (order by max(p.cos) desc, d.created_at desc, p.document_id) as rank
+      from per_block p join document d on d.id = p.document_id
       group by p.document_id, d.created_at
-      order by max(p.cos) desc, d.created_at desc
+      order by rank
       limit ${k}
     )
-    select p.document_id, p.block, p.cos from per_block p join best using (document_id)`);
-  const scored = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { document_id: string; block: string; cos: number | string }[];
+    select p.document_id, p.block, p.cos, best.rank from per_block p join best using (document_id)`);
+  const scored = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { document_id: string; block: string; cos: number | string; rank: number | string }[];
   if (scored.length === 0) return [];
 
   // Each map is seeded in the card's row order, as `scorePaper` fills it, so
   // blocks that tie are named in the same order.
   const byDocument = new Map<string, Map<string, number>>();
+  const rank = new Map<string, number>();
   for (const s of scored) {
+    rank.set(s.document_id, Number(s.rank));
     const blocks = byDocument.get(s.document_id) ?? new Map(rows.map((r) => [r.block, -Infinity]));
     blocks.set(s.block, Number(s.cos));
     byDocument.set(s.document_id, blocks);
@@ -222,7 +225,10 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): 
   return meta
     .filter((m) => (seen.has(m.documentId) ? false : (seen.add(m.documentId), true)))
     .map((m) => hitFrom({ ...m, kind: m.kind as CorpusKind }, byDocument.get(m.documentId)!, held))
-    .sort((a, b) => b.score - a.score);
+    // The database's order: best cosine, then newest, then document id, total
+    // so a tie at the cut is never arbitrary. Not re-derived here: a `Date`
+    // holds milliseconds and `created_at` microseconds.
+    .sort((a, b) => rank.get(a.documentId)! - rank.get(b.documentId)!);
 }
 
 /** How many papers the corpus holds with a vector. */
