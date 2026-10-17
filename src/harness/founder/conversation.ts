@@ -18,7 +18,7 @@ import { asc, eq } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { assertions, extractionRuns, stageEvent, type ExtractionRunRow } from "@/db/schema";
 import { HISTORY_TURNS } from "@/engine/turn";
-import { putArtifactText } from "../canonical";
+import { TURN_SEPARATOR, putArtifactText } from "../canonical";
 import { anchor } from "../extract/anchor";
 import { extract, type ExtractDeps } from "../extract/core";
 import { upgradeConfidence } from "../ledger";
@@ -27,9 +27,9 @@ import type { ExtractionOutput, Facet, RunStats } from "../schema";
 import { citationFor, findRepeat } from "./repeat";
 import { personOf } from "./subjects";
 
-/** Turns are joined by a mark normalization does not collapse and no
- *  founder types, so a quote can never straddle one by accident. */
-export const TURN_SEPARATOR = " ¶ ";
+// Defined beside `normalize`, which must not collapse it; kept exported here
+// for the callers that always found it here.
+export { TURN_SEPARATOR };
 
 /** Facets that are always about the founder, whatever the model claimed. A
  *  price point is the idea's constraint and a visa is the person's, so

@@ -14,6 +14,10 @@ import type { SourceFormat } from "./schema";
  *  content — and a soft hyphen inside a word makes a quote unmatchable. */
 const INVISIBLE = /[\u200B\u00AD\uFEFF]/g;
 
+/** Turns are joined by a mark normalization does not collapse and no
+ *  founder types, so a quote can never straddle one by accident. */
+export const TURN_SEPARATOR = " ¶ ";
+
 /** NFC, invisibles out, whitespace collapsed, trimmed. In that order: NFC
  *  first because composition changes once invisibles are gone, whitespace
  *  last because a removed soft hyphen can leave two spaces adjacent. */

@@ -308,6 +308,42 @@ earlier first paint, not on this number. The statement counts are the
 structural measure; the "writes" are the two `INSERT … ON CONFLICT` the
 identity bridge attempts on every request.
 
+**After groups 1–3** (2026-10-17, same seed copied to `data/pglite-perf`,
+served on its own port and `distDir` because another session held the
+default dev server; nine warm runs). Timings were taken while an unrelated
+job held the CPU near 75%, so they spread widely between runs (`/tokens`,
+whose work did not change, read 122 ms in one run and 249 ms in the next);
+the statement counts do not move with load and are the result:
+
+| Route | Status | TTFB ms | Statements (before) | Writes (before) |
+| --- | --- | --- | --- | --- |
+| `/` | 307 | 2 | 0 (6) | 0 (1) |
+| `/login` | 307 | 90 | 4 (11) | 0 (2) |
+| `/lodestone` | 200 | 261 | 15 (29) | 0 (2) |
+| `/lodestone/digest` | 200 | 173 | 11 (19) | 0 (2) |
+| `/lodestone/map` | 200 | 641 | 15 (47) | 0 (2) |
+| `/lodestone/tokens` | 200 | 249 | 5 (12) | 0 (2) |
+| `/lodestone/cards/[ideaId]` | 200 | 588 | 14 (23) | 0 (2) |
+| `/lodestone/cards/[ideaId]/field` | 200 | 528 | 15 (22) | 0 (2) |
+
+The home page's count is now flat in owned cards: 11 statements for one
+card and for three in `page.count.test.tsx`, against 16 and 28 before.
+Rendered `<main>` of every route is byte-identical before and after group 2
+(`lodestone:measure --save`).
+
+**Build trace** (`npm run build`, no whole-project warning):
+`.next/server/app/lodestone/page.js.nft.json` lists 207 files, 5.6 MB on
+disk, against the review's 5,405 files and 277 MB. Nothing under
+`node_modules/@anthropic-ai` or `node_modules/@electric-sql` is traced. What
+is left of either: Turbopack's two symlink aliases and two stub chunks for
+the excluded PGlite packages (never loaded in production), and one SDK chunk
+reached only through the lazy `--ladder` import in `forge.ts`, which ships
+in the function but is not evaluated at cold start.
+
+**Group 4 skipped.** `/lodestone` was under the 400 ms gate before this
+change (374 ms) and after it (261 ms), and the pilot has not asked for an
+earlier first paint. The design in decision 8 stands for when it does.
+
 ## Open Questions
 
 - Whether the pilot wants the digest nameplate above the fold to wait for the

@@ -36,14 +36,15 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
 import { assertions, extractionRuns, type AssertionRow, type ExtractionRunRow } from "@/db/schema";
-import { normalize, putArtifactText } from "../canonical";
+import { TURN_SEPARATOR, normalize, putArtifactText } from "../canonical";
 import type { EmbedResult } from "../embed";
 import { anchor } from "../extract/anchor";
-import { claimExtractionRun, type ExtractDeps } from "../extract/core";
-import { ladder } from "../extract/ladder";
+// `runs`, not `core`: core loads the model, and every route that reads a
+// card imports this file. The ladder, which does call the model, is
+// imported where `--ladder` asks for it.
+import { claimExtractionRun, type ExtractDeps } from "../extract/runs";
 import { NOT_STATED, ensurePerson, insertAssertion, supersede, type InsertAssertionInput } from "../ledger";
 import type { AbstractionLevel, Facet, Provenance, RunStats } from "../schema";
-import { TURN_SEPARATOR } from "./conversation";
 
 // ---------------------------------------------------------------------------
 // The documents. Input is untrusted: parsed, never cast.
@@ -680,6 +681,7 @@ export async function projectForgeIdea(
           sql`${assertions.provenance} ->> 'kind' = 'forge'`,
         ),
       );
+    const { ladder } = await import("../extract/ladder");
     for (const { runId } of sources) {
       if (runId === null) continue;
       report.ladderRuns.push(await ladder(db, runId, { ...deps, embed: deps.embed ?? noEmbed }));

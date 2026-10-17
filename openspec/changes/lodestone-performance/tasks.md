@@ -25,16 +25,16 @@
 
 ## 3. The model leaves the import graph
 
-- [ ] 3.1 Failing tests: (a) `vi.mock("@/harness/model", () => { throw new Error("model reached") })` then import `@/lodestone/cards`, `@/lodestone/vectors`, `@/app/api/lodestone/client`; (b) a static import walk over `src/lodestone/**`, `src/app/lodestone/**`, `src/app/api/lodestone/**`, `src/db/**` (`import type` excluded, dynamic imports excluded) asserting no path to `src/harness/model.ts`, `src/engine/cli-model.ts`, `@anthropic-ai/sdk`
-- [ ] 3.2 `TURN_SEPARATOR` to `src/harness/canonical.ts`, re-exported from `conversation.ts`
-- [ ] 3.3 `claimExtractionRun`, `cachedRun`, `nextAttempt`, `RunKey` and `ExtractDeps` to `src/harness/extract/runs.ts`; `ExtractDeps`' two `typeof` references as `import type`; `core.ts` re-exports all; `forge.ts` imports from `runs`
-- [ ] 3.4 `forge.ts`: lazy `await import("../extract/ladder")` at the `--ladder` call site
-- [ ] 3.5 `src/engine/cli-model.ts`: `/* turbopackIgnore: true */` on the two dynamic `path.join` calls
-- [ ] 3.6 `next.config.ts`: `outputFileTracingExcludes` for pglite, pglite-pgvector, `data/**`, `evals/**`, with the comment from design 7
-- [ ] 3.7 `npm run build`: no whole-project warning; record the `/lodestone` nft file count and bytes next to the "before" numbers (5,405 files, 277 MB locally)
-- [ ] 3.8 Re-run 0.1. If `/lodestone` warm median is under 400 ms and the pilot does not ask for an earlier first paint, skip group 4 and say so in the commit
+- [x] 3.1 Failing tests: (a) `vi.mock("@/harness/model", () => { throw new Error("model reached") })` then import `@/lodestone/cards`, `@/lodestone/vectors`, `@/app/api/lodestone/client`; (b) a static import walk over `src/lodestone/**`, `src/app/lodestone/**`, `src/app/api/lodestone/**`, `src/db/**` (`import type` excluded, dynamic imports excluded) asserting no path to `src/harness/model.ts`, `src/engine/cli-model.ts`, `@anthropic-ai/sdk`
+- [x] 3.2 `TURN_SEPARATOR` to `src/harness/canonical.ts`, re-exported from `conversation.ts`
+- [x] 3.3 `claimExtractionRun`, `cachedRun`, `nextAttempt`, `RunKey` and `ExtractDeps` to `src/harness/extract/runs.ts`; `ExtractDeps`' two `typeof` references as `import type`; `core.ts` re-exports all; `forge.ts` imports from `runs`
+- [x] 3.4 `forge.ts`: lazy `await import("../extract/ladder")` at the `--ladder` call site
+- [x] 3.5 `src/engine/cli-model.ts`: `/* turbopackIgnore: true */` on the two dynamic `path.join` calls
+- [x] 3.6 `next.config.ts`: `outputFileTracingExcludes` for pglite, pglite-pgvector, `data/**`, `evals/**`, with the comment from design 7
+- [x] 3.7 `npm run build`: no whole-project warning; record the `/lodestone` nft file count and bytes next to the "before" numbers (5,405 files, 277 MB locally)
+- [x] 3.8 Re-run 0.1. If `/lodestone` warm median is under 400 ms and the pilot does not ask for an earlier first paint, skip group 4 and say so in the commit
 
-## 4. Streaming (conditional on 3.8)
+## 4. Streaming (conditional on 3.8) — skipped: `/lodestone` under 400 ms before and after; see design.md Measurements
 
 - [ ] 4.1 `/lodestone/page.tsx`: `loadMatches` promise after `requirePerson`; `Nameplate`, `Insights`, `CohortRows`, `ThisWeek` as async server components under `Suspense` with the section's `.empty` markup as fallback; tile peer count behind its own boundary. No `loading.tsx`
 - [ ] 4.2 Card page: nine blocks first; prior art and peers under `Suspense`

@@ -32,10 +32,10 @@ export function resolveClaudeExe(): string {
   const dirs = (process.env.PATH ?? "").split(path.delimiter);
   for (const dir of dirs) {
     for (const name of ["claude.exe", "claude.cmd"]) {
-      const shim = path.join(dir, name);
+      const shim = path.join(/* turbopackIgnore: true */ dir, name);
       if (!existsSync(shim)) continue;
       if (name === "claude.exe") return (resolvedExe = shim);
-      const nested = path.join(dir, "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe");
+      const nested = path.join(/* turbopackIgnore: true */ dir, "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe");
       if (existsSync(nested)) return (resolvedExe = nested);
     }
   }
