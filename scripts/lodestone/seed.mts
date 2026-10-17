@@ -1,10 +1,11 @@
-/** `npm run lodestone:seed -- --me <email> [--set cohort|firms] [--private <n>]`
+/** `npm run lodestone:seed -- --me <email> [--set cohort|firms|ventures] [--private <n>]`
  *
  * Seed one synthetic cohort into the ledger, every card and abstract
  * embedded through Voyage (the key in `.env.local`). `--set cohort` (the
  * default) is eight members with one Forge card each and five abstracts;
  * `--set firms` is twenty-four fictional "fang-" firms and fifteen
- * abstracts, for demos. The first `--private` members keep their cards
+ * abstracts, for demos; `--set ventures` is twelve real YC companies and no
+ * abstracts, for `lodestone:ingest` to give real prior art. The first `--private` members keep their cards
  * private (default 2), the rest publish to the cohort. `--me` enrols that
  * email as an operator member so the person who signs in with it can
  * import, publish, and open the map. Re-running is safe: people, papers
@@ -16,6 +17,7 @@ import "../harness/env.mts";
 import { and, eq, isNull } from "drizzle-orm";
 import { COHORT, CORPUS, forgeDocument } from "../../evals/lodestone/cohort";
 import { FIRMS, FIRM_CORPUS } from "../../evals/lodestone/firms";
+import { VENTURES } from "../../evals/lodestone/ventures";
 import { getDb } from "../../src/db/client";
 import { document, documentChunk } from "../../src/db/schema";
 import { putArtifactText } from "../../src/harness/canonical";
@@ -33,12 +35,12 @@ const flag = (name: string) => {
 const me = flag("--me");
 const keepPrivate = Number(flag("--private") ?? 2);
 const set = flag("--set") ?? "cohort";
-if (set !== "cohort" && set !== "firms") {
-  console.error(`Unknown --set ${set}: expected cohort or firms.`);
+if (set !== "cohort" && set !== "firms" && set !== "ventures") {
+  console.error(`Unknown --set ${set}: expected cohort, firms or ventures.`);
   process.exit(1);
 }
-const members = set === "firms" ? FIRMS : COHORT;
-const papers = set === "firms" ? FIRM_CORPUS : CORPUS;
+const members = set === "firms" ? FIRMS : set === "ventures" ? VENTURES : COHORT;
+const papers = set === "firms" ? FIRM_CORPUS : set === "ventures" ? [] : CORPUS;
 if (!process.env.VOYAGE_API_KEY?.trim()) {
   console.log("VOYAGE_API_KEY is not set: cards will be filed without vectors and nothing will match.");
 }
