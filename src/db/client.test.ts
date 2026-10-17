@@ -58,6 +58,15 @@ describe("migrations", () => {
     }
   });
 
+  it("index document by source and arrival, for the digest's since scan", async () => {
+    const db = await createPgliteDb();
+    const idx = (await db.execute(
+      sql`select indexdef from pg_indexes where tablename = 'document' and indexname = 'document_source_created_idx'`,
+    )) as Rows<{ indexdef: string }>;
+    expect(idx.rows).toHaveLength(1);
+    expect(idx.rows[0].indexdef).toMatch(/\(source, created_at\)/);
+  });
+
   it("seed the band-pass parameters and the tag map", async () => {
     const db = await createPgliteDb();
     const params = (await db.execute(

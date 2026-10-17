@@ -2,9 +2,11 @@
  *  member's cards. Retrieval and ranking only — every row is a stored record
  *  plus the block names it matched on, and no sentence is written for it. */
 import type { Db } from "@/db/client";
-import { cardsForOwner, cohortCards } from "./cards";
+import type { ForgeCardRow } from "@/db/lodestone-schema";
+import { cardsForOwner, cohortCards, type CohortCard } from "./cards";
 import { peersFor, type PeerHit } from "./peers";
-import { priorArtFor, type PaperHit } from "./priorArt";
+import { priorArtForMany, type PaperHit } from "./priorArt";
+import { ideaVectors, type IdeaVector } from "./vectors";
 import { isActiveMember } from "@/pilot/membership";
 
 export interface DigestSection {
@@ -28,9 +30,19 @@ export const DIGEST_DAYS = 7;
 /** Below this a paper is noise, not a digest row. */
 export const PAPER_FLOOR = 0.75;
 
+/** A caller that already read any of these passes it, and it is not read
+ *  again: the page renders the same rows, the cron shares one cohort. */
 export interface DigestOptions {
   /** The lowest paper score worth a row. Defaults to `PAPER_FLOOR`. */
   paperFloor?: number;
+  /** The person's own cards, newest first, as `cardsForOwner` lists them. */
+  cards?: ForgeCardRow[];
+  /** Every cohort card, as `cohortCards` lists them. */
+  cohort?: CohortCard[];
+  /** Whether the person is an active member. */
+  member?: boolean;
+  /** Vectors for at least the person's cards and the cohort's. */
+  vectors?: Map<string, IdeaVector[]>;
 }
 
 export function weekAgo(now = new Date()): Date {
@@ -39,16 +51,26 @@ export function weekAgo(now = new Date()): Date {
 
 export async function digestFor(db: Db, personId: string, since: Date, now = new Date(), options: DigestOptions = {}): Promise<Digest> {
   const floor = options.paperFloor ?? PAPER_FLOOR;
-  const mine = await cardsForOwner(db, personId);
-  const recent = (await cohortCards(db)).filter((c) => c.card.publishedAt && c.card.publishedAt >= since && c.owner.id !== personId);
-  // Only a member sees the cohort's cards; anyone with a card sees the corpus.
-  const member = await isActiveMember(db, personId);
-  const sections: DigestSection[] = [];
-  for (const card of mine) {
-    const peers = member && recent.length ? await peersFor(db, card.ideaId, 5, recent) : [];
-    const papers = (await priorArtFor(db, card.ideaId, 5, since)).filter((p) => p.score >= floor);
-    sections.push({ ideaId: card.ideaId, title: card.title, peers, papers });
-  }
+  const [mine, cohort, member] = await Promise.all([
+    options.cards ?? cardsForOwner(db, personId),
+    options.cohort ?? cohortCards(db),
+    // Only a member sees the cohort's cards; anyone with a card sees the corpus.
+    options.member ?? isActiveMember(db, personId),
+  ]);
+  const recent = cohort.filter((c) => c.card.publishedAt && c.card.publishedAt >= since && c.owner.id !== personId);
+  const matching = member && recent.length > 0;
+  const ids = mine.map((c) => c.ideaId);
+  const [papersByCard, vectors] = await Promise.all([
+    priorArtForMany(db, ids, 5, since),
+    matching ? options.vectors ?? ideaVectors(db, [...ids, ...recent.map((c) => c.card.ideaId)]) : undefined,
+  ]);
+  const peersByCard = await Promise.all(mine.map((card) => (matching ? peersFor(db, card.ideaId, 5, recent, vectors) : [])));
+  const sections: DigestSection[] = mine.map((card, at) => ({
+    ideaId: card.ideaId,
+    title: card.title,
+    peers: peersByCard[at],
+    papers: (papersByCard.get(card.ideaId) ?? []).filter((p) => p.score >= floor),
+  }));
   return { since, until: now, newCards: recent.length, sections };
 }
 

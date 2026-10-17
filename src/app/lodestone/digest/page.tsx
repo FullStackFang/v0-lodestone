@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getDb } from "@/db/client";
-import { requirePerson } from "@/lib/session";
+import { currentMembership, requirePerson } from "@/lib/session";
 import { digestFor, weekAgo } from "@/lodestone/digest";
+import { isActive } from "@/pilot/membership";
 import { Chip, Pill } from "../ui";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function DigestPage() {
   const db = await getDb();
   const person = await requirePerson(db);
   const now = new Date();
-  const digest = await digestFor(db, person.id, weekAgo(now), now);
+  const digest = await digestFor(db, person.id, weekAgo(now), now, { member: isActive(await currentMembership()) });
   return <div className="wrap stack">
     <header className="mast drench">
       <Link className="back" href="/lodestone"><ArrowLeft size={14} />Your cards</Link>

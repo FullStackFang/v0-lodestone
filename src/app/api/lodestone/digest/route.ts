@@ -7,6 +7,9 @@ import { getDb } from "@/db/client";
 import { sendDigests } from "@/lodestone/deliver";
 
 export const dynamic = "force-dynamic";
+// One digest per owner, mailed one at a time; the platform default is not
+// the bound to rely on as the cohort grows.
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();

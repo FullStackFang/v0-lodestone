@@ -14,14 +14,14 @@
 
 ## 2. Cohort once, prior art in one statement
 
-- [ ] 2.1 Failing equality test: `priorArtForMany` vs `priorArtFor` over every card in the seed cohort (`evals/lodestone/cohort.ts` + `testEmbed`, as `network.test.ts` builds it), with and without `since`; plus a card with no vectors in the request
-- [ ] 2.2 `src/lodestone/priorArt.ts`: add `d.id` as the last order key in the single form first (its own commit, equality test against the old output on the seed); then `priorArtForMany` with the `card` column, per-card `(card, document_id)` candidates in the no-`since` form, shared scan in the `since` form, `row_number() over (partition by card order by max(cos) desc, created_at desc, id)`, one meta select, one `heldPapers` read, result map seeded for every id; `priorArtFor` becomes a one-card call of it
-- [ ] 2.3 `src/db/schema.ts`: `index("document_source_created_idx").on(t.source, t.createdAt)` on `document`; `npm run db:generate` → `0015_document_source_created.sql`; test that the index exists after migrate and that a second generate is empty
-- [ ] 2.4 `cohortCounts`: `count(*)` for `published`; equality test against the old value
-- [ ] 2.5 `peersFor(db, ideaId, k, candidates?, vectors?)`; `digestFor(db, personId, since, now, { paperFloor?, cards?, cohort?, member?, vectors? })`; both refetch only what they were not given; `digestFor` calls `priorArtForMany` once and `Promise.all` over peers
-- [ ] 2.6 `cohortMap`: `cohortCards` once, `priorArtForMany` for all placed cards; `cohortCounts` no longer materialises cards
-- [ ] 2.7 `/lodestone/page.tsx`: one `cohortCards`, one `ideaVectors`, pass both down; failing count test on the counting handle: one card vs three cards, equal statement counts
-- [ ] 2.8 `sendDigests`: `cohortCards` computed once per run and passed to every owner's `digestFor`; `maxDuration = 300` on the cron route
+- [x] 2.1 Failing equality test: `priorArtForMany` vs `priorArtFor` over every card in the seed cohort (`evals/lodestone/cohort.ts` + `testEmbed`, as `network.test.ts` builds it), with and without `since`; plus a card with no vectors in the request
+- [x] 2.2 `src/lodestone/priorArt.ts`: add `d.id` as the last order key in the single form first (its own commit, equality test against the old output on the seed); then `priorArtForMany` with the `card` column, per-card `(card, document_id)` candidates in the no-`since` form, shared scan in the `since` form, `row_number() over (partition by card order by max(cos) desc, created_at desc, id)`, one meta select, one `heldPapers` read, result map seeded for every id; `priorArtFor` becomes a one-card call of it
+- [x] 2.3 `src/db/schema.ts`: `index("document_source_created_idx").on(t.source, t.createdAt)` on `document`; `npm run db:generate` → `0015_document_source_created.sql`; test that the index exists after migrate and that a second generate is empty
+- [x] 2.4 `cohortCounts`: `count(*)` for `published`; equality test against the old value
+- [x] 2.5 `peersFor(db, ideaId, k, candidates?, vectors?)`; `digestFor(db, personId, since, now, { paperFloor?, cards?, cohort?, member?, vectors? })`; both refetch only what they were not given; `digestFor` calls `priorArtForMany` once and `Promise.all` over peers
+- [x] 2.6 `cohortMap`: `cohortCards` once, `priorArtForMany` for all placed cards; `cohortCounts` no longer materialises cards
+- [x] 2.7 `/lodestone/page.tsx`: one `cohortCards`, one `ideaVectors`, pass both down; failing count test on the counting handle: one card vs three cards, equal statement counts
+- [x] 2.8 `sendDigests`: `cohortCards` computed once per run and passed to every owner's `digestFor`; `maxDuration = 300` on the cron route
 
 ## 3. The model leaves the import graph
 

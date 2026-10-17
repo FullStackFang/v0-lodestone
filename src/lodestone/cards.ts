@@ -192,6 +192,15 @@ export async function cohortCounts(db: Db): Promise<{ members: number; working: 
       pilotMembership,
       and(eq(pilotMembership.personId, forgeCard.ownerId), eq(pilotMembership.status, "active"), isNull(pilotMembership.revokedAt)),
     );
-  const published = (await cohortCards(db)).length;
-  return { members: m?.n ?? 0, working: w?.n ?? 0, published };
+  // `cohortCards`' joins, counted rather than read.
+  const [p] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(forgeCard)
+    .innerJoin(person, eq(person.id, forgeCard.ownerId))
+    .innerJoin(
+      pilotMembership,
+      and(eq(pilotMembership.personId, forgeCard.ownerId), eq(pilotMembership.status, "active"), isNull(pilotMembership.revokedAt)),
+    )
+    .where(eq(forgeCard.visibility, "cohort"));
+  return { members: m?.n ?? 0, working: w?.n ?? 0, published: p?.n ?? 0 };
 }

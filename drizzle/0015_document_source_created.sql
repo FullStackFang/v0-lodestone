@@ -1,0 +1,1 @@
+CREATE INDEX "document_source_created_idx" ON "document" USING btree ("source","created_at");

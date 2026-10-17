@@ -115,6 +115,8 @@ export const document = pgTable(
   },
   (t) => [
     index("document_session_idx").on(t.sessionId),
+    // The digest's `since` scan and the corpus summary's newest per source.
+    index("document_source_created_idx").on(t.source, t.createdAt),
     check("document_text_required", sql`${t.source} not in ('deck', 'resume') or ${t.text} is not null`),
   ],
 );

@@ -228,6 +228,8 @@ describe("the cohort", () => {
     expect(counts.members).toBe(COHORT.length);
     expect(counts.working).toBe(COHORT.length);
     expect(counts.published).toBe(COHORT.length);
+    // Counted in the database, it is the length of the list it counts.
+    expect(counts.published).toBe((await cohortCards(db)).length);
   });
 
   it("ranks prior art in the database exactly as a scan of every vector would", async () => {
@@ -312,6 +314,7 @@ describe("the cohort", () => {
     const { pilotMembership } = await import("@/db/pilot-schema");
     await db.update(pilotMembership).set({ status: "revoked", revokedAt: new Date() }).where(eq(pilotMembership.personId, people.get(jonas.email)!));
     expect((await cohortCards(db)).map((c) => c.card.ideaId)).not.toContain(jonas.ideaId);
+    expect((await cohortCounts(db)).published).toBe((await cohortCards(db)).length);
     expect((await peersFor(db, sam.ideaId, 10)).map((p) => p.ideaId)).not.toContain(jonas.ideaId);
     const rowsAfter = (await db.select().from(assertions).where(eq(assertions.subjectId, `forge:${jonas.ideaId}`))).length;
     expect(rowsAfter).toBe(rowsBefore);

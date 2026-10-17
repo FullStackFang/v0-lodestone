@@ -63,10 +63,18 @@ export function scorePeer(mine: IdeaVector[], theirs: IdeaVector[]): { score: nu
 }
 
 /** Cohort cards by other members, scored against this card, best first.
- *  `candidates` narrows the pool, for the digest's "new since" list. */
-export async function peersFor(db: Db, ideaId: string, k = 5, candidates?: CohortCard[]): Promise<PeerHit[]> {
+ *  `candidates` narrows the pool, for the digest's "new since" list. A
+ *  caller that already holds the cohort, or the vectors of this card and
+ *  every candidate, passes them and nothing is read again. */
+export async function peersFor(
+  db: Db,
+  ideaId: string,
+  k = 5,
+  candidates?: CohortCard[],
+  given?: Map<string, IdeaVector[]>,
+): Promise<PeerHit[]> {
   const pool = (candidates ?? (await cohortCards(db))).filter((c) => c.card.ideaId !== ideaId);
-  const vectors = await ideaVectors(db, [ideaId, ...pool.map((c) => c.card.ideaId)]);
+  const vectors = given ?? (await ideaVectors(db, [ideaId, ...pool.map((c) => c.card.ideaId)]));
   const mine = vectors.get(ideaId) ?? [];
   if (mine.length === 0) return [];
   const hits: PeerHit[] = [];

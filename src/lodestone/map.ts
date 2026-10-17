@@ -7,7 +7,7 @@ import type { Db } from "@/db/client";
 import { artifactTexts, document } from "@/db/schema";
 import { cardBlocks, cohortCards, cohortCounts, type CohortCard } from "./cards";
 import { CLOSE, distanceProfile, kmeans, regionCount, regionLabels, type ProfileRow } from "./geometry";
-import { CORPUS_SOURCES, priorArtFor, type CorpusKind } from "./priorArt";
+import { CORPUS_SOURCES, priorArtForMany, type CorpusKind } from "./priorArt";
 import { blended, ideaVectors } from "./vectors";
 
 export interface MapRegion {
@@ -37,8 +37,7 @@ export interface MapOptions {
 
 export async function cohortMap(db: Db, options: MapOptions = {}): Promise<CohortMap> {
   const close = options.close ?? CLOSE;
-  const counts = await cohortCounts(db);
-  const cards = await cohortCards(db);
+  const [counts, cards] = await Promise.all([cohortCounts(db), cohortCards(db)]);
   const vectors = await ideaVectors(db, cards.map((c) => c.card.ideaId));
   const placed = cards
     .map((c) => ({ c, v: blended(vectors.get(c.card.ideaId) ?? []) }))
@@ -51,8 +50,9 @@ export async function cohortMap(db: Db, options: MapOptions = {}): Promise<Cohor
 
   const touched = new Map<string, Set<string>>();
   const all = new Set<string>();
+  const hitsByCard = await priorArtForMany(db, placed.map((x) => x.c.card.ideaId), 10);
   for (const x of placed) {
-    const hits = await priorArtFor(db, x.c.card.ideaId, 10);
+    const hits = hitsByCard.get(x.c.card.ideaId) ?? [];
     const near = new Set(hits.filter((h) => h.score >= close).map((h) => h.documentId));
     touched.set(x.c.card.ideaId, near);
     for (const id of near) all.add(id);

@@ -1,4 +1,4 @@
-/** `npm run lodestone:measure -- [--base http://localhost:3010] [--email you@x.edu] [--runs 5]`
+/** `npm run lodestone:measure -- [--base http://localhost:3010] [--email you@x.edu] [--runs 5] [--save dir]`
  *
  * Median time to first byte, and to the last byte, for each Lodestone route
  * against a running dev server, warm: every route is fetched once and thrown
@@ -7,8 +7,10 @@
  * with `LODESTONE_SQL_LOG=1`, each request's statements are counted from
  * `data/sql.log`, which the server appends to; requests run one at a time so
  * the lines between two reads are that request's. Nothing else should be
- * talking to the server while this runs. */
-import { existsSync, readFileSync, statSync } from "node:fs";
+ * talking to the server while this runs. `--save` writes each route's
+ * `<main>`, scripts stripped, to a file in that directory: diff two runs to
+ * show a change left the pages as they were. */
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
@@ -19,6 +21,7 @@ const flag = (name: string) => {
 const base = (flag("--base") ?? "http://localhost:3010").replace(/\/$/, "");
 const runs = Number(flag("--runs") ?? 5);
 const email = flag("--email") ?? process.env.LODESTONE_MEASURE_EMAIL ?? null;
+const save = flag("--save");
 const LOG = path.join(process.cwd(), "data", "sql.log");
 
 /** Follow the dev bypass by hand, keeping every cookie it sets. */
@@ -82,6 +85,11 @@ for (const route of routes) {
   const samples = [];
   for (let i = 0; i < runs; i++) samples.push(await hit(route, cookie));
   const label = route.replace(/[0-9a-f-]{32,36}/, "[ideaId]");
+  if (save) {
+    mkdirSync(save, { recursive: true });
+    const main = /<main[\s\S]*<\/main>/.exec(samples[0].body)?.[0] ?? samples[0].body;
+    writeFileSync(path.join(save, `${label.replace(/[^a-z0-9]+/gi, "_") || "root"}.html`), main.replace(/<script[\s\S]*?<\/script>/g, "").replace(/></g, ">\n<"));
+  }
   const statements = samples.map((s) => s.statements.length);
   const writes = samples.map((s) => s.statements.filter((q) => /\t(insert|update|delete)\b/i.test(q)).length);
   rows.push(`| \`${label}\` | ${samples[0].status} | ${Math.round(median(samples.map((s) => s.ttfb)))} | ${Math.round(median(samples.map((s) => s.total)))} | ${logging ? median(statements) : "–"} | ${logging ? median(writes) : "–"} |`);

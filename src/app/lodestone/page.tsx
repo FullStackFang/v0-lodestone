@@ -7,6 +7,7 @@ import { digestFor, weekAgo } from "@/lodestone/digest";
 import { CLOSE } from "@/lodestone/geometry";
 import { peersFor, type PeerHit } from "@/lodestone/peers";
 import { corpusSize, type PaperHit } from "@/lodestone/priorArt";
+import { ideaVectors } from "@/lodestone/vectors";
 import { isActive, isOperator } from "@/pilot/membership";
 import { ActionForm, SubmitButton } from "@/review/ActionForm";
 import { importForgeCard } from "./actions";
@@ -42,21 +43,27 @@ export default async function LodestonePage() {
   const db = await getDb();
   const person = await requirePerson(db);
   const now = new Date();
-  const [cards, membership, counts, corpus, digest] = await Promise.all([
+  const [cards, membership, counts, corpus, published] = await Promise.all([
     cardsForOwner(db, person.id),
     currentMembership(),
     cohortCounts(db),
     corpusSize(db),
-    digestFor(db, person.id, weekAgo(now), now),
+    cohortCards(db),
   ]);
   const member = isActive(membership);
   const operator = isOperator(person, membership);
+  // Read once and handed to the digest and to every card's peers. Only a
+  // member is matched against the cohort, so only a member needs them.
+  const vectors = member ? await ideaVectors(db, [...new Set([...cards, ...published.map((c) => c.card)].map((c) => c.ideaId))]) : undefined;
+  const [digest, peerLists] = await Promise.all([
+    digestFor(db, person.id, weekAgo(now), now, { cards, cohort: published, member, vectors }),
+    Promise.all(cards.map((card) => (member ? peersFor(db, card.ideaId, 8, published, vectors) : []))),
+  ]);
   // The cohort's published cards, for members only: nine blocks and an
   // owner name, the same rule the card page enforces.
-  const cohort = member ? (await cohortCards(db)).filter((c) => c.owner.id !== person.id) : [];
+  const cohort = member ? published.filter((c) => c.owner.id !== person.id) : [];
   // Every peer of every card the person owns, keyed by the peer's idea.
-  const peersByCard = new Map<string, PeerHit[]>();
-  for (const card of cards) peersByCard.set(card.ideaId, member ? await peersFor(db, card.ideaId, 8) : []);
+  const peersByCard = new Map<string, PeerHit[]>(cards.map((card, at) => [card.ideaId, peerLists[at]]));
   const nearest = new Map<string, { hit: PeerHit; mine: string }>();
   for (const card of cards) for (const hit of peersByCard.get(card.ideaId) ?? []) {
     const seen = nearest.get(hit.ideaId);
