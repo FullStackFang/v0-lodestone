@@ -53,6 +53,6 @@ describe("home page cost", () => {
     }
     const three = await statementsToRender();
     expect(three).toBe(one);
-    expect(one).toBeLessThanOrEqual(12);
+    expect(one).toBeLessThanOrEqual(8);
   });
 });

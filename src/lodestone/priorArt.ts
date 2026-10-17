@@ -176,14 +176,23 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): 
  *  added since, a week of ingest, which a filtered index scan could
  *  under-return; that set is the same for every card and is scanned once.
  *  The order is best cosine, then newest, then document id: total, so a tie
- *  at the cut is never arbitrary. */
-export async function priorArtForMany(db: Db, ideaIds: string[], k = 5, since?: Date): Promise<Map<string, PaperHit[]>> {
+ *  at the cut is never arbitrary.
+ *
+ *  A caller that already holds the cards' vectors, or their documents (for
+ *  the `yours` flag), passes them and they are not read again. */
+export async function priorArtForMany(
+  db: Db,
+  ideaIds: string[],
+  k = 5,
+  since?: Date,
+  given: { vectors?: Map<string, IdeaVector[]>; cards?: { ideaId: string; doc: Record<string, unknown> }[] } = {},
+): Promise<Map<string, PaperHit[]>> {
   const out = new Map<string, PaperHit[]>(ideaIds.map((id) => [id, []]));
-  const vectors = await ideaVectors(db, ideaIds);
+  const vectors = given.vectors ?? (await ideaVectors(db, ideaIds));
   const cards = ideaIds.filter((id) => (vectors.get(id) ?? []).length > 0);
   // An empty `values` list is a syntax error, and there is nothing to rank.
   if (cards.length === 0) return out;
-  const docs = await db.select({ ideaId: forgeCard.ideaId, doc: forgeCard.doc }).from(forgeCard).where(inArray(forgeCard.ideaId, cards));
+  const docs = given.cards ?? (await db.select({ ideaId: forgeCard.ideaId, doc: forgeCard.doc }).from(forgeCard).where(inArray(forgeCard.ideaId, cards)));
   const held = new Map(docs.map((c) => [c.ideaId, heldPapers(c.doc)]));
 
   const dims = sql.raw(String(EMBEDDING_DIMENSIONS));

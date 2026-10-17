@@ -60,11 +60,12 @@ export async function digestFor(db: Db, personId: string, since: Date, now = new
   const recent = cohort.filter((c) => c.card.publishedAt && c.card.publishedAt >= since && c.owner.id !== personId);
   const matching = member && recent.length > 0;
   const ids = mine.map((c) => c.ideaId);
-  const [papersByCard, vectors] = await Promise.all([
-    priorArtForMany(db, ids, 5, since),
-    matching ? options.vectors ?? ideaVectors(db, [...ids, ...recent.map((c) => c.card.ideaId)]) : undefined,
+  // One read serves the prior art and, for a member, every card's peers.
+  const vectors = options.vectors ?? (await ideaVectors(db, matching ? [...ids, ...recent.map((c) => c.card.ideaId)] : ids));
+  const [papersByCard, peersByCard] = await Promise.all([
+    priorArtForMany(db, ids, 5, since, { vectors, cards: mine }),
+    Promise.all(mine.map((card) => (matching ? peersFor(db, card.ideaId, 5, recent, vectors) : []))),
   ]);
-  const peersByCard = await Promise.all(mine.map((card) => (matching ? peersFor(db, card.ideaId, 5, recent, vectors) : [])));
   const sections: DigestSection[] = mine.map((card, at) => ({
     ideaId: card.ideaId,
     title: card.title,

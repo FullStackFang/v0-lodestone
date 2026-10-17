@@ -3,6 +3,7 @@
  *  it without trying to write it again. */
 import { beforeAll, describe, expect, it } from "vitest";
 import { countingDb, type CountingDb } from "@/lodestone/test-db";
+import { enrollTestMember } from "@/pilot/test-fixtures";
 import { verifiedContext } from "./identity";
 
 let h: CountingDb;
@@ -42,6 +43,15 @@ describe("verifiedContext", () => {
 
   it("refuses a session row whose auth email has changed", async () => {
     await expect(verifiedContext(h.db, auth("auth-1", "someone@else.edu"))).rejects.toThrow(/ownership mismatch/);
+  });
+
+  it("reads the membership row with the session, in the same statement", async () => {
+    const before = await verifiedContext(h.db, auth("auth-1", "ada@bridge.edu"));
+    expect(before?.membership).toBeNull();
+    await enrollTestMember(h.db, before!.person.id);
+    const after = await counted(() => verifiedContext(h.db, auth("auth-1", "ada@bridge.edu")));
+    expect(after.statements).toHaveLength(1);
+    expect(after.out?.membership).toMatchObject({ personId: before!.person.id, status: "active", revokedAt: null });
   });
 
   it("lets nothing unverified in", async () => {

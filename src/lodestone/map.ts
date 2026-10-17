@@ -50,7 +50,7 @@ export async function cohortMap(db: Db, options: MapOptions = {}): Promise<Cohor
 
   const touched = new Map<string, Set<string>>();
   const all = new Set<string>();
-  const hitsByCard = await priorArtForMany(db, placed.map((x) => x.c.card.ideaId), 10);
+  const hitsByCard = await priorArtForMany(db, placed.map((x) => x.c.card.ideaId), 10, undefined, { vectors, cards: placed.map((x) => x.c.card) });
   for (const x of placed) {
     const hits = hitsByCard.get(x.c.card.ideaId) ?? [];
     const near = new Set(hits.filter((h) => h.score >= close).map((h) => h.documentId));

@@ -179,28 +179,19 @@ export async function canView(db: Db, viewerId: string, card: ForgeCardRow, view
   return viewer && (await isActiveMember(db, card.ownerId));
 }
 
-/** Members, members with any card, and cards the cohort can see. */
+/** Members, members with any card, and cards the cohort can see, in one
+ *  statement. "Active" is the predicate `isActive` applies; "published" is
+ *  what `cohortCards` lists, counted rather than read. */
 export async function cohortCounts(db: Db): Promise<{ members: number; working: number; published: number }> {
-  const [m] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(pilotMembership)
-    .where(and(eq(pilotMembership.status, "active"), isNull(pilotMembership.revokedAt)));
-  const [w] = await db
-    .select({ n: sql<number>`count(distinct ${forgeCard.ownerId})::int` })
-    .from(forgeCard)
-    .innerJoin(
-      pilotMembership,
-      and(eq(pilotMembership.personId, forgeCard.ownerId), eq(pilotMembership.status, "active"), isNull(pilotMembership.revokedAt)),
-    );
-  // `cohortCards`' joins, counted rather than read.
-  const [p] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(forgeCard)
-    .innerJoin(person, eq(person.id, forgeCard.ownerId))
-    .innerJoin(
-      pilotMembership,
-      and(eq(pilotMembership.personId, forgeCard.ownerId), eq(pilotMembership.status, "active"), isNull(pilotMembership.revokedAt)),
-    )
-    .where(eq(forgeCard.visibility, "cohort"));
-  return { members: m?.n ?? 0, working: w?.n ?? 0, published: p?.n ?? 0 };
+  const active = sql`${pilotMembership.status} = 'active' and ${pilotMembership.revokedAt} is null`;
+  const result = await db.execute(sql`select
+    (select count(*) from ${pilotMembership} where ${active})::int as members,
+    (select count(distinct ${forgeCard.ownerId}) from ${forgeCard}
+      join ${pilotMembership} on ${pilotMembership.personId} = ${forgeCard.ownerId} and ${active})::int as working,
+    (select count(*) from ${forgeCard}
+      join ${person} on ${person.id} = ${forgeCard.ownerId}
+      join ${pilotMembership} on ${pilotMembership.personId} = ${forgeCard.ownerId} and ${active}
+      where ${forgeCard.visibility} = 'cohort')::int as published`);
+  const [row] = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { members: number; working: number; published: number }[];
+  return { members: Number(row?.members ?? 0), working: Number(row?.working ?? 0), published: Number(row?.published ?? 0) };
 }

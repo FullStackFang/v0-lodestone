@@ -5,7 +5,6 @@ import { getDb, type Db } from "@/db/client";
 import { sameFounder } from "@/db/cards";
 import { getAuth } from "@/auth/server";
 import { verifiedContext } from "@/auth/identity";
-import { membershipFor } from "@/pilot/membership";
 
 /** The signed-in context, resolved once per server request however many
  *  layouts and pages ask (React `cache`; outside a render there is no memo
@@ -23,12 +22,12 @@ async function context(_db?: Db) {
   return resolve();
 }
 
-/** The signed-in person's membership row, once per request; null signed out
- *  or never enrolled. Membership writers read `@/pilot/membership` directly. */
-export const currentMembership = cache(async () => {
-  const current = await resolve();
-  return current ? membershipFor(await getDb(), current.person.id) : null;
-});
+/** The signed-in person's membership row, read with the session; null
+ *  signed out or never enrolled. Membership writers read
+ *  `@/pilot/membership` directly. */
+export async function currentMembership() {
+  return (await resolve())?.membership ?? null;
+}
 
 export async function sessionIdFromCookie(): Promise<string | null> {
   return (await context())?.sessionId ?? null;
