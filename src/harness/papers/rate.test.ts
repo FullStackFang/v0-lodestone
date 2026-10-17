@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { limiter, openalexLimiter, OPENALEX_PER_SECOND, PATENTSVIEW_PER_MINUTE, type Clock, type Limiter } from "./rate";
+import { limiter, openalexLimiter, OPENALEX_PER_SECOND, type Clock, type Limiter } from "./rate";
 
 function fakeClock(): Clock & { starts: number[] } {
   let t = 0;
@@ -38,8 +38,8 @@ describe("limiter", () => {
     expect(starts[1] - starts[0]).toBe(100);
   });
 
-  it("holds PatentsView to forty-five requests a minute", async () => {
-    const starts = await run(100, PATENTSVIEW_PER_MINUTE, 60_000);
+  it("holds a per-minute ceiling as evenly as a per-second one", async () => {
+    const starts = await run(100, 45, 60_000);
     expect(busiest(starts, 60_000)).toBeLessThanOrEqual(45);
     expect(starts.at(-1)).toBeLessThan(3 * 60_000);
   });

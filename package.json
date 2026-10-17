@@ -21,6 +21,7 @@
     "@anthropic-ai/sdk": "^0.123.0",
     "@better-auth/drizzle-adapter": "^1.7.3",
     "@electric-sql/pglite": "^0.5.8",
+    "@google-cloud/bigquery": "^9.3.0",
     "better-auth": "^1.7.3",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.41.0",

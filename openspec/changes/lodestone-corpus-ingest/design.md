@@ -35,6 +35,8 @@ One enum value gives every reader both kinds for free; `kind` on the hit is
 
 ### 4. PatentsView, not Google Patents
 
+Superseded 2026-10 by `lodestone-sources-repair`: PatentsView shut down; patents come from BigQuery.
+
 PatentsView's search API (`https://search.patentsview.org/api/v1/patent/`)
 takes a JSON query over `patent_title` / `patent_abstract`, returns abstracts,
 grant dates, assignees, inventors and CPC codes, paginates by cursor, and

@@ -22,8 +22,6 @@ export const OPENALEX_KEYED_PER_SECOND = 25;
 export const OPENALEX_SEMANTIC_PER_SECOND = 1;
 /** Semantic Scholar search: one request a second, the keyed ceiling. */
 export const S2_PER_SECOND = 1;
-/** PatentsView: 45 requests a minute. */
-export const PATENTSVIEW_PER_MINUTE = 45;
 
 export type Limiter = () => Promise<void>;
 

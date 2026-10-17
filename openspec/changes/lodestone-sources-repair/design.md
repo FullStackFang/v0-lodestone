@@ -40,7 +40,10 @@ bills by the columns read over the whole table, so a `WHERE` on
 dollar at list price, and a `LIMIT/OFFSET` loop would pay that per page.
 So: one job per operator query, its result set paged with
 `job.getQueryResults({ maxResults, pageToken })`, the cursor being the page
-token; `maximumBytesBilled` set from `BIGQUERY_MAX_BYTES` (default 200 GB) so
+token (printed as `<job id>:<page token>`, since a token is meaningful only
+inside its job and a finished job's results stay readable for a day, so a
+resume reads the next page without a second scan); `maximumBytesBilled` set
+from `BIGQUERY_MAX_BYTES` (default 200 GB) so
 a mistaken query fails instead of billing; `totalBytesProcessed` printed once
 when the job completes. Date columns are `INT64` as `yyyymmdd` (UNVERIFIED
 against Google's schema page, which could not be fetched; verify in task 2.0

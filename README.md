@@ -31,7 +31,10 @@ Both scripts open `data/pglite` directly and must not run while `next dev` has i
 Without `VOYAGE_API_KEY` cards are filed with no vectors and every match list is empty
 and says so. `npm run lodestone:ingest` grows the paper corpus from OpenAlex; beside
 `VOYAGE_API_KEY` it wants `OPENALEX_API_KEY`, without which a query stops after one
-page of 200 and runs on OpenAlex's shared keyless budget.
+page of 200 and runs on OpenAlex's shared keyless budget. `--source patents` reads
+granted US patents from Google Patents Public Datasets on BigQuery, one job per
+query billed per byte scanned to `GOOGLE_CLOUD_PROJECT` with
+`GOOGLE_APPLICATION_CREDENTIALS_JSON`, capped by `BIGQUERY_MAX_BYTES`.
 
 ## What is here
 

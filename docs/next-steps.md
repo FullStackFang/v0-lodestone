@@ -162,8 +162,9 @@ abstracts. A real cohort needs hundreds to thousands.
 
 `npm run lodestone:ingest -- --query "<topic>" --limit 500 [--since 2018]`
 
-- Source: OpenAlex works endpoint, polite pool with `OPENALEX_MAILTO`. Abstracts come
-  back as inverted indexes; reconstruct them.
+- Source: OpenAlex works endpoint, every request carrying `OPENALEX_API_KEY` (its own
+  daily budget) with `OPENALEX_MAILTO` beside it. Abstracts come back as inverted
+  indexes; reconstruct them.
 - One `document` row (`source = "paper"`) and one `putArtifactText` per work, keyed on
   DOI or OpenAlex id so re-runs do not duplicate. Provenance carries doi, openalex id,
   venue, year, authors, url. The `document` table has no dedupe key today; add a
@@ -171,7 +172,8 @@ abstracts. A real cohort needs hundreds to thousands.
   existing `putArtifactText` provenance makes cheaper.
 - Embed through `embedPaperAbstracts` as the seed does. Resumable: a run that dies
   leaves rows without a vector and the next run embeds them.
-- Rate limit to OpenAlex's published polite-pool ceiling and stop cleanly on 429.
+- Rate limit to OpenAlex's published ceiling (25 a second with a key, 10 without) and
+  stop cleanly on 429.
 
 ### 4.2 Corpus surface
 
@@ -182,8 +184,9 @@ abstracts. A real cohort needs hundreds to thousands.
 
 `PAPER_FLOOR` is now 0.75 and `CLOSE` stays 0.75, on a model-marked sample of the
 synthetic firms cohort; see `evals/lodestone/thresholds.md`. Redo it on real cards.
-The rest of Phase 4 waits on an `OPENALEX_API_KEY` (one run of 500) and on
-PatentsView coming back (the patent source).
+The rest of Phase 4 waits on an `OPENALEX_API_KEY` (one run of 500) and on BigQuery
+credentials for the patent source (Google Patents Public Datasets; the original
+PatentsView source shut down in 2026 and was replaced by `lodestone-sources-repair`).
 
 `CLOSE` 0.75 and `PAPER_FLOOR` 0.6 were set on five abstracts. With a real corpus,
 sample 20 cards × top-5 hits, have a human mark each hit relevant or not, and move the
