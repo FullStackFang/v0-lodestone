@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db/client";
 import { currentVerifiedPerson } from "@/lib/session";
 import { acceptInvitation, invitationAcceptanceState } from "@/pilot/membership";
-import "../../lodestone.css";
+import { Pill } from "../../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -33,14 +32,16 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   if (state.status === "ready") await acceptInvitation(db, actor, token);
   if (state.status === "ready" || state.status === "accepted") redirect("/lodestone");
   const reason = REASONS[state.status](operatorsLine());
-  return <article>
-    <header className="ls-header">
-      <div>
-        <p className="eyebrow">Lodestone · invitation</p>
-        <h1>{reason.title}</h1>
-        <p>{reason.body} You are signed in as {person.email}.</p>
+  return <article className="wrap stack">
+    <section className="panel paper split">
+      <div className="sec">
+        <span className="lab" style={{ color: "var(--meta)" }}>Lodestone · invitation</span>
+        <h1 className="h1 title" style={{ color: "var(--ink)" }}>{reason.title}</h1>
       </div>
-      <nav className="ls-legend"><Link href="/lodestone">Your cards</Link></nav>
-    </header>
+      <div className="sec">
+        <p className="lede" style={{ maxWidth: "52ch" }}>{reason.body} You are signed in as {person.email}.</p>
+        <Pill href="/lodestone" variant="line" arrow="left" className="self-start">Your cards</Pill>
+      </div>
+    </section>
   </article>;
 }
