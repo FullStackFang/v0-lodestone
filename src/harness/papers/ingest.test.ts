@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createPgliteDb, type Db } from "@/db/client";
-import { artifactTexts, document, session } from "@/db/schema";
+import { EMBEDDING_DIMENSIONS, artifactTexts, document, documentChunk, session } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { OpenAlexWork } from "./openalex";
 import { ingestLine, ingestWork, MIN_ABSTRACT_WORDS, parseList, wordCount } from "./ingest";
@@ -184,6 +184,82 @@ describe("dedupe on the source's own id", () => {
         provenance: { doi: "10.5555/FRESH.2026" },
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe("thin documents", () => {
+  const tldr = "Rooms booked and left empty are released to the waitlist.";
+  /** No abstract on OpenAlex, a DOI, and a Semantic Scholar TLDR in hand. */
+  const withheld: OpenAlexWork = {
+    id: "https://openalex.org/W4040",
+    doi: "https://doi.org/10.5555/thin.2026",
+    title: "Withheld but summarised",
+    publication_year: 2024,
+    type: "article",
+  };
+  const abstract =
+    "This study examines how a shared reservation system releases rooms that were booked but left empty, and how often the next group in the queue takes them up within ten minutes across three campus libraries over two semesters.";
+  function invert(text: string): Record<string, number[]> {
+    const index: Record<string, number[]> = {};
+    text.split(" ").forEach((w, i) => (index[w] ??= []).push(i));
+    return index;
+  }
+  /** The same work once OpenAlex has its abstract. */
+  const found: OpenAlexWork = { ...withheld, abstract_inverted_index: invert(abstract) };
+
+  it("writes a work without an abstract as thin when a TLDR is given, below the thirty-word floor", async () => {
+    const result = await ingestWork(db, "10.5555/thin.2026", { fetchWork: async () => withheld, tldr, minWords: MIN_ABSTRACT_WORDS, provenance: { query_set: "card-search" } });
+    expect(result.status).toBe("ok");
+    expect(result.created).toBe(true);
+    expect(result.thin).toBe(true);
+    const [text] = await db.select().from(artifactTexts).where(eq(artifactTexts.textHash, result.textHash!));
+    expect(text.sourceFormat).toBe("tldr");
+    expect(text.canonicalText).toBe(tldr);
+    expect(wordCount(text.canonicalText)).toBeLessThan(MIN_ABSTRACT_WORDS);
+    expect(text.provenance).toMatchObject({ thin: true, doi: "10.5555/thin.2026", openalex_id: withheld.id, query_set: "card-search" });
+  });
+
+  it("answers a second ingest of a thin work from the stored row, and says it is thin", async () => {
+    let fetched = 0;
+    const again = await ingestWork(db, "10.5555/thin.2026", { fetchWork: async () => (fetched++, found), tldr });
+    expect(again).toMatchObject({ status: "ok", created: false, thin: true });
+    expect(fetched).toBe(0);
+  });
+
+  it("still reports no_abstract without a TLDR, and writes nothing", async () => {
+    const texts = await db.select().from(artifactTexts);
+    const bare: OpenAlexWork = { ...withheld, id: "https://openalex.org/W4041", doi: "https://doi.org/10.5555/bare.2026" };
+    expect((await ingestWork(db, "10.5555/bare.2026", { fetchWork: async () => bare })).status).toBe("no_abstract");
+    expect((await ingestWork(db, "10.5555/bare.2026", { fetchWork: async () => bare, tldr: "  " })).status).toBe("no_abstract");
+    expect(await db.select().from(artifactTexts)).toHaveLength(texts.length);
+  });
+
+  it("keeps a thin row thin when replaceThin finds no abstract yet", async () => {
+    const before = await db.select().from(artifactTexts).where(eq(artifactTexts.sourceFormat, "tldr"));
+    let fetched = 0;
+    const result = await ingestWork(db, "10.5555/thin.2026", { fetchWork: async () => (fetched++, withheld), tldr, replaceThin: true });
+    expect(fetched).toBe(1);
+    expect(result).toMatchObject({ status: "ok", created: false, thin: true, artifactId: before[0].artifactId, textHash: before[0].textHash });
+    expect(await db.select().from(artifactTexts).where(eq(artifactTexts.sourceFormat, "tldr"))).toHaveLength(before.length);
+  });
+
+  it("replaces a thin row with the abstract once one arrives, under the same document", async () => {
+    const [thin] = await db.select().from(artifactTexts).where(eq(artifactTexts.sourceFormat, "tldr"));
+    await db.insert(documentChunk).values({ documentId: thin.artifactId, ordinal: 0, text: null, embedding: new Array(EMBEDDING_DIMENSIONS).fill(0) });
+    // Card search keeps the TLDR in provenance beside the abstract, as it does for any hit.
+    const result = await ingestWork(db, "10.5555/thin.2026", { fetchWork: async () => found, tldr, replaceThin: true, minWords: MIN_ABSTRACT_WORDS, provenance: { tldr } });
+    expect(result).toMatchObject({ status: "ok", created: true, thin: false, artifactId: thin.artifactId });
+    expect(result.textHash).not.toBe(thin.textHash);
+    const texts = await db.select().from(artifactTexts).where(eq(artifactTexts.artifactId, thin.artifactId));
+    expect(texts).toHaveLength(1);
+    expect(texts[0]).toMatchObject({ sourceFormat: "abstract", canonicalText: abstract, provenance: expect.objectContaining({ doi: "10.5555/thin.2026", tldr }) });
+    expect(texts[0].provenance).not.toHaveProperty("thin");
+    // The TLDR's vector goes with it: the next embed pass reads the abstract.
+    expect(await db.select().from(documentChunk).where(eq(documentChunk.documentId, thin.artifactId))).toHaveLength(0);
+    expect((await db.select().from(document).where(eq(document.id, thin.artifactId)))).toHaveLength(1);
+    // Now a full document: a third ingest is answered from the row, without replacing it.
+    const again = await ingestWork(db, "10.5555/thin.2026", { fetchWork: async () => found, tldr, replaceThin: true });
+    expect(again).toMatchObject({ status: "ok", created: false, thin: false, textHash: result.textHash });
   });
 });
 

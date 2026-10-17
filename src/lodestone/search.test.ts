@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { COHORT, forgeDocument } from "../../evals/lodestone/cohort";
 import { createPgliteDb, type Db } from "@/db/client";
-import { artifactTexts, cardRank, cardSearch, document, documentSentence } from "@/db/schema";
+import { artifactTexts, cardRank, cardSearch, document, documentChunk, documentSentence } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
 import { ensurePerson } from "@/harness/ledger";
 import type { OpenAlexWork } from "@/harness/papers/openalex";
@@ -25,7 +25,9 @@ import {
 } from "./search";
 import { recordFeedback } from "./api";
 import { embedPaperAbstracts, priorArtFor } from "./priorArt";
-import { testEmbed } from "./test-embed";
+import { withSentences } from "./sentences";
+import { testEmbed, testVector } from "./test-embed";
+import { cosine } from "./vectors";
 
 const block = (key: string, label: string, texts: string[]): CardBlock => ({
   key,
@@ -235,6 +237,49 @@ describe("searchCard", () => {
     await searchCard(db, other.ideaId, deps);
     expect(asked.semantic.every((q) => q.startsWith("Match supply to uncertain demand. "))).toBe(true);
     expect(await searchState(db, other.ideaId, doc)).toMatchObject({ abstracted: true });
+  });
+
+  it("keeps a Semantic Scholar hit with no abstract as thin on its TLDR, and replaces it once the abstract arrives", async () => {
+    const other = COHORT[2];
+    const id = await ensurePerson(db, { name: other.name, email: other.email });
+    const doc = forgeDocument(other);
+    await importCard(db, { id, email: other.email }, doc, testEmbed);
+    const withheld = { ...work(6, "10.5555/s2.thin"), abstract_inverted_index: undefined };
+    const tldr = "Empty booked rooms go to the waitlist.";
+    const quiet = (fetchWork: SearchDeps["fetchWork"]) =>
+      fakes({
+        searchWorks: async () => ({ seen: 0, stopped: false, cursor: null }),
+        searchS2: async () => ({ hits: [{ doi: "10.5555/s2.thin", tldr }], skippedNoDoi: 0 }),
+        fetchWork,
+      }).deps;
+    await searchCard(db, other.ideaId, quiet(async () => withheld));
+
+    const texts = () => db.select().from(artifactTexts).where(eq(artifactTexts.sourceFormat, "tldr"));
+    const [thin] = await texts();
+    expect(thin).toMatchObject({ canonicalText: tldr, provenance: expect.objectContaining({ thin: true, tldr, doi: "10.5555/s2.thin", query_set: CARD_SEARCH_QUERY_SET }) });
+    for (const key of Object.keys(thin.provenance)) expect(PROVENANCE_KEYS).toContain(key);
+    const first = (await db.select().from(cardSearch).where(eq(cardSearch.ideaId, other.ideaId))).find((r) => r.found > 0)!;
+    expect(first.sources.s2).toMatchObject({ new: 1, existing: 0 });
+    // Embedded on its TLDR: the hit is ready to read, marked thin, its one
+    // sentence the TLDR at the hit's own score, with nothing cut for it.
+    expect(await db.select().from(documentChunk).where(eq(documentChunk.documentId, thin.artifactId))).toHaveLength(1);
+    // The quota off: every faked work shares the null field bucket.
+    const hits = await withSentences(db, testEmbed, other.ideaId, await priorArtFor(db, other.ideaId, 50, { perField: Infinity }));
+    const hit = hits.find((h) => h.documentId === thin.artifactId)!;
+    expect(hit).toMatchObject({ thin: true, abstractHash: thin.textHash, sentences: [{ text: tldr, block: hit.blockKeys[0], cosine: hit.score }] });
+    expect(await db.select().from(documentSentence).where(eq(documentSentence.documentId, thin.artifactId))).toHaveLength(0);
+
+    // The next search that returns it finds the abstract on OpenAlex.
+    const changed = forgeDocument({ ...other, entries: other.entries.map((e, i) => (i === 0 ? { ...e, text: `${e.text} on weekends` } : e)) });
+    await importCard(db, { id, email: other.email }, changed, testEmbed);
+    await searchCard(db, other.ideaId, quiet(async () => work(6, "10.5555/s2.thin")));
+    expect(await texts()).toHaveLength(0);
+    const [full] = await db.select().from(artifactTexts).where(eq(artifactTexts.artifactId, thin.artifactId));
+    expect(full).toMatchObject({ sourceFormat: "abstract", canonicalText: abstract(6), provenance: expect.objectContaining({ tldr }) });
+    expect(full.provenance).not.toHaveProperty("thin");
+    const [chunk] = await db.select().from(documentChunk).where(eq(documentChunk.documentId, thin.artifactId));
+    expect(cosine(chunk.embedding!, testVector(abstract(6)))).toBeCloseTo(1, 3);
+    expect(cosine(chunk.embedding!, testVector(tldr))).toBeLessThan(0.5);
   });
 
   it("reports a card with no rows as done with nothing found", async () => {

@@ -229,9 +229,18 @@ describe("client routes", () => {
       title: "Walkthroughs and arrivals",
       abstract,
       abstractHash: put.textHash,
+      thin: false,
+      abstractKind: "abstract",
       provenance: expect.objectContaining({ doi: "10.5555/walk", query_set: "housing" }),
       citation: "A. Reader, B. Writer. (2021). Walkthroughs and arrivals. Housing Studies",
     });
+
+    // A thin document: its "abstract" is the Semantic Scholar TLDR, and the response says so.
+    const tldr = "Walkthrough videos cut mid-lease moves.";
+    const [thin] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Summarised only", text: null }).returning({ id: document.id });
+    const thinPut = await putArtifactText(db, { artifactId: thin.id, sourceFormat: "tldr", parser: "test", text: tldr, provenance: { doi: "10.5555/thin", thin: true, tldr, query_set: "card-search" } });
+    const t = await (await readPaper(req(`/api/lodestone/papers/${thin.id}`), paperParams(thin.id))).json();
+    expect(t).toMatchObject({ thin: true, abstractKind: "tldr", abstract: tldr, abstractHash: thinPut.textHash });
 
     const [patent] = await db.insert(document).values({ sessionId: null, source: "patent", title: "Escrowed sublet deposit", text: null }).returning({ id: document.id });
     await putArtifactText(db, {

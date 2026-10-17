@@ -9,7 +9,9 @@
  *  block's row and the search carries on; nothing here throws to the caller.
  *
  *  A searched-in document's provenance is the work's own, plus
- *  `query_set: "card-search"` and a Semantic Scholar TLDR. Nothing of the
+ *  `query_set: "card-search"` and a Semantic Scholar TLDR. A Semantic Scholar
+ *  hit whose abstract the publisher withheld is kept thin on that TLDR
+ *  (`thin: true`) until a later search finds the abstract. Nothing of the
  *  card is stored with it. The card's text does leave the server, as the
  *  search strings. */
 import { createHash } from "node:crypto";
@@ -228,7 +230,9 @@ export async function searchCard(db: Db, ideaId: string, deps: SearchDeps): Prom
           }
           return work;
         };
-        count(s2, await ingestWork(db, hit.doi, { fetchWork: fetchScholarly, provenance, minWords: MIN_ABSTRACT_WORDS }));
+        // A work with no abstract is kept thin on its TLDR, and a work held
+        // thin is looked up again in case the abstract has since appeared.
+        count(s2, await ingestWork(db, hit.doi, { fetchWork: fetchScholarly, provenance, minWords: MIN_ABSTRACT_WORDS, tldr: hit.tldr, replaceThin: true }));
       }
     } catch (error) {
       s2.error = message(error);
@@ -248,9 +252,10 @@ export async function searchCard(db: Db, ideaId: string, deps: SearchDeps): Prom
       // Left unembedded, a document is picked up by the next embed pass.
     }
     try {
-      // The card's top ten cut now, so the first read embeds nothing.
+      // The card's top ten cut now, so the first read embeds nothing. A thin
+      // hit's one sentence is its TLDR: nothing to cut.
       const top = await priorArtFor(db, ideaId, WARM);
-      await ensureSentences(db, deps.embed, top.map((h) => h.documentId));
+      await ensureSentences(db, deps.embed, top.filter((h) => !h.thin).map((h) => h.documentId));
     } catch {
       // Left uncut, a hit is cut on its first read.
     }

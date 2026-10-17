@@ -79,8 +79,13 @@ export interface PaperHit {
    *  cut from that text, so a client that stored anything against the hit
    *  can tell the abstract changed without a second read. */
   abstractHash: string | null;
+  /** True for a document with no abstract, kept on a Semantic Scholar TLDR:
+   *  its text is a summary someone else's model wrote. Ranked as if its
+   *  cosine were `THIN_FACTOR` of itself; `score` is still the cosine. */
+  thin: boolean;
   /** Up to three abstract sentences nearest the first block, in abstract
-   *  order. Empty from `priorArtFor`; `withSentences` fills it. */
+   *  order; for a thin hit, the TLDR as one. Empty from `priorArtFor`;
+   *  `withSentences` fills it. */
   sentences: HitSentence[];
   /** Present only in the owner's own list, on a hit within `NEAR_USEFUL` of
    *  a document they marked `useful`: that document. It moved the hit up;
@@ -174,6 +179,7 @@ function hitFrom(paper: PaperMeta, byBlock: Map<string, number>, held: Set<strin
     yours: isHeld(held, p),
     addedAt: paper.addedAt,
     abstractHash: paper.abstractHash ?? null,
+    thin: p.thin === true,
     sentences: [],
   };
 }
@@ -196,10 +202,16 @@ export const NEAR_USEFUL = 0.85;
 export const USEFUL_BOOST = 0.05;
 /** Corpus neighbours of each useful document added to the candidates. */
 const USEFUL_NEIGHBOURS = 10;
+/** What a thin document's cosine is ranked as a fraction of: a full
+ *  abstract at the same closeness outranks a TLDR. Its `score` stays the
+ *  cosine. Provisional — the eval set has no thin documents — see
+ *  `evals/lodestone/thresholds.md`. */
+export const THIN_FACTOR = 0.9;
 
-/** What a hit is ranked by: its score, raised by `USEFUL_BOOST` when it
- *  came near a useful document. */
-const rankKey = (h: PaperHit) => h.score + (h.via ? USEFUL_BOOST : 0);
+/** What a hit is ranked by: its score, at `THIN_FACTOR` of itself for a
+ *  thin document, raised by `USEFUL_BOOST` when it came near a useful
+ *  document. The database orders by the same key in `priorArtForMany`. */
+const rankKey = (h: PaperHit) => h.score * (h.thin ? THIN_FACTOR : 1) + (h.via ? USEFUL_BOOST : 0);
 const byRank = (a: PaperHit, b: PaperHit) => rankKey(b) - rankKey(a);
 
 export interface PaperVerdict {
@@ -312,6 +324,10 @@ export async function priorArtFor(db: Db, ideaId: string, k = 5, options: PriorA
  *  list. A useful document with more than ten neighbours that close can
  *  miss one the index did not otherwise return.
  *
+ *  A thin document (`provenance.thin` on its newest text) is ordered at
+ *  `THIN_FACTOR` of its best cosine, before the `3k` cut and the quota; its
+ *  `score` is the cosine. `rankKey` is the same rule in Node.
+ *
  *  A caller that already holds the cards' vectors, or their rows, passes
  *  them and they are not read again. */
 export async function priorArtForMany(db: Db, ideaIds: string[], k = 5, options: PriorArtOptions = {}): Promise<Map<string, PaperHit[]>> {
@@ -401,13 +417,20 @@ export async function priorArtForMany(db: Db, ideaIds: string[], k = 5, options:
     ${verdicts}
     per_block as (${perBlock}),
     via as (${via}),
+    thin as (
+      select distinct on (a.artifact_id) a.artifact_id as document_id, coalesce((a.provenance->>'thin')::boolean, false) as thin
+      from artifact_texts a where a.artifact_id in (select document_id from per_block)
+      order by a.artifact_id, a.version desc
+    ),
     ranked as (
       select p.card, p.document_id, via.useful,
         row_number() over (partition by p.card
-          order by max(p.cos) + case when via.useful is null then 0 else ${USEFUL_BOOST}::float8 end desc, d.created_at desc, p.document_id) as rank
+          order by max(p.cos) * case when thin.thin then ${THIN_FACTOR}::float8 else 1 end
+            + case when via.useful is null then 0 else ${USEFUL_BOOST}::float8 end desc, d.created_at desc, p.document_id) as rank
       from per_block p join document d on d.id = p.document_id
         left join via on via.card = p.card and via.document_id = p.document_id
-      group by p.card, p.document_id, d.created_at, via.useful
+        left join thin on thin.document_id = p.document_id
+      group by p.card, p.document_id, d.created_at, via.useful, thin.thin
     ),
     best as (select card, document_id, useful, rank from ranked where rank <= ${depth})
     select p.card, p.document_id, p.block, p.cos, best.rank, best.useful as via
@@ -481,6 +504,11 @@ export interface CorpusDocument {
    *  anything anchored in the abstract; a different hash on a later read
    *  means the abstract was replaced. */
   abstractHash: string;
+  /** True when `abstract` is a Semantic Scholar TLDR standing in for an
+   *  abstract the publisher withheld. */
+  thin: boolean;
+  /** What `abstract` is: the work's abstract, or a TLDR for a thin document. */
+  abstractKind: "abstract" | "tldr";
   provenance: Record<string, unknown>;
   citation: string;
 }
@@ -493,7 +521,7 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export async function corpusDocument(db: Db, documentId: string): Promise<CorpusDocument | null> {
   if (!UUID.test(documentId)) return null;
   const [row] = await db
-    .select({ kind: document.source, title: document.title, abstract: artifactTexts.canonicalText, abstractHash: artifactTexts.textHash, provenance: artifactTexts.provenance })
+    .select({ kind: document.source, title: document.title, abstract: artifactTexts.canonicalText, abstractHash: artifactTexts.textHash, sourceFormat: artifactTexts.sourceFormat, provenance: artifactTexts.provenance })
     .from(document)
     .innerJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
     .where(and(eq(document.id, documentId), inArray(document.source, [...CORPUS_SOURCES])))
@@ -502,7 +530,18 @@ export async function corpusDocument(db: Db, documentId: string): Promise<Corpus
   if (!row) return null;
   const kind = row.kind as CorpusKind;
   const provenance = row.provenance ?? {};
-  return { documentId, kind, title: row.title, abstract: row.abstract, abstractHash: row.abstractHash, provenance, citation: citationFor(kind, provenance, row.title) };
+  const thin = provenance.thin === true;
+  return {
+    documentId,
+    kind,
+    title: row.title,
+    abstract: row.abstract,
+    abstractHash: row.abstractHash,
+    thin,
+    abstractKind: row.sourceFormat === "tldr" ? "tldr" : "abstract",
+    provenance,
+    citation: citationFor(kind, provenance, row.title),
+  };
 }
 
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((s): s is string => typeof s === "string" && s.length > 0) : []);

@@ -98,7 +98,8 @@ export function renderDigest(digest: Digest, origin = ""): string {
       lines.push(`  new card · ${p.title} · ${p.owner.name} · shares ${shared} · ${origin}/lodestone/cards/${p.ideaId}`);
     }
     for (const p of s.papers) {
-      lines.push(`  corpus · ${p.kind === "patent" ? "Patent · " : ""}${p.title}${p.year ? ` (${p.year})` : ""} · closest to ${p.blocks.join(", ")} · ${p.score.toFixed(2)}`);
+      // A thin hit's text is a summary someone else's model wrote; the row says so.
+      lines.push(`  corpus · ${p.kind === "patent" ? "Patent · " : ""}${p.title}${p.year ? ` (${p.year})` : ""}${p.thin ? " · summary only" : ""} · closest to ${p.blocks.join(", ")} · ${p.score.toFixed(2)}`);
     }
   }
   return lines.join("\n");

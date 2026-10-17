@@ -12,7 +12,7 @@
  * second ingest cannot leave an orphan document behind. */
 import { eq, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { artifactTexts, document } from "@/db/schema";
+import { artifactTexts, document, documentChunk } from "@/db/schema";
 import { hashText, normalize, putArtifactText } from "../canonical";
 import {
   doiOf,
@@ -48,6 +48,9 @@ export interface IngestResult {
   sharedWith?: string;
   title?: string | null;
   provenance?: PaperProvenance;
+  /** True when the row written or found is thin: a TLDR standing in for an
+   *  abstract the publisher withheld. */
+  thin?: boolean;
 }
 
 export interface IngestDeps {
@@ -57,6 +60,13 @@ export interface IngestDeps {
   /** Refuse an abstract shorter than this as `short_abstract`. Off by default;
    *  the ingest command passes `MIN_ABSTRACT_WORDS`. */
   minWords?: number;
+  /** A Semantic Scholar TLDR for the work. When the work has no abstract it
+   *  is written thin on this text instead of refused as `no_abstract`; the
+   *  word floor does not apply. Only card search passes one. */
+  tldr?: string | null;
+  /** Fetch a work already stored thin, and if OpenAlex now has its abstract
+   *  replace the TLDR with it. Only card search passes this. */
+  replaceThin?: boolean;
 }
 
 /** The ids a source gives a work, as `artifact_texts.provenance` stores them. */
@@ -72,7 +82,7 @@ export interface SourceKeys {
 export async function storedBySourceId(
   db: Db,
   keys: SourceKeys,
-): Promise<{ artifactId: string; textHash: string } | null> {
+): Promise<{ artifactId: string; textHash: string; thin: boolean } | null> {
   const p = sql`${artifactTexts.provenance}`;
   const match: SQL[] = [];
   if (keys.openalex_id) match.push(sql`${p}->>'openalex_id' = ${keys.openalex_id}`);
@@ -80,7 +90,7 @@ export async function storedBySourceId(
   if (keys.patent_number) match.push(sql`${p}->>'patent_number' = ${keys.patent_number}`);
   if (match.length === 0) return null;
   const [row] = await db
-    .select({ artifactId: artifactTexts.artifactId, textHash: artifactTexts.textHash })
+    .select({ artifactId: artifactTexts.artifactId, textHash: artifactTexts.textHash, thin: sql<boolean>`coalesce((${p}->>'thin')::boolean, false)` })
     .from(artifactTexts)
     .where(or(...match))
     .limit(1);
@@ -102,7 +112,8 @@ function keysOf(identifier: string): SourceKeys {
  * `artifact_texts` pair.
  *
  * A work OpenAlex does not know is `not_found`; a work whose abstract the
- * publisher withheld is `no_abstract`. Neither writes anything, and neither
+ * publisher withheld is `no_abstract` — unless a `tldr` is given, when it is
+ * written thin on that text. Neither refusal writes anything, and neither
  * throws — the batch continues.
  */
 export async function ingestWork(
@@ -110,9 +121,10 @@ export async function ingestWork(
   identifier: string,
   deps: IngestDeps = {},
 ): Promise<IngestResult> {
-  // A work already held by this id costs no request.
+  // A work already held by this id costs no request — unless it is held
+  // thin and the caller asked to look for its abstract again.
   const held = await storedBySourceId(db, keysOf(identifier));
-  if (held) return { identifier, status: "ok", ...held, created: false };
+  if (held && !(deps.replaceThin && held.thin)) return { identifier, status: "ok", ...held, created: false };
 
   const fetcher = deps.fetchWork ?? ((id: string) => fetchWork(id));
   const work = await fetcher(identifier);
@@ -125,18 +137,29 @@ export async function ingestWork(
   // now. Checked before the abstract: a stored work is the stored work even
   // if OpenAlex has since edited its index.
   const known = await storedBySourceId(db, provenance);
-  if (known) return { identifier, status: "ok", ...known, created: false, title, provenance };
+  if (known && !(deps.replaceThin && known.thin)) return { identifier, status: "ok", ...known, created: false, title, provenance };
 
   const rebuilt = rebuildAbstract(work.abstract_inverted_index);
-  if (rebuilt === null) return { identifier, status: "no_abstract" };
-
-  const canonical = normalize(rebuilt);
-  if (wordCount(canonical) < (deps.minWords ?? 0)) return { identifier, status: "short_abstract", title, provenance };
+  const tldr = deps.tldr ? normalize(deps.tldr) : "";
+  // The thin row, when this ingest is a second look at one.
+  const thinRow = known ?? held;
+  if (rebuilt === null) {
+    // Still no abstract: the thin row stands.
+    if (thinRow) return { identifier, status: "ok", ...thinRow, created: false, title, provenance };
+    if (!tldr) return { identifier, status: "no_abstract" };
+  }
+  // A thin document is the TLDR as its text, marked so in provenance and by
+  // `source_format`; the word floor is for abstracts.
+  const thin = rebuilt === null;
+  if (thin) provenance.thin = true;
+  const canonical = thin ? tldr : normalize(rebuilt!);
+  if (!thin && wordCount(canonical) < (deps.minWords ?? 0)) return { identifier, status: "short_abstract", title, provenance };
   const textHash = hashText(canonical);
 
   // Before the document row: an existing text means this abstract already
   // has an artifact, and a second document for it would be a duplicate the
-  // reading list shows twice.
+  // reading list shows twice. (A thin row whose abstract turns out to be
+  // another document's is left standing; the other document is answered.)
   const existing = await db
     .select({ artifactId: artifactTexts.artifactId })
     .from(artifactTexts)
@@ -152,7 +175,21 @@ export async function ingestWork(
       sharedWith: existing[0].artifactId,
       title,
       provenance,
+      thin,
     };
+  }
+
+  if (thinRow) {
+    // The abstract arrived. The unique indexes on a work's ids allow one
+    // text per work, so the TLDR row goes and the abstract takes its place
+    // under the same document, with the TLDR's vector: the next embed pass
+    // reads the abstract, and the sentence rows are re-cut on the new hash.
+    const put = await db.transaction(async (tx) => {
+      await tx.delete(documentChunk).where(eq(documentChunk.documentId, thinRow.artifactId));
+      await tx.delete(artifactTexts).where(eq(artifactTexts.artifactId, thinRow.artifactId));
+      return putArtifactText(tx, { artifactId: thinRow.artifactId, sourceFormat: "abstract", parser: PARSER, text: canonical, provenance });
+    });
+    return { identifier, status: "ok", artifactId: thinRow.artifactId, textHash: put.textHash, created: put.created, title, provenance, thin: false };
   }
 
   // One transaction: a text the unique indexes refuse must not leave its
@@ -164,7 +201,7 @@ export async function ingestWork(
       .returning({ id: document.id });
     const put = await putArtifactText(tx, {
       artifactId: row.id,
-      sourceFormat: "abstract",
+      sourceFormat: thin ? "tldr" : "abstract",
       parser: PARSER,
       text: canonical,
       provenance,
@@ -181,6 +218,7 @@ export async function ingestWork(
     sharedWith: put.sharedWith,
     title,
     provenance,
+    thin,
   };
 }
 

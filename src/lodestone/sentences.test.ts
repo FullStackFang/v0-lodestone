@@ -6,7 +6,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createPgliteDb, type Db } from "@/db/client";
 import { document, documentSentence } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
-import { ensureSentences, sentencesFor, splitSentences } from "./sentences";
+import type { PaperHit } from "./priorArt";
+import { ensureSentences, sentencesFor, splitSentences, withSentences } from "./sentences";
 import { testEmbed, testVector } from "./test-embed";
 import type { IdeaVector } from "./vectors";
 
@@ -170,6 +171,24 @@ describe("sentencesFor", () => {
     await ensureSentences(db, testEmbed, [a.id]);
     const got = await sentencesFor(db, { documentId: a.id, blockKeys: ["channels"], abstractHash: a.textHash }, [entry("channels", "a video walkthrough")]);
     expect(got.map((s) => s.text)).toEqual(splitSentences(text).map((s) => s.text));
+  });
+
+  it("gives a thin hit its TLDR as the one sentence, at the hit's own score, and cuts nothing for it", async () => {
+    const tldr = "Escrowed deposits protect arriving tenants.";
+    const [row] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Thin", text: null }).returning();
+    const put = await putArtifactText(db, { artifactId: row.id, sourceFormat: "tldr", parser: "test", text: tldr, provenance: { thin: true, tldr } });
+    const full = await addPaper("Deposits held in escrow until move-in reduce fraud. Landlords rarely object to the arrangement.");
+    const hit = (documentId: string, abstractHash: string, thin: boolean): PaperHit => ({
+      documentId, kind: "paper", querySet: "card-search", title: "t", score: 0.8, blocks: ["Channels"], blockKeys: ["channels"],
+      year: null, venue: null, field: null, url: null, yours: false, addedAt: new Date(), abstractHash, thin, sentences: [],
+    });
+    const { embed, calls } = counting();
+    // An idea with no vectors: the full hit has no sentences to pick, the thin one needs none.
+    const got = await withSentences(db, embed, "c".repeat(32), [hit(row.id, put.textHash, true), hit(full.id, full.textHash, false)]);
+    expect(got[0].sentences).toEqual([{ text: tldr, block: "channels", cosine: 0.8 }]);
+    expect(got[1].sentences).toEqual([]);
+    expect(calls.flat()).not.toContain(tldr);
+    expect(await db.select().from(documentSentence).where(eq(documentSentence.documentId, row.id))).toHaveLength(0);
   });
 
   it("returns nothing for rows cut from another text, or a hit with no block", async () => {

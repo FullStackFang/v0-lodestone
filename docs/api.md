@@ -110,7 +110,9 @@ One card and what the network found for it. For the owner:
                            "openalex_keyword": { "new": 9, "existing": 16 },
                            "s2": { "new": 8, "existing": 12, "skipped_no_doi": 5, "error": "…" } } },
   "priorArt": [ { "documentId": "…", "kind": "paper", "querySet": "food-waste", "title": "…",
-                  "score": 0.81, "blocks": ["Value proposition"], "blockKeys": ["value_proposition"], "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…" }, … ],
+                  "score": 0.81, "blocks": ["Value proposition"], "blockKeys": ["value_proposition"], "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…",
+                  "abstractHash": "…", "thin": false,
+                  "sentences": [ { "text": "…", "block": "value_proposition", "cosine": 0.79 }, … ] }, … ],
   "changes": { "since": "4", "blocks": ["customer_segments"],
                "added": [ { …hit }, … ], "dropped": [ { …hit, "verdict": "useful" }, … ] },
   "peers": [ { "ideaId": "…", "title": "…", "line": "…", "owner": { "id": "…", "name": "…" },
@@ -138,7 +140,31 @@ set the document came from, `card-search` for one a card search brought in,
 or `null` for a seeded abstract. `yours` is
 true for one the author listed
 in `already_have` (matched by DOI or OpenAlex id — still returned, so they
-see the corpus holds it). Peers are the ten closest published cards, present only
+see the corpus holds it).
+
+`sentences` is the "why" of a hit: up to three sentences of the abstract
+with the highest cosine to any entry of the hit's first block (`blockKeys[0]`,
+repeated as each sentence's `block`), in abstract order. Each `text` is a
+substring of the `abstract` the read endpoint returns under the hit's
+`abstractHash`, cut by a rule and picked by cosine — no model wrote or chose
+them. Show them under the title before the member decides whether to read,
+and hand them to a model as the raw material for a paragraph on why the
+paper bears on the block, instead of the title alone. `abstractHash` is the
+stored hash of the abstract the sentences were cut from; if a later read of
+the paper returns a different hash, the abstract was replaced and anything
+anchored in the old one should be re-anchored.
+
+`thin` is true for a document that has no abstract: the publisher withheld
+it, and Lodestone kept the work on its Semantic Scholar TLDR (ODC-BY —
+attribute it) rather than drop a relevant find. A thin hit's `sentences` is
+that TLDR as one entry, its `score` is its cosine like any other hit, and it
+is listed as if its score were 0.9 of itself, so a full abstract at the same
+closeness comes first. Say it is a summary — "summary only" — and treat a
+"why" built on it as lower confidence; the read endpoint's `abstractKind`
+says the same. A thin document whose abstract later appears on OpenAlex is
+upgraded by the next search that returns it, and its `abstractHash` changes.
+
+Peers are the ten closest published cards, present only
 when the owner is an active member. For a cohort card the token
 may view but does not own, the response is `card`, `owner`, `blocks` and
 `segments` alone.
@@ -210,6 +236,8 @@ a `priorArt` hit, read in full.
   "title": "…",
   "abstract": "…",
   "abstractHash": "…",
+  "thin": false,
+  "abstractKind": "abstract",
   "provenance": { "doi": "…", "openalex_id": "…", "authors": ["…"], "year": 2021,
                   "venue": "…", "field": "…", "url": "…", "query_set": "food-waste" },
   "citation": "A. Reader, B. Writer. (2021). Title. Venue"
@@ -217,7 +245,12 @@ a `priorArt` hit, read in full.
 ```
 
 `abstract` is the canonical abstract, the only text Lodestone stores; there
-is no full text to return. Paper metadata comes from OpenAlex (CC0), so
+is no full text to return. `abstractKind` says what that text is:
+`"abstract"`, or `"tldr"` for a thin document (`thin: true`), whose text is
+the Semantic Scholar TLDR kept in place of an abstract the publisher
+withheld. Show a TLDR as a summary, attributed to Semantic Scholar, never as
+the abstract; it is what the hit's `sentences` and `score` were taken from.
+Paper metadata comes from OpenAlex (CC0), so
 nothing is withheld. A patent's provenance carries `patent_number`,
 `assignees`, `inventors` and `cpc` instead of `doi`, `venue` and `authors`,
 and its citation names the inventors and the patent number. An id that is
@@ -238,8 +271,9 @@ longer be a substring of it.
 2. When the member asks, send the idea's export to `cards`. Keep the returned
    `ideaId`; it is the idea's own id, so it is stable across re-sends.
 3. Before a turn, fetch the card and hand the model the titles, scores,
-   matched blocks and `yours` flags of `priorArt` and `peers`. The model may
-   say which it already knows; the ones it does not are the point.
+   matched blocks, `sentences`, `thin` and `yours` flags of `priorArt` and
+   `peers`. The model may say which it already knows; the ones it does not
+   are the point.
 4. Beside each match the member sees, offer the three verdicts and post the one
    they choose.
 

@@ -4,15 +4,17 @@
  *  document id, is what decides a tie at k. */
 import { beforeAll, describe, expect, it } from "vitest";
 import { COHORT, CORPUS, forgeDocument } from "../../evals/lodestone/cohort";
+import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { document } from "@/db/schema";
+import { artifactTexts, document, documentChunk } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
 import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
 import { importCard } from "./cards";
-import { embedPaperAbstracts, fieldQuota, priorArtFor, priorArtForMany } from "./priorArt";
+import { THIN_FACTOR, applyVerdicts, embedPaperAbstracts, fieldQuota, priorArtFor, priorArtForMany, scorePaper, type CorpusKind } from "./priorArt";
 import { countingDb } from "./test-db";
 import { testEmbed } from "./test-embed";
+import { ideaVectors } from "./vectors";
 
 let db: Db;
 let statements: string[];
@@ -82,6 +84,55 @@ describe("priorArtForMany", () => {
       await priorArtForMany(db, ids, 3, { since: at });
       expect(statements.slice(from)).toHaveLength(4);
     }
+  });
+});
+
+describe("THIN_FACTOR", () => {
+  // Thirty-one words that hash to distinct dimensions of the bag-of-words
+  // embedder, so a document sharing n of the card's 25 scores exactly n/25.
+  const WORDS = "alpha beta gamma delta epsilon zeta theta iota kappa lambda omicron sigma upsilon omega basalt granite marble slate shale pumice obsidian flint chalk gneiss schist jasper agate opal topaz garnet beryl".split(" ");
+  const entry = WORDS.slice(0, 25).join(" ");
+  const thinText = [...WORDS.slice(0, 20), ...WORDS.slice(25, 30)].join(" ");
+  const fullText = [...WORDS.slice(0, 19), ...WORDS.slice(25, 31)].join(" ");
+  const ideaId = "b".repeat(32);
+  let thinId = "";
+  let fullId = "";
+
+  beforeAll(async () => {
+    const owner = await ensurePerson(db, { name: COHORT[0].name, email: COHORT[0].email });
+    await importCard(db, { id: owner, email: COHORT[0].email }, forgeDocument({ ...COHORT[0], ideaId, said: [], entries: [{ block: "value_proposition", text: entry }] }), testEmbed);
+    const add = async (title: string, text: string, thin: boolean) => {
+      const [row] = await db.insert(document).values({ sessionId: null, source: "paper", title, text: null }).returning({ id: document.id });
+      await putArtifactText(db, { artifactId: row.id, sourceFormat: thin ? "tldr" : "abstract", parser: "test", text, provenance: thin ? { thin: true } : {} });
+      return row.id;
+    };
+    thinId = await add("Thin at 0.80", thinText, true);
+    fullId = await add("Full at 0.76", fullText, false);
+    await embedPaperAbstracts(db, testEmbed);
+  });
+
+  it("is 0.9, and lists a full document at 0.76 before a thin one at 0.80, whose score stays its cosine", async () => {
+    expect(THIN_FACTOR).toBe(0.9);
+    const hits = (await priorArtFor(db, ideaId, 10)).filter((h) => h.documentId === thinId || h.documentId === fullId);
+    expect(hits.map((h) => h.documentId)).toEqual([fullId, thinId]);
+    expect(hits[0]).toMatchObject({ thin: false });
+    expect(hits[0].score).toBeCloseTo(0.76, 2);
+    expect(hits[1]).toMatchObject({ thin: true });
+    expect(hits[1].score).toBeCloseTo(0.8, 2);
+  });
+
+  it("orders the reference path the same way", async () => {
+    const rows = (await ideaVectors(db, [ideaId])).get(ideaId)!;
+    const papers = await db
+      .select({ documentId: document.id, kind: document.source, title: document.title, embedding: documentChunk.embedding, provenance: artifactTexts.provenance, addedAt: document.createdAt })
+      .from(documentChunk)
+      .innerJoin(document, eq(document.id, documentChunk.documentId))
+      .innerJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
+      .where(inArray(document.id, [thinId, fullId]));
+    const scored = papers.map((p) => scorePaper(rows, { ...p, kind: p.kind as CorpusKind, embedding: p.embedding! }));
+    expect(applyVerdicts(scored, [], []).map((h) => h.documentId)).toEqual([fullId, thinId]);
+    expect(scored.find((h) => h.documentId === thinId)).toMatchObject({ thin: true });
+    expect(scored.find((h) => h.documentId === thinId)!.score).toBeCloseTo(0.8, 2);
   });
 });
 

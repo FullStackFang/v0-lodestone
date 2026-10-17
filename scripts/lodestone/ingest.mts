@@ -91,12 +91,14 @@ const onJob = (job: { jobId: string; totalBytesProcessed: number | null }) =>
   console.log(`# BigQuery job ${job.jobId}: ${job.totalBytesProcessed ?? "unknown"} bytes processed`);
 
 const db = await getDb();
-const tally = { new: 0, existing: 0, no_abstract: 0, short_abstract: 0, not_found: 0 };
+const tally = { new: 0, existing: 0, thin: 0, no_abstract: 0, short_abstract: 0, not_found: 0 };
 
 function report(result: IngestResult | PatentIngestResult) {
   if (result.status === "ok") tally[result.created ? "new" : "existing"] += 1;
   else tally[result.status] += 1;
-  const suffix = result.status === "ok" ? (result.created ? " new" : " existing") : "";
+  // A TLDR-only row a card search stored earlier; this command never writes one.
+  if ("thin" in result && result.thin) tally.thin += 1;
+  const suffix = result.status === "ok" ? `${result.created ? " new" : " existing"}${"thin" in result && result.thin ? " thin" : ""}` : "";
   console.log(`${ingestLine(result)}${suffix}`);
 }
 
@@ -168,7 +170,7 @@ const unembedded = await db.select({ id: document.id }).from(document)
   .leftJoin(documentChunk, eq(documentChunk.documentId, document.id))
   .where(and(inArray(document.source, [...CORPUS_SOURCES]), isNull(documentChunk.id)));
 console.log(
-  `# ${tally.new} new, ${tally.existing} existing, ${tally.no_abstract} no_abstract, ${tally.short_abstract} short_abstract, ${tally.not_found} not_found; ${embedded} embedded, ${unembedded.length} without a vector, ${await corpusOrphans(db)} without a canonical text`,
+  `# ${tally.new} new, ${tally.existing} existing (${tally.thin} thin), ${tally.no_abstract} no_abstract, ${tally.short_abstract} short_abstract, ${tally.not_found} not_found; ${embedded} embedded, ${unembedded.length} without a vector, ${await corpusOrphans(db)} without a canonical text`,
 );
 
 if (stop) {

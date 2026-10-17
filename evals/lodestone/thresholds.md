@@ -12,6 +12,30 @@ production counts were not available to this run.
 |---|---|---|---|---|
 | `CLOSE` | `src/lodestone/geometry.ts` | 0.75 | 0.75 (kept) | precision 0.75 on hits at or above it (12 / 16) |
 | `PAPER_FLOOR` | `src/lodestone/digest.ts` | 0.6 | 0.75 (changed) | at 0.6 every top-5 hit passes (precision 0.16). 0.72 is the lowest value with precision ≥ 0.6; 0.75 matches `CLOSE`, at precision 0.75 |
+| `THIN_FACTOR` | `src/lodestone/priorArt.ts` | — | 0.9 (provisional) | not measured: the eval set and the committed corpus hold no thin documents. See below |
+
+## `THIN_FACTOR`, provisional (2026-10-17)
+
+A thin document — a work with no abstract, kept on its Semantic Scholar TLDR
+(`lodestone-hit-sentences`) — is ordered as if its best cosine were
+multiplied by `THIN_FACTOR = 0.9`, so a full abstract at the same closeness
+outranks it; its `score` stays the plain cosine. The value is a judgement,
+not a measurement: a TLDR is one model-written sentence, so its vector sits
+nearer the card's vocabulary than the abstract it stands for would, and
+0.9 is enough to put a thin 0.80 behind a full 0.76 without pushing a thin
+0.85 off the list. It is applied inside the ranking statement, before the
+`3k` cut and the field quota, and the same key orders the Node reference
+path (`rankKey`), so the SQL-vs-reference tests hold with or without thin
+rows.
+
+Retune when real cards have sent verdicts: take every thin hit with a
+`card_feedback` verdict, and beside each the full hit nearest it in score on
+the same card. If thin hits are marked `useful` at the same rate as full
+hits at the same cosine, raise the factor towards 1.0; if they are marked
+`not_relevant` more often, lower it until a thin hit's precision at its
+ranked position matches a full hit's. Until a cohort has produced thin
+verdicts, the `--no-search` eval cannot move it: the committed corpus has no
+thin documents, so the four eval numbers are the same at any value.
 
 ## The corpus it was measured on
 

@@ -156,18 +156,29 @@ export async function sentencesFor(
     .map((r) => ({ text: text.slice(r.start_off, r.end_off), block, cosine: Number(r.cos) }));
 }
 
+/** A thin hit's one sentence: its whole text, the TLDR, at the hit's own
+ *  score — that text is what the hit's vector was embedded from. Nothing is
+ *  cut or embedded for it. */
+async function thinSentence(db: Db, hit: Pick<PaperHit, "blockKeys" | "abstractHash" | "score">): Promise<HitSentence[]> {
+  const block = hit.blockKeys[0];
+  if (!block || !hit.abstractHash) return [];
+  const text = await getCanonicalText(db, hit.abstractHash);
+  return text === null ? [] : [{ text, block, cosine: hit.score }];
+}
+
 /** The hits with their sentences: any document not yet cut is cut first, in
  *  one embed call. A failed embed leaves those hits without sentences; it
  *  never fails the read. */
 export async function withSentences(db: Db, embed: Embedder, ideaId: string, hits: PaperHit[]): Promise<PaperHit[]> {
   if (hits.length === 0) return hits;
+  const full = hits.filter((h) => !h.thin);
   try {
-    await ensureSentences(db, embed, hits.map((h) => h.documentId));
+    await ensureSentences(db, embed, full.map((h) => h.documentId));
   } catch {
     // Cut on the next read.
   }
-  const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
+  const rows = full.length ? ((await ideaVectors(db, [ideaId])).get(ideaId) ?? []) : [];
   const out: PaperHit[] = [];
-  for (const h of hits) out.push({ ...h, sentences: await sentencesFor(db, h, rows) });
+  for (const h of hits) out.push({ ...h, sentences: h.thin ? await thinSentence(db, h) : await sentencesFor(db, h, rows) });
   return out;
 }
