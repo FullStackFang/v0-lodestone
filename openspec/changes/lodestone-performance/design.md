@@ -357,6 +357,28 @@ in the function but is not evaluated at cold start.
 Every route's `<main>` is identical to the "before" render, but for a
 dev-mode stack trace inside `/login`'s redirect body.
 
+**After the follow-up cuts** (`c6cd231`, 2026-10-17, same setup, five warm
+runs). The cohort counts are one statement, prior art takes the vectors and
+cards its caller already read, and the sign-in lookup joins the membership
+row. Timings ran slower than the row above under the same background load
+and are not comparable; the counts are the result:
+
+| Route | Statements (after groups 0–5) | Writes |
+| --- | --- | --- |
+| `/` | 0 (0) | 0 |
+| `/login` | 3 (4) | 0 |
+| `/lodestone` | 10 (15) | 0 |
+| `/lodestone/digest` | 8 (11) | 0 |
+| `/lodestone/map` | 10 (15) | 0 |
+| `/lodestone/tokens` | 4 (5) | 0 |
+| `/lodestone/cards/[ideaId]` | 13 (14) | 0 |
+| `/lodestone/cards/[ideaId]/field` | 14 (15) | 0 |
+
+`page.count.test.tsx` now reads 7 statements for one card and for three
+(the session read is mocked there), guarded at 8. One more statement per
+request is available from better-auth's `cookieCache`, at the cost of a
+revoked session staying valid until the cookie cache expires; not taken.
+
 **Group 4 skipped.** `/lodestone` was under the 400 ms gate before this
 change (374 ms) and after it (261 ms), and the pilot has not asked for an
 earlier first paint. The design in decision 8 stands for when it does.
