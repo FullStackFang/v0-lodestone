@@ -10,7 +10,7 @@ import { putArtifactText } from "@/harness/canonical";
 import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
 import { importCard } from "./cards";
-import { embedPaperAbstracts, priorArtFor, priorArtForMany } from "./priorArt";
+import { embedPaperAbstracts, fieldQuota, priorArtFor, priorArtForMany } from "./priorArt";
 import { countingDb } from "./test-db";
 import { testEmbed } from "./test-embed";
 
@@ -53,9 +53,9 @@ describe("priorArtForMany", () => {
     it(`gives every card exactly what priorArtFor gives it, ${label}`, async () => {
       const at = label === "with since" ? since : undefined;
       for (const k of [2, 3, CORPUS.length + 1]) {
-        const many = await priorArtForMany(db, ids, k, at);
+        const many = await priorArtForMany(db, ids, k, { since: at });
         expect([...many.keys()].sort()).toEqual([...ids].sort());
-        for (const id of ids) expect(many.get(id)).toEqual(await priorArtFor(db, id, k, at));
+        for (const id of ids) expect(many.get(id)).toEqual(await priorArtFor(db, id, k, { since: at }));
       }
     });
   }
@@ -69,7 +69,8 @@ describe("priorArtForMany", () => {
   });
 
   it("breaks a tie on score and created_at by document id", async () => {
-    const hits = (await priorArtFor(db, COHORT[0].ideaId, CORPUS.length + 1)).filter((h) => h.title.startsWith(CORPUS[3].title));
+    // The quota off: both copies share a field, and the cut is the point.
+    const hits = (await priorArtFor(db, COHORT[0].ideaId, CORPUS.length + 1, { perField: Infinity })).filter((h) => h.title.startsWith(CORPUS[3].title));
     expect(hits).toHaveLength(2);
     expect(hits[0].score).toBe(hits[1].score);
     expect(hits[0].documentId < hits[1].documentId).toBe(true);
@@ -78,8 +79,36 @@ describe("priorArtForMany", () => {
   it("reads vectors, cards, rankings and metadata once each, however many cards", async () => {
     for (const at of [undefined, since]) {
       const from = statements.length;
-      await priorArtForMany(db, ids, 3, at);
+      await priorArtForMany(db, ids, 3, { since: at });
       expect(statements.slice(from)).toHaveLength(4);
     }
+  });
+});
+
+const hit = (id: string, field: string | null) => ({ id, field });
+
+describe("fieldQuota", () => {
+  it("takes hits in order, at most three per field, until k are taken", () => {
+    const hits = [
+      hit("a", "Medicine"), hit("b", "Medicine"), hit("c", "Medicine"), hit("d", "Medicine"),
+      hit("e", "Engineering"), hit("f", "Medicine"), hit("g", "Economics"),
+    ];
+    expect(fieldQuota(hits, 5).map((h) => h.id)).toEqual(["a", "b", "c", "e", "g"]);
+  });
+
+  it("counts a missing field as a bucket of its own", () => {
+    const hits = [hit("a", null), hit("b", null), hit("c", null), hit("d", null), hit("e", "Medicine")];
+    expect(fieldQuota(hits, 5).map((h) => h.id)).toEqual(["a", "b", "c", "e"]);
+  });
+
+  it("returns a short list rather than breaking the quota", () => {
+    const hits = [hit("a", "X"), hit("b", "X"), hit("c", "X"), hit("d", "X")];
+    expect(fieldQuota(hits, 10).map((h) => h.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("takes a custom cap, and Infinity turns the quota off", () => {
+    const hits = [hit("a", "X"), hit("b", "X"), hit("c", "Y")];
+    expect(fieldQuota(hits, 3, 1).map((h) => h.id)).toEqual(["a", "c"]);
+    expect(fieldQuota(hits, 2, Infinity).map((h) => h.id)).toEqual(["a", "b"]);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { limiter, OPENALEX_PER_SECOND, PATENTSVIEW_PER_MINUTE, type Clock } from "./rate";
+import { limiter, openalexLimiter, OPENALEX_PER_SECOND, PATENTSVIEW_PER_MINUTE, type Clock, type Limiter } from "./rate";
 
 function fakeClock(): Clock & { starts: number[] } {
   let t = 0;
@@ -15,7 +15,10 @@ function fakeClock(): Clock & { starts: number[] } {
 
 async function run(count: number, perWindow: number, windowMs: number) {
   const clock = fakeClock();
-  const wait = limiter(perWindow, windowMs, clock);
+  return drive(limiter(perWindow, windowMs, clock), clock, count);
+}
+
+async function drive(wait: Limiter, clock: ReturnType<typeof fakeClock>, count: number) {
   for (let i = 0; i < count; i++) {
     await wait();
     clock.starts.push(clock.now());
@@ -49,5 +52,21 @@ describe("limiter", () => {
     const before = clock.now();
     await wait();
     expect(clock.now()).toBe(before);
+  });
+});
+
+describe("openalexLimiter", () => {
+  it("runs at twenty-five a second under a key", async () => {
+    const clock = fakeClock();
+    const starts = await drive(openalexLimiter("k-1", clock), clock, 80);
+    expect(busiest(starts, 1000)).toBe(25);
+    expect(starts[1] - starts[0]).toBe(40);
+  });
+
+  it("runs at ten a second without one", async () => {
+    const clock = fakeClock();
+    const starts = await drive(openalexLimiter("", clock), clock, 35);
+    expect(busiest(starts, 1000)).toBe(10);
+    expect(starts[1] - starts[0]).toBe(100);
   });
 });

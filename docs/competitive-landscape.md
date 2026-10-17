@@ -143,7 +143,11 @@ schema-only until roughly a hundred cards exist.
 0. **A fixed eval set before anything ships.** Thirty queries: real or synthetic cards
    with a hand-marked relevant set each, kept in `evals/lodestone/`. Every step below is
    judged by whether it moves precision at 5 and the cross-field count on this set. Without
-   it the verdict stages cannot be shown to change rankings.
+   it the verdict stages cannot be shown to change rankings. Baseline (2026-10-16,
+   `evals/lodestone/eval-set/baseline.md`, search off, 30 cards over ~1,040 papers):
+   P@5 0.207, R@10 0.517, MRR 0.502, 4.63 distinct fields in the top ten. The ten
+   cross-field cards reach MRR 0.303 against 0.601 for the rest. The marks are
+   Claude's calls, not hand-marked.
 1. **Publish** (Phase 3 as written): Neon or Supabase Postgres with pgvector, Resend,
    Vercel cron, `db:migrate` as a release step. Replace PatentsView with Google Patents
    Public Datasets on BigQuery before deploy: it is the only replacement with abstracts,

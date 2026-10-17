@@ -7,6 +7,9 @@ import { blockLabel, canView, cardBlocks, cardById, cohortCards } from "@/lodest
 import { CLOSE } from "@/lodestone/geometry";
 import { peersFor } from "@/lodestone/peers";
 import { corpusSize, priorArtFor, type PaperHit } from "@/lodestone/priorArt";
+import { changesFor } from "@/lodestone/search";
+import { withSentences } from "@/lodestone/sentences";
+import { embed } from "@/harness/embed";
 import { isActive } from "@/pilot/membership";
 import { ActionForm, SubmitButton } from "@/review/ActionForm";
 import { setCardVisibility } from "../../actions";
@@ -23,7 +26,7 @@ const ORIGIN = {
   open: { chip: "ox", label: "Open question", text: "e o" },
 } as const;
 
-function PaperRow({ p, n, last }: { p: PaperHit; n: number; last: boolean }) {
+function PaperRow({ p, n, last, because }: { p: PaperHit; n: number; last: boolean; because?: string }) {
   const close = p.score >= CLOSE;
   const meta = [p.venue, p.year, p.field, p.querySet && <>set <i>{p.querySet}</i></>].filter(Boolean);
   const body = <>
@@ -33,7 +36,8 @@ function PaperRow({ p, n, last }: { p: PaperHit; n: number; last: boolean }) {
       {meta.map((m, i) => <span key={i}>{m}{" · "}</span>)}
       closest to <b>{p.blocks.map(blockLabel).join(", ").toLowerCase()}</b>
       {p.yours ? <> · <span className="yours">yours: the paper this idea started from</span></> : null}
-    </small></span>
+      {because ? <> · because you found <i>{because}</i> useful</> : null}
+    </small>{p.sentences.length ? <small className="serif">{p.sentences.map((s) => `“${s.text}”`).join(" … ")}</small> : null}</span>
     <span className="bar" aria-hidden="true"><i className={close ? "" : "far"} style={{ width: pct(p.score) }} /><b style={{ left: `${CLOSE * 100}%` }} /></span>
     <span className={close ? "s" : "s far"}>{p.score.toFixed(2)}</span>
   </>;
@@ -53,13 +57,19 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
   const { blocks, confirmed } = cardBlocks(card.doc);
   const drafts = blocks.filter((b) => b.entries[0]?.origin === "draft").length;
   const open = blocks.filter((b) => b.entries[0]?.origin === "open").length;
-  const [priorArt, corpus, peers, published] = await Promise.all([
-    priorArtFor(db, ideaId, 8),
+  const [priorArt, corpus, peers, published, changes] = await Promise.all([
+    priorArtFor(db, ideaId, 8, { viewerId: person.id }).then((hits) => withSentences(db, embed, ideaId, hits)),
     corpusSize(db),
     member ? peersFor(db, ideaId, 6) : Promise.resolve([]),
     cohortCards(db),
+    // Diffed against the ten the snapshot holds, not the eight shown here.
+    mine ? priorArtFor(db, ideaId, 10, { viewerId: person.id }).then((hits) => changesFor(db, ideaId, hits)) : Promise.resolve(null),
   ]);
   const others = published.filter((c) => c.card.ideaId !== ideaId).length;
+  const titleOf = (documentId: string) => priorArt.find((h) => h.documentId === documentId)?.title ?? "a nearby paper";
+  const because = (p: PaperHit) => (mine && p.via ? titleOf(p.via.useful) : undefined);
+  const usefulGone = changes?.dropped.filter((h) => h.verdict === "useful").map((h) => h.title) ?? [];
+  const changed = changes && (changes.blocks.length || changes.added.length || changes.dropped.length) ? changes : null;
   const near = priorArt.filter((p) => p.score >= CLOSE);
   const far = priorArt.filter((p) => p.score < CLOSE);
   const best = Math.max(0, ...priorArt.map((p) => p.score), ...peers.map((p) => p.score));
@@ -112,17 +122,20 @@ export default async function CardPage({ params }: { params: Promise<{ ideaId: s
       <SectionHead n="02" title="Prior art" tone="var(--teal)">
         <p className="lede" style={{ maxWidth: "30ch" }}>Papers and patents whose abstracts sit closest to a block of this card. Ranked by cosine against {plural(corpus, "stored abstract")}.</p>
         <p className="note" style={{ maxWidth: "30ch" }}>The neighbour line is {CLOSE.toFixed(2)}. Works before anyone else has published; nothing here is scored by a model.</p>
+        {changed ? <p className="note" style={{ maxWidth: "30ch" }}>
+          Since you changed {changed.blocks.map(blockLabel).join(", ").toLowerCase() || "this card"}: {changed.added.length} new in the top ten, {changed.dropped.length} gone{usefulGone.length ? `, among them ${usefulGone.join(", ")}, which you found useful` : ""}.
+        </p> : null}
       </SectionHead>
       <div>
         <div className="tier"><Chip tone="lime">Within reach</Chip><span className="t">Above the neighbour line</span><span className="ct">{plural(near.length, "work")}</span></div>
-        {near.map((p, i) => <PaperRow key={p.documentId} p={p} n={i + 1} last={i === near.length - 1 && far.length === 0} />)}
+        {near.map((p, i) => <PaperRow key={p.documentId} p={p} n={i + 1} last={i === near.length - 1 && far.length === 0} because={because(p)} />)}
         {near.length === 0 ? <div className="empty" style={{ marginTop: 8 }}>
           <p>{priorArt.length ? "Nothing above the line yet." : corpus === 0 ? "The corpus is empty." : "This card has no vectors yet."}</p>
           <span>{priorArt.length ? "The nearby works below are the closest the corpus holds." : corpus === 0 ? "Ingest papers and embed their abstracts; the match runs against whatever the corpus holds." : "Re-import the card once an embedding key is configured."}</span>
         </div> : null}
         {far.length ? <>
           <div className="tier far"><Chip tone="ghost">Nearby</Chip><span className="t">Below the line</span><span className="ct">{plural(far.length, "work")}</span></div>
-          {far.map((p, i) => <PaperRow key={p.documentId} p={p} n={near.length + i + 1} last={i === far.length - 1} />)}
+          {far.map((p, i) => <PaperRow key={p.documentId} p={p} n={near.length + i + 1} last={i === far.length - 1} because={because(p)} />)}
         </> : null}
       </div>
     </section>

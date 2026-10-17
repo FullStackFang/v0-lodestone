@@ -91,6 +91,14 @@ export function unit(v: number[]): number[] {
   return v.map((x) => x / norm);
 }
 
+/** One block's vector: the unit mean of its rows, every facet alike. Null
+ *  when the block has no embedded rows. Unlike `blended`, nothing is
+ *  weighted or dropped — it is what the verdict graph keys a verdict on. */
+export function blockVector(rows: IdeaVector[], block: string): number[] | null {
+  const vectors = rows.filter((r) => r.block === block).map((r) => r.embedding);
+  return vectors.length ? unit(mean(vectors)) : null;
+}
+
 /** One unit vector per card, for the map only. Matching never blends —
  *  `score.ts` says why — but a map needs one point per card. */
 export function blended(rows: IdeaVector[]): number[] | null {

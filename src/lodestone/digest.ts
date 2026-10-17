@@ -3,9 +3,11 @@
  *  plus the block names it matched on, and no sentence is written for it. */
 import type { Db } from "@/db/client";
 import type { ForgeCardRow } from "@/db/lodestone-schema";
-import { cardsForOwner, cohortCards, type CohortCard } from "./cards";
+import { embed } from "@/harness/embed";
+import { cardsForOwner, cohortCards, type CohortCard, type Embedder } from "./cards";
 import { peersFor, type PeerHit } from "./peers";
 import { priorArtForMany, type PaperHit } from "./priorArt";
+import { withSentences } from "./sentences";
 import { ideaVectors, type IdeaVector } from "./vectors";
 import { isActiveMember } from "@/pilot/membership";
 
@@ -43,6 +45,8 @@ export interface DigestOptions {
   member?: boolean;
   /** Vectors for at least the person's cards and the cohort's. */
   vectors?: Map<string, IdeaVector[]>;
+  /** Embeds sentences of papers not yet cut. Defaults to Voyage. */
+  embed?: Embedder;
 }
 
 export function weekAgo(now = new Date()): Date {
@@ -63,15 +67,16 @@ export async function digestFor(db: Db, personId: string, since: Date, now = new
   // One read serves the prior art and, for a member, every card's peers.
   const vectors = options.vectors ?? (await ideaVectors(db, matching ? [...ids, ...recent.map((c) => c.card.ideaId)] : ids));
   const [papersByCard, peersByCard] = await Promise.all([
-    priorArtForMany(db, ids, 5, since, { vectors, cards: mine }),
+    // The person owns every card here, so their verdicts shape each list.
+    priorArtForMany(db, ids, 5, { since, viewerId: personId, vectors, cards: mine }),
     Promise.all(mine.map((card) => (matching ? peersFor(db, card.ideaId, 5, recent, vectors) : []))),
   ]);
-  const sections: DigestSection[] = mine.map((card, at) => ({
+  const sections: DigestSection[] = await Promise.all(mine.map(async (card, at) => ({
     ideaId: card.ideaId,
     title: card.title,
     peers: peersByCard[at],
-    papers: (papersByCard.get(card.ideaId) ?? []).filter((p) => p.score >= floor),
-  }));
+    papers: await withSentences(db, options.embed ?? embed, card.ideaId, (papersByCard.get(card.ideaId) ?? []).filter((p) => p.score >= floor)),
+  })));
   return { since, until: now, newCards: recent.length, sections };
 }
 

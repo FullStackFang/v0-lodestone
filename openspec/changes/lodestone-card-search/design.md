@@ -112,8 +112,16 @@ through a mail every member gets.
 search on (which adds unmarked documents the metric cannot credit), so the
 gate on search is MRR of the marked documents and mean distinct fields, not
 P@5; then quota on; then purpose on for the ten cross-field cards. The
-change is accepted when MRR of marked documents does not fall and mean
-distinct fields rises by at least one. The numbers go in `tasks.md`.
+change is accepted when mean distinct fields rises by at least one, MRR of
+marked documents stays at or above half the baseline (a floor against noise,
+not a ceiling on finds: every relevant searched-in paper that outranks a mark
+lowers it), and at least half of the searched-in papers in the top five of
+ten sampled cards are judged relevant to the card. The numbers go in
+`tasks.md`.
+
+Decided 2026-10-16: the first draft asked that marked-document MRR not fall
+at all, which search could pass only by finding nothing better than the
+marks.
 
 ### 10. What `forge-idea/5` adds and what Lodestone does with it
 

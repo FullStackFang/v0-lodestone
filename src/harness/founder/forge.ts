@@ -108,6 +108,19 @@ export const ForgeIdeaV4 = ForgeIdeaV3.extend({
 });
 export type ForgeIdeaV4 = z.infer<typeof ForgeIdeaV4>;
 
+/** What the idea does for whom, at two levels of generality and with no
+ *  product or market nouns, written by Whetstone's author. Other keys are
+ *  stripped. Read only to build search queries; never shown to anyone but
+ *  the owner. */
+export const Purpose = z.object({ l1: z.string(), l2: z.string() });
+
+/** `/4` plus an optional `purpose`. */
+export const ForgeIdeaV5 = ForgeIdeaV4.extend({
+  format: z.literal("forge-idea/5"),
+  purpose: Purpose.optional(),
+});
+export type ForgeIdeaV5 = z.infer<typeof ForgeIdeaV5>;
+
 export const ForgeIdeaV1 = z.object({
   format: z.literal("forge-idea/1"),
   title: z.string(),
@@ -130,8 +143,10 @@ export type ForgeIdeaV1 = z.infer<typeof ForgeIdeaV1>;
 
 /** What the projection reads, whichever format arrived. */
 export interface ForgeIdea {
-  format: "forge-idea/1" | "forge-idea/2" | "forge-idea/3" | "forge-idea/4";
+  format: "forge-idea/1" | "forge-idea/2" | "forge-idea/3" | "forge-idea/4" | "forge-idea/5";
   ideaId: string;
+  /** `/5` only, and only when Whetstone wrote one. */
+  purpose: { l1: string; l2: string } | null;
   /** False for `/1`: entry keys were minted here, so nothing can supersede. */
   stableKeys: boolean;
   profile: Record<string, string>;
@@ -156,6 +171,7 @@ export function parseForgeIdea(input: unknown): ForgeIdea {
       format: "forge-idea/1",
       ideaId: createHash("sha256").update(`${doc.title}\n${doc.line}`, "utf8").digest("hex").slice(0, 32),
       stableKeys: false,
+      purpose: null,
       profile: doc.profile,
       alreadyHave: [],
       workspaces: [
@@ -168,15 +184,18 @@ export function parseForgeIdea(input: unknown): ForgeIdea {
     };
   }
   const doc =
-    format === "forge-idea/4"
-      ? ForgeIdeaV4.parse(input)
-      : format === "forge-idea/3"
-        ? ForgeIdeaV3.parse(input)
-        : ForgeIdeaV2.parse(input);
+    format === "forge-idea/5"
+      ? ForgeIdeaV5.parse(input)
+      : format === "forge-idea/4"
+        ? ForgeIdeaV4.parse(input)
+        : format === "forge-idea/3"
+          ? ForgeIdeaV3.parse(input)
+          : ForgeIdeaV2.parse(input);
   return {
     format: doc.format,
     ideaId: doc.id,
     stableKeys: true,
+    purpose: "purpose" in doc && doc.purpose ? { l1: doc.purpose.l1, l2: doc.purpose.l2 } : null,
     profile: doc.profile,
     alreadyHave:
       "already_have" in doc ? doc.already_have.map((a) => ({ id: a.id, title: a.title, doi: a.doi ?? null })) : [],

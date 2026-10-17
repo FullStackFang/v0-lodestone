@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { embed } from "@/harness/embed";
 import { requirePerson } from "@/lib/session";
 import { importCard, setVisibility } from "@/lodestone/cards";
+import { defaultSearchDeps, searchCard } from "@/lodestone/search";
 import type { ActionState } from "@/review/ActionForm";
 import { IDEA_ID } from "@/app/api/lodestone/client";
 
@@ -18,7 +20,8 @@ function describe(error: unknown): string {
 }
 
 /** Import a `forge-idea` export. The file is read whole, parsed, projected
- *  into the ledger under the signed-in person, and embedded. */
+ *  into the ledger under the signed-in person, and embedded; its changed
+ *  blocks are searched once the response is sent. */
 export async function importForgeCard(_previous: ActionState, data: FormData): Promise<ActionState> {
   const db = await getDb();
   const person = await requirePerson(db);
@@ -28,6 +31,7 @@ export async function importForgeCard(_previous: ActionState, data: FormData): P
     if (!text.trim()) throw new Error("Choose a Forge export file.");
     const doc: unknown = JSON.parse(text);
     const out = await importCard(db, { id: person.id, email: person.email }, doc, embed);
+    after(() => searchCard(db, out.card.ideaId, defaultSearchDeps(embed)));
     revalidatePath("/lodestone");
     revalidatePath(`/lodestone/cards/${out.card.ideaId}`);
     const filed = `${out.report.written} filed, ${out.report.superseded} superseded, ${out.embedded} embedded`;

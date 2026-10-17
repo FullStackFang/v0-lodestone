@@ -11,8 +11,9 @@
  * import, publish, and open the map. Re-running is safe: people, papers
  * and cards are matched by email, title and idea id.
  *
- * Honours `DATABASE_URL`; without it opens the local PGlite directory, which
- * `next dev` must not hold at the same time. Refuses to run in production. */
+ * Opens the local PGlite directory, which `next dev` must not hold at the
+ * same time, or a `DATABASE_URL` on this machine. Refuses production and any
+ * remote host before connecting. */
 import "../harness/env.mts";
 import { and, eq, isNull } from "drizzle-orm";
 import { COHORT, CORPUS, forgeDocument } from "../../evals/lodestone/cohort";
@@ -25,6 +26,7 @@ import { embed } from "../../src/harness/embed";
 import { ensurePerson } from "../../src/harness/ledger";
 import { importCard, setVisibility } from "../../src/lodestone/cards";
 import { corpusOrphans, embedPaperAbstracts } from "../../src/lodestone/priorArt";
+import { seedRefusal } from "../../src/lodestone/seed-guard";
 import { enrollTestMember } from "../../src/pilot/test-fixtures";
 
 const args = process.argv.slice(2);
@@ -45,8 +47,9 @@ if (!process.env.VOYAGE_API_KEY?.trim()) {
   console.log("VOYAGE_API_KEY is not set: cards will be filed without vectors and nothing will match.");
 }
 
-if (process.env.NODE_ENV === "production") {
-  console.error("The seed is a synthetic cohort and never runs against production.");
+const refusal = seedRefusal();
+if (refusal) {
+  console.error(refusal);
   process.exit(1);
 }
 const db = await getDb();

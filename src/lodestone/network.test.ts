@@ -2,20 +2,21 @@
  *  art at zero density, peers once a cohort exists, the map, the digest. The
  *  embedder is the hashed bag of words, so a match here means shared words. */
 import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { COHORT, CORPUS, forgeDocument } from "../../evals/lodestone/cohort";
 import { createPgliteDb, type Db } from "@/db/client";
-import { artifactTexts, document, documentChunk, forgeCard, assertions } from "@/db/schema";
+import { artifactTexts, cardFeedback, document, documentChunk, forgeCard, assertions } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
 import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
-import { canView, cardBlocks, cardsForOwner, cohortCards, cohortCounts, importCard, setVisibility } from "./cards";
+import { blockLabel, canView, cardBlocks, cardsForOwner, cohortCards, cohortCounts, importCard, setVisibility } from "./cards";
 import { digestFor, renderDigest } from "./digest";
 import { cohortMap, corpusSummary } from "./map";
 import { peersFor } from "./peers";
-import { corpusSize, embedPaperAbstracts, heldPapers, priorArtFor, scorePaper, type CorpusKind } from "./priorArt";
-import { testEmbed } from "./test-embed";
-import { ideaVectors } from "./vectors";
+import { recordFeedback } from "./api";
+import { NEAR_USEFUL, USEFUL_BOOST, applyVerdicts, corpusSize, embedPaperAbstracts, fieldQuota, heldPapers, priorArtFor, scorePaper, type CorpusKind } from "./priorArt";
+import { testEmbed, testVector } from "./test-embed";
+import { cosine, ideaVectors } from "./vectors";
 
 let db: Db;
 const people = new Map<string, string>();
@@ -44,8 +45,9 @@ async function addPaper(title: string, abstract: string, provenance: Record<stri
 
 /** Every corpus vector read back and scored in Node: what `priorArtFor`
  *  did before ranking moved into the database, newest first so a tie breaks
- *  the same way. */
-async function exactScan(ideaId: string, k: number, since?: Date) {
+ *  the same way. With `ownerId`, that person's verdicts on the card applied
+ *  by `applyVerdicts`, every corpus document a neighbour candidate. */
+async function exactScan(ideaId: string, k: number, since?: Date, options: { ownerId?: string; perField?: number } = {}) {
   const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
   const [card] = await db.select({ doc: forgeCard.doc }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId));
   const corpus = await db
@@ -55,10 +57,23 @@ async function exactScan(ideaId: string, k: number, since?: Date) {
     .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
     .where(and(inArray(document.source, ["paper", "patent"]), isNotNull(documentChunk.embedding), since ? gte(document.createdAt, since) : undefined))
     .orderBy(desc(document.createdAt));
-  return corpus
+  const scored = corpus
     .map((p) => scorePaper(rows, { ...p, kind: p.kind as CorpusKind, embedding: p.embedding as number[] }, heldPapers(card.doc)))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k);
+    .sort((a, b) => b.score - a.score);
+  if (!options.ownerId) return fieldQuota(scored, k, options.perField);
+  const verdicts = await db
+    .select({ documentId: cardFeedback.targetId, verdict: cardFeedback.verdict })
+    .from(cardFeedback)
+    .where(and(eq(cardFeedback.personId, options.ownerId), eq(cardFeedback.ideaId, ideaId), eq(cardFeedback.kind, "paper")));
+  // The useful documents come from the whole corpus, not the `since` window.
+  const usefulIds = verdicts.filter((v) => v.verdict === "useful").map((v) => v.documentId);
+  const useful = usefulIds.length
+    ? await db.select({ documentId: documentChunk.documentId, embedding: documentChunk.embedding }).from(documentChunk).where(inArray(documentChunk.documentId, usefulIds))
+    : [];
+  const neighbours = corpus.flatMap((p) =>
+    useful.filter((u) => u.documentId !== p.documentId).map((u) => ({ documentId: p.documentId, via: u.documentId, near: cosine(p.embedding as number[], u.embedding as number[]) })),
+  );
+  return fieldQuota(applyVerdicts(scored, verdicts, neighbours), k, options.perField);
 }
 
 const owner = (email: string) => ({ id: people.get(email)!, email });
@@ -237,11 +252,13 @@ describe("the cohort", () => {
     for (const m of COHORT) {
       for (const since of [undefined, mid]) {
         const want = await exactScan(m.ideaId, 3, since);
-        const got = await priorArtFor(db, m.ideaId, 3, since);
+        const got = await priorArtFor(db, m.ideaId, 3, { since });
         expect(got.map((h) => h.documentId)).toEqual(want.map((h) => h.documentId));
         for (const [at, h] of got.entries()) {
           expect(h.score).toBeCloseTo(want[at].score, 5);
           expect(h.blocks).toEqual(want[at].blocks);
+          expect(h.blockKeys).toEqual(want[at].blockKeys);
+          expect(h.blockKeys.map(blockLabel)).toEqual(h.blocks);
           expect(h.yours).toBe(want[at].yours);
         }
         if (since) expect(got.every((h) => h.addedAt >= since)).toBe(true);
@@ -286,12 +303,16 @@ describe("the cohort", () => {
     expect(before.sections[0].papers).toHaveLength(0);
 
     const since = new Date("2020-01-01T00:00:00Z");
-    const digest = await digestFor(db, me, since, new Date(), { paperFloor: 0.2 });
+    const digest = await digestFor(db, me, since, new Date(), { paperFloor: 0.2, embed: testEmbed });
     expect(digest.newCards).toBe(COHORT.length - 1);
     const section = digest.sections.find((s) => s.ideaId === sam.ideaId)!;
     expect(section.peers.length).toBeGreaterThan(0);
     expect(section.peers.map((p) => p.owner.id)).not.toContain(me);
     expect(section.papers.length).toBeGreaterThan(0);
+    for (const p of section.papers) {
+      expect(p.sentences.length).toBeGreaterThan(0);
+      expect(p.sentences.every((s) => s.block === p.blockKeys[0])).toBe(true);
+    }
     const text = renderDigest(digest, "http://localhost:3000");
     expect(text).toContain("Lodestone digest");
     expect(text).toContain("new card ·");
@@ -306,6 +327,39 @@ describe("the cohort", () => {
     for (const s of digest.sections) expect(s.peers).toHaveLength(0);
   });
 
+  it("leaves a searched-in paper out of the digest window but ranks it on the card", async () => {
+    const me = people.get(sam.email)!;
+    const since = new Date(Date.now() - 1000);
+    const text = `${sam.line} ${sam.said.join(" ")}`;
+    const searched = await addPaper("Searched in for one card", text, { query_set: "card-search" });
+    await embedPaperAbstracts(db, testEmbed);
+    expect((await priorArtFor(db, sam.ideaId, 10)).map((h) => h.documentId)).toContain(searched.id);
+    const digest = await digestFor(db, me, since, new Date(), { paperFloor: 0 });
+    const section = digest.sections.find((s) => s.ideaId === sam.ideaId)!;
+    expect(section.papers.map((p) => p.documentId)).not.toContain(searched.id);
+    // Gone again, so the corpus counts below see only the seeded sets.
+    await db.delete(documentChunk).where(eq(documentChunk.documentId, searched.id));
+    await db.delete(artifactTexts).where(eq(artifactTexts.artifactId, searched.id));
+    await db.delete(document).where(eq(document.id, searched.id));
+  });
+
+  it("holds at most three hits per field when one field dominates", async () => {
+    const text = `${sam.line} ${sam.said.join(" ")}`;
+    const crowd = [];
+    for (let i = 0; i < 6; i++) crowd.push(await addPaper(`Crowd ${i}`, `${text} Variant ${i}.`, { field: "Crowding Studies" }));
+    await embedPaperAbstracts(db, testEmbed);
+    const off = await priorArtFor(db, sam.ideaId, 10, { perField: Infinity });
+    expect(off.filter((h) => h.field === "Crowding Studies").length).toBeGreaterThan(3);
+    const hits = await priorArtFor(db, sam.ideaId, 10);
+    expect(hits.filter((h) => h.field === "Crowding Studies")).toHaveLength(3);
+    expect(hits.map((h) => h.documentId)).toEqual((await exactScan(sam.ideaId, 10)).map((h) => h.documentId));
+    for (const p of crowd) {
+      await db.delete(documentChunk).where(eq(documentChunk.documentId, p.id));
+      await db.delete(artifactTexts).where(eq(artifactTexts.artifactId, p.id));
+      await db.delete(document).where(eq(document.id, p.id));
+    }
+  });
+
   it("drops a revoked member's card from every cohort list without touching the ledger", async () => {
     const jonas = COHORT[7];
     const [row] = await db.select().from(forgeCard).where(eq(forgeCard.ideaId, jonas.ideaId));
@@ -318,6 +372,106 @@ describe("the cohort", () => {
     expect((await peersFor(db, sam.ideaId, 10)).map((p) => p.ideaId)).not.toContain(jonas.ideaId);
     const rowsAfter = (await db.select().from(assertions).where(eq(assertions.subjectId, `forge:${jonas.ideaId}`))).length;
     expect(rowsAfter).toBe(rowsBefore);
+  });
+});
+
+describe("verdicts in the owner's list", () => {
+  const all = { perField: Infinity };
+  const samId = () => people.get(sam.email)!;
+  const priyaId = () => people.get(priya.email)!;
+  const ids = (hits: { documentId: string }[]) => hits.map((h) => h.documentId);
+  const mark = (targetId: string, verdict: "useful" | "known" | "not_relevant", kind: "paper" | "peer" = "paper") =>
+    recordFeedback(db, samId(), { ideaId: sam.ideaId, kind, targetId, verdict });
+  const added: string[] = [];
+
+  afterAll(async () => {
+    await db.delete(cardFeedback).where(eq(cardFeedback.ideaId, sam.ideaId));
+    for (const id of added) {
+      await db.delete(documentChunk).where(eq(documentChunk.documentId, id));
+      await db.delete(artifactTexts).where(eq(artifactTexts.artifactId, id));
+      await db.delete(document).where(eq(document.id, id));
+    }
+  });
+
+  it("drops a not_relevant document from the owner's list alone, beside a peer verdict", async () => {
+    // A peer verdict's target is an idea id, not a uuid: the statement must
+    // not cast it.
+    await mark(priya.ideaId, "useful", "peer");
+    const plain = await priorArtFor(db, sam.ideaId, 5, all);
+    expect(ids(await priorArtFor(db, sam.ideaId, 5, { ...all, viewerId: samId() }))).toEqual(ids(plain));
+    const dropped = plain[1].documentId;
+    await mark(dropped, "not_relevant");
+    await mark(plain[2].documentId, "known");
+    const mine = await priorArtFor(db, sam.ideaId, 5, { ...all, viewerId: samId() });
+    expect(mine).toHaveLength(5);
+    expect(ids(mine)).not.toContain(dropped);
+    expect(ids(mine)).toContain(plain[2].documentId);
+    const theirs = await priorArtFor(db, sam.ideaId, 5, { ...all, viewerId: priyaId() });
+    expect(ids(theirs)).toEqual(ids(plain));
+  });
+
+  it("pulls in a neighbour of a useful document by the boost, its score still its own cosine", async () => {
+    const owner = { ...all, viewerId: samId() };
+    const [top, rival] = await priorArtFor(db, sam.ideaId, 2, owner);
+    const [{ text }] = await db.select({ text: artifactTexts.canonicalText }).from(artifactTexts).where(eq(artifactTexts.artifactId, top.documentId)).orderBy(desc(artifactTexts.version)).limit(1);
+    // The top abstract diluted with words of no card's, twice: once to sit
+    // just above `rival`, and once more to sit just below it, close to the
+    // first. Scored here as the database will, from the same embedder.
+    const rows = (await ideaVectors(db, [sam.ideaId])).get(sam.ideaId)!;
+    const scoreOf = (t: string) => Math.max(...rows.map((r) => cosine(r.embedding, testVector(t))));
+    const diluted = (n: number) => `${text} ${Array.from({ length: n }, (_, i) => `zq${i}x`).join(" ")}`;
+    let n = 0;
+    while (scoreOf(diluted(n)) > rival.score + 0.01) n++;
+    const usefulText = diluted(n);
+    while (scoreOf(diluted(n)) > rival.score - 0.01) n++;
+    const nearText = diluted(n);
+    expect(cosine(testVector(nearText), testVector(usefulText))).toBeGreaterThanOrEqual(NEAR_USEFUL);
+    const useful = (await addPaper("The useful one", usefulText)).id;
+    const near = (await addPaper("Near the useful one", nearText)).id;
+    added.push(useful, near);
+    await embedPaperAbstracts(db, testEmbed);
+
+    // top, useful, rival in a list of three; the neighbour fourth, within
+    // the boost of the third.
+    const plain = await priorArtFor(db, sam.ideaId, 4, owner);
+    expect(ids(plain)).toEqual([top.documentId, useful, rival.documentId, near]);
+    expect(plain[2].score - plain[3].score).toBeLessThan(USEFUL_BOOST);
+    expect(plain.every((h) => h.via === undefined)).toBe(true);
+
+    await mark(useful, "useful");
+    const mine = await priorArtFor(db, sam.ideaId, 3, owner);
+    expect(ids(mine)).not.toContain(rival.documentId);
+    const hit = mine.find((h) => h.documentId === near);
+    expect(hit?.via).toEqual({ useful });
+    expect(hit?.score).toBeCloseTo(plain[3].score, 6);
+    expect(mine.filter((h) => h.via)).toHaveLength(1);
+    const theirs = await priorArtFor(db, sam.ideaId, 3, { ...all, viewerId: priyaId() });
+    // The plain ranking: no neighbour, and the document the owner excluded.
+    expect(ids(theirs)).toEqual(ids(await priorArtFor(db, sam.ideaId, 3, all)));
+    expect(ids(theirs)).not.toContain(near);
+    expect(theirs.every((h) => h.via === undefined)).toBe(true);
+  });
+
+  it("ranks with verdicts exactly as a scan of every vector would, and without them for anyone else", async () => {
+    const [{ mid }] = await db.select({ mid: document.createdAt }).from(document).where(eq(document.title, CORPUS[2].title));
+    let via = 0;
+    for (const since of [undefined, mid]) {
+      for (const perField of [undefined, Infinity]) {
+        for (const k of [3, 10]) {
+          const want = await exactScan(sam.ideaId, k, since, { ownerId: samId(), perField });
+          const got = await priorArtFor(db, sam.ideaId, k, { since, viewerId: samId(), perField });
+          expect(ids(got)).toEqual(ids(want));
+          for (const [at, h] of got.entries()) {
+            expect(h.score).toBeCloseTo(want[at].score, 5);
+            expect(h.via).toEqual(want[at].via);
+          }
+          via += got.filter((h) => h.via).length;
+          const theirs = await priorArtFor(db, sam.ideaId, k, { since, viewerId: priyaId(), perField });
+          expect(ids(theirs)).toEqual(ids(await exactScan(sam.ideaId, k, since, { perField })));
+        }
+      }
+    }
+    expect(via).toBeGreaterThan(0);
   });
 });
 

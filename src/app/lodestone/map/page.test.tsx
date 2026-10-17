@@ -37,7 +37,7 @@ describe("map page", () => {
     const db = await getDb();
     who.person = { id: await ensurePerson(db, director), ...director };
     const html = renderToStaticMarkup(await MapPage());
-    expect(html.match(/class="fig"/g)?.length).toBe(5);
+    expect(html.match(/class="fig"/g)?.length).toBe(6);
     expect(html).toMatch(/class="num"[^>]*>01</);
   });
 });

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { check, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { person } from "./schema";
+import { check, halfvec, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { document, person } from "./schema";
 
 /** Where a Forge card can be seen. `private` is the default and the state a
  *  card returns to when its owner withdraws it. `cohort` is every active
@@ -25,6 +25,9 @@ export const forgeCard = pgTable("forge_card", {
   publishedAt: timestamp("published_at", { withTimezone: true }),
   importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /** How many times the card has been sent; each import bumps it. 0 for a
+   *  card last sent before it existed. `card_rank` is keyed on it. */
+  importSeq: integer("import_seq").notNull().default(0),
 }, (t) => [
   index("forge_card_owner_idx").on(t.ownerId),
   index("forge_card_visibility_idx").on(t.visibility, t.publishedAt),
@@ -33,6 +36,56 @@ export const forgeCard = pgTable("forge_card", {
 ]);
 
 export type ForgeCardRow = typeof forgeCard.$inferSelect;
+
+export type CardSearchState = "running" | "done";
+/** Per source: documents new to the corpus, already held, Semantic Scholar
+ *  hits without a DOI, and the error that stopped it, if any. */
+export type CardSearchSources = Record<
+  string,
+  { new: number; existing: number; skipped_no_doi?: number; skipped_not_scholarly?: number; error?: string }
+>;
+
+/** The last search run for one block of one card. `text_hash` is the sha256
+ *  of the block's entry texts in canvas order: a re-import searches a block
+ *  only when it changed, or when its row has sat `running` past the stale
+ *  window. No other member's token reads this table. */
+export const cardSearch = pgTable("card_search", {
+  ideaId: text("idea_id").notNull().references(() => forgeCard.ideaId, { onDelete: "cascade" }),
+  /** The block key: `value_proposition`, never its label. */
+  block: text("block").notNull(),
+  textHash: text("text_hash").notNull(),
+  state: text("state").$type<CardSearchState>().notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  sources: jsonb("sources").$type<CardSearchSources>().notNull().default(sql`'{}'::jsonb`),
+  /** Documents this run added to the corpus. */
+  found: integer("found").notNull().default(0),
+}, (t) => [
+  primaryKey({ columns: [t.ideaId, t.block] }),
+  check("card_search_state_valid", sql`${t.state} in ('running', 'done')`),
+]);
+
+/** A ranked hit as `card_rank` keeps it: the `PaperHit` as JSON, dates as
+ *  ISO strings. */
+export type CardRankHit = { documentId: string } & Record<string, unknown>;
+
+/** The owner's ranked list for one import of a card, written once, when
+ *  that import's search is done: what the next import's pivot diff is taken
+ *  against. `block_hashes` is each block's `card_search.text_hash` at the
+ *  time, so the diff can name the blocks that changed. */
+export const cardRank = pgTable("card_rank", {
+  ideaId: text("idea_id").notNull().references(() => forgeCard.ideaId, { onDelete: "cascade" }),
+  importSeq: integer("import_seq").notNull(),
+  takenAt: timestamp("taken_at", { withTimezone: true }).notNull().defaultNow(),
+  hits: jsonb("hits").$type<CardRankHit[]>().notNull(),
+  blockHashes: jsonb("block_hashes").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+}, (t) => [
+  primaryKey({ columns: [t.ideaId, t.importSeq] }),
+]);
+
+export type CardRankRow = typeof cardRank.$inferSelect;
+
+export type CardSearchRow = typeof cardSearch.$inferSelect;
 
 /** A bearer token a member mints for a client of their own, Whetstone being
  *  the first. The token itself is shown once and never stored; the row holds
@@ -81,3 +134,27 @@ export const cardFeedback = pgTable("card_feedback", {
 ]);
 
 export type CardFeedbackRow = typeof cardFeedback.$inferSelect;
+
+/** The verdict graph: one row per paper verdict, keyed by the block it
+ *  judged, carrying that block's unit-mean vector as it stood when the
+ *  person judged. A snapshot on purpose — it stays meaningful after the card
+ *  pivots. Written by `recordFeedback`; no ranking reads it yet. A revoked
+ *  member's rows stay and are left out at read time. */
+export const paperBlockVerdict = pgTable("paper_block_verdict", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id").notNull().references(() => document.id, { onDelete: "cascade" }),
+  /** The block key: `value_proposition`, never its label. */
+  block: text("block").notNull(),
+  ideaId: text("idea_id").notNull().references(() => forgeCard.ideaId),
+  personId: uuid("person_id").notNull().references(() => person.id),
+  verdict: text("verdict").$type<CardFeedbackVerdict>().notNull(),
+  // 1024 is `EMBEDDING_DIMENSIONS`, which `schema.ts` re-exports this file
+  // before defining, so it cannot be imported here.
+  blockEmbedding: halfvec("block_embedding", { dimensions: 1024 }).notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("paper_block_verdict_one_opinion").on(t.documentId, t.block, t.ideaId, t.personId),
+  check("paper_block_verdict_verdict_valid", sql`${t.verdict} in ('useful', 'known', 'not_relevant')`),
+]);
+
+export type PaperBlockVerdictRow = typeof paperBlockVerdict.$inferSelect;

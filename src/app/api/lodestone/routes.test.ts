@@ -2,19 +2,38 @@
  *  minted, a card is sent, read back with its matches, published, and judged.
  *  The handlers run as functions; `getDb()` is the in-memory PGlite under
  *  vitest, so the routes share one database for the file. */
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { COHORT, forgeDocument } from "../../../../evals/lodestone/cohort";
 import { getDb } from "@/db/client";
 import { ensurePerson } from "@/harness/ledger";
+import type { OpenAlexWork } from "@/harness/papers/openalex";
 import { mintToken } from "@/lodestone/api";
+import { CARD_SEARCH_QUERY_SET, PROVENANCE_KEYS, searchCard } from "@/lodestone/search";
+import { testEmbed } from "@/lodestone/test-embed";
 import { enrollTestMember } from "@/pilot/test-fixtures";
+
+/** `after` callbacks are queued, never run: the real card search would go to
+ *  the network. A test that wants a search runs `searchCard` with fakes. */
+const queued: (() => unknown)[] = [];
+vi.mock("next/server", async (original) => ({
+  ...(await original<typeof import("next/server")>()),
+  after: (task: () => unknown) => void queued.push(task),
+}));
+/** The routes embed with the hashed bag of words, never Voyage. Imported at
+ *  call time: `test-embed` itself imports this module. */
+vi.mock("@/harness/embed", async (original) => ({
+  ...(await original<typeof import("@/harness/embed")>()),
+  embed: async (texts: string[]) => (await import("@/lodestone/test-embed")).testEmbed(texts),
+}));
 import { GET as me } from "./me/route";
 import { GET as listCards, POST as sendCard } from "./cards/route";
 import { GET as readCard, PATCH as patchCard } from "./cards/[ideaId]/route";
 import { GET as readFeedback, POST as sendFeedback } from "./cards/[ideaId]/feedback/route";
 import { GET as readPaper } from "./papers/[documentId]/route";
-import { document } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { artifactTexts, cardRank, document, forgeCard } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
+import { embedPaperAbstracts } from "@/lodestone/priorArt";
 
 const origin = "https://lodestone.invalid";
 const sam = COHORT[0];
@@ -53,6 +72,8 @@ describe("client routes", () => {
     expect(a.card.ideaId).toBe(sam.ideaId);
     expect(a.card.visibility).toBe("private");
     expect(a.filed).toBeGreaterThan(0);
+    expect(a.search).toBe("queued");
+    expect(queued).toHaveLength(1);
     const second = await sendCard(req("/api/lodestone/cards", { method: "POST", body: JSON.stringify(forgeDocument(sam)) }));
     expect(second.status).toBe(200);
     expect((await second.json()).created).toBe(false);
@@ -75,6 +96,88 @@ describe("client routes", () => {
     expect(Array.isArray(body.priorArt)).toBe(true);
     expect(Array.isArray(body.peers)).toBe(true);
     expect(body.feedback).toEqual([]);
+    // Queued, never run here: no rows, so done with nothing found.
+    expect(body.search).toEqual({ state: "done", finishedAt: null, sources: {}, found: 0, abstracted: false });
+  });
+  it("accepts a forge-idea/5 card and never shows its purpose to another member", async () => {
+    const db = await getDb();
+    const priya = COHORT[1];
+    const priyaId = await ensurePerson(db, { name: priya.name, email: priya.email });
+    await enrollTestMember(db, priyaId);
+    const priyaToken = (await mintToken(db, priyaId, "test client")).token;
+    const doc = { ...forgeDocument(priya), format: "forge-idea/5", already_have: [], purpose: { l1: "Secret one", l2: "Secret two", note: "x" } };
+    const sent = await sendCard(req("/api/lodestone/cards", { method: "POST", body: JSON.stringify(doc) }, priyaToken));
+    expect(sent.status).toBe(201);
+    const pub = await patchCard(req(`/api/lodestone/cards/${priya.ideaId}`, { method: "PATCH", body: JSON.stringify({ visibility: "cohort" }) }, priyaToken), params(priya.ideaId));
+    expect(pub.status).toBe(200);
+    const own = await (await readCard(req(`/api/lodestone/cards/${priya.ideaId}`, {}, priyaToken), params(priya.ideaId))).json();
+    expect(own.search.abstracted).toBe(true);
+    const seen = await readCard(req(`/api/lodestone/cards/${priya.ideaId}`), params(priya.ideaId));
+    expect(seen.status).toBe(200);
+    const text = await seen.text();
+    expect(text).not.toMatch(/purpose|Secret one|Secret two/);
+  });
+  it("serves a searched-in paper with provenance inside the allowlist and no query", async () => {
+    const db = await getDb();
+    const words = "Groups that reserve a shared room and fail to arrive leave it empty while others queue, and a short grace period before release recovers most of that lost time across a semester of bookings.";
+    const index: Record<string, number[]> = {};
+    words.split(" ").forEach((w, i) => (index[w] ??= []).push(i));
+    const work: OpenAlexWork = { id: "https://openalex.org/W777001", doi: "https://doi.org/10.5555/grace", title: "Grace periods", publication_year: 2022, type: "article", primary_location: { source: { display_name: "Library Quarterly", type: "journal" } }, abstract_inverted_index: index };
+    await searchCard(db, sam.ideaId, {
+      searchWorks: async (options, onWork) => {
+        if (options.semantic) await onWork(work);
+        return { seen: 1, stopped: false, cursor: null };
+      },
+      searchS2: async () => ({ hits: [], skippedNoDoi: 0 }),
+      fetchWork: async () => null,
+      embed: testEmbed,
+      now: () => new Date(),
+    });
+    const [row] = await db
+      .select({ id: artifactTexts.artifactId })
+      .from(artifactTexts)
+      .where(sql`${artifactTexts.provenance}->>'openalex_id' = ${work.id}`);
+    const body = await (await readPaper(req(`/api/lodestone/papers/${row.id}`), { params: Promise.resolve({ documentId: row.id }) })).json();
+    expect(body.provenance.query_set).toBe(CARD_SEARCH_QUERY_SET);
+    expect(body.provenance).not.toHaveProperty("query");
+    for (const key of Object.keys(body.provenance)) expect(PROVENANCE_KEYS).toContain(key);
+  });
+  it("names each hit's nearest sentences, cut from the abstract under its hash, and re-cuts a replaced one", async () => {
+    const db = await getDb();
+    const paperParams = (documentId: string) => ({ params: Promise.resolve({ documentId }) });
+    const abstract = `${sam.said.join(" ")} We survey four hundred arriving students across three campuses. The deposit held in escrow reduced mid-lease moves.`;
+    const [paper] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Sentences under a hash", text: null }).returning({ id: document.id });
+    await putArtifactText(db, { artifactId: paper.id, sourceFormat: "abstract", parser: "test", text: abstract, provenance: { query_set: "sentences" } });
+    await embedPaperAbstracts(db, testEmbed);
+
+    const hitFor = async () => {
+      const body = await (await readCard(req(`/api/lodestone/cards/${sam.ideaId}`), params(sam.ideaId))).json();
+      const hit = body.priorArt.find((h: { documentId: string }) => h.documentId === paper.id);
+      const read = await (await readPaper(req(`/api/lodestone/papers/${paper.id}`), paperParams(paper.id))).json();
+      return { hit, read };
+    };
+    const first = await hitFor();
+    expect(first.hit).toBeDefined();
+    expect(first.hit.abstractHash).toBe(first.read.abstractHash);
+    expect(first.hit.sentences).toHaveLength(3);
+    for (const s of first.hit.sentences) {
+      expect(first.read.abstract).toContain(s.text);
+      expect(s.block).toBe(first.hit.blockKeys[0]);
+      expect(typeof s.cosine).toBe("number");
+    }
+    const at = first.hit.sentences.map((s: { text: string }) => first.read.abstract.indexOf(s.text));
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+
+    const replaced = "Incoming graduate students lease apartments months before arrival without seeing them. A recorded walkthrough from the departing student replaces the visit.";
+    await putArtifactText(db, { artifactId: paper.id, sourceFormat: "abstract", parser: "test", text: replaced, provenance: { query_set: "sentences" } });
+    const second = await hitFor();
+    expect(second.read.abstract).toBe(replaced);
+    expect(second.hit.abstractHash).toBe(second.read.abstractHash);
+    expect(second.hit.abstractHash).not.toBe(first.hit.abstractHash);
+    expect(second.hit.sentences.map((s: { text: string }) => s.text)).toEqual([
+      "Incoming graduate students lease apartments months before arrival without seeing them.",
+      "A recorded walkthrough from the departing student replaces the visit.",
+    ]);
   });
   it("404s a card the token cannot see and 400s a malformed id", async () => {
     const missing = await readCard(req(`/api/lodestone/cards/${"e".repeat(32)}`), params("e".repeat(32)));
@@ -151,6 +254,51 @@ describe("client routes", () => {
     expect((await readPaper(req(`/api/lodestone/papers/${halfway.id}`), paperParams(halfway.id))).status).toBe(404);
     const [deck] = await db.insert(document).values({ sessionId: null, source: "deck", title: "a deck", text: "slides" }).returning({ id: document.id });
     expect((await readPaper(req(`/api/lodestone/papers/${deck.id}`), paperParams(deck.id))).status).toBe(404);
+  });
+  it("diffs the owner's list against the last send once its search is done, never snapshotting on the first read", async () => {
+    const db = await getDb();
+    const snapshots = async (ideaId: string) => db.select().from(cardRank).where(eq(cardRank.ideaId, ideaId));
+    const read = async (ideaId: string, auth = token) => (await readCard(req(`/api/lodestone/cards/${ideaId}`, {}, auth), params(ideaId))).json();
+    const before = (await snapshots(sam.ideaId)).length;
+    expect(before).toBeGreaterThan(0);
+    const pivot = { ...sam, entries: sam.entries.map((e) => (e.block === "customer_segments" ? { ...e, text: "Visiting scholars on one-term appointments" } : e)) };
+    expect((await sendCard(req("/api/lodestone/cards", { method: "POST", body: JSON.stringify(forgeDocument(pivot)) }))).status).toBe(200);
+    const [{ importSeq }] = await db.select({ importSeq: forgeCard.importSeq }).from(forgeCard).where(eq(forgeCard.ideaId, sam.ideaId));
+
+    // Its search queued, not run: no snapshot, and nothing to diff yet.
+    const first = await read(sam.ideaId);
+    expect(first.changes).toBeNull();
+    expect(await snapshots(sam.ideaId)).toHaveLength(before);
+
+    await searchCard(db, sam.ideaId, {
+      searchWorks: async () => ({ seen: 0, stopped: false, cursor: null }),
+      searchS2: async () => ({ hits: [], skippedNoDoi: 0 }),
+      fetchWork: async () => null,
+      embed: testEmbed,
+      now: () => new Date(),
+    });
+    expect(await snapshots(sam.ideaId)).toHaveLength(before + 1);
+    const after = await read(sam.ideaId);
+    expect(after.changes).toMatchObject({ since: String(importSeq), blocks: ["customer_segments"] });
+    expect(Array.isArray(after.changes.added)).toBe(true);
+    expect(Array.isArray(after.changes.dropped)).toBe(true);
+  });
+  it("snapshots a card not sent since snapshots began on its first read, once over three, and shows no one else the diff", async () => {
+    const db = await getDb();
+    const priya = COHORT[1];
+    const priyaId = await ensurePerson(db, { name: priya.name, email: priya.email });
+    const priyaToken = (await mintToken(db, priyaId, "second client")).token;
+    // As a card imported before `import_seq` existed reads.
+    await db.update(forgeCard).set({ importSeq: 0 }).where(eq(forgeCard.ideaId, priya.ideaId));
+    for (let i = 0; i < 3; i++) {
+      const own = await (await readCard(req(`/api/lodestone/cards/${priya.ideaId}`, {}, priyaToken), params(priya.ideaId))).json();
+      expect(own.changes).toBeNull();
+    }
+    const rows = await db.select().from(cardRank).where(eq(cardRank.ideaId, priya.ideaId));
+    expect(rows.map((r) => r.importSeq)).toEqual([0]);
+    // Sam reads Priya's published card: no diff, not even a null one.
+    const seen = await (await readCard(req(`/api/lodestone/cards/${priya.ideaId}`), params(priya.ideaId))).json();
+    expect(seen).not.toHaveProperty("changes");
   });
   it("reads back a card sent under Whetstone's own id, a dashed uuid", async () => {
     // Whetstone mints idea ids with crypto.randomUUID(); only a /1 document's

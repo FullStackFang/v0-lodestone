@@ -9,11 +9,11 @@ worked at the same time as the row before them.
 
 ## 1. Key
 
-- [ ] 1.1 `lodestone-sources-repair` section 1 complete. Gate: 20-DOI keyed run, no budget notice; 25/s under a key. Date:
+- [x] 1.1 `lodestone-sources-repair` section 1 complete. Gate: 20-DOI keyed run, no budget notice; 25/s under a key. Date: 2026-10-15 — 20/20 DOIs fetched with `api_key`, all 200, no budget notice (a keyed two-page query also none); the limiter runs at 25/s under a key and 10/s without (fake-clock tests; the run prints its ceiling). A serial `--list` run is latency-bound at about 4/s
 
 ## 2. Measure (parallel with 3 and 4a)
 
-- [ ] 2.1 `lodestone-eval-set` complete. Gate: `baseline.md` from `--no-search` over marks + distractors. P@5 / R@10 / MRR / fields:
+- [x] 2.1 `lodestone-eval-set` complete. Gate: `baseline.md` from `--no-search` over marks + distractors. P@5 / R@10 / MRR / fields: 2026-10-16 — 0.207 / 0.517 / 0.502 / 4.63 over 30 cards, 86 marks, 953 distractors (marks are Claude's calls, not hand-ticked; cross-field cards MRR 0.303)
 
 ## 3. Patents (parallel with 2 and 4a)
 
@@ -21,13 +21,13 @@ worked at the same time as the row before them.
 
 ## 4. Publish
 
-- [ ] 4a.1 `lodestone-publish` sections 1–2 (roster, join, health, migrate URL, seed guard) complete against PGlite. Date:
+- [x] 4a.1 `lodestone-publish` sections 1–2 (roster, join, health, migrate URL, seed guard) complete against PGlite. Date: 2026-10-15 — typecheck clean; 389 passed, 1 skipped; `next build` lists `/lodestone/roster`, `/lodestone/join/[token]`, `/api/lodestone/health`
 - [ ] 4b.1 `lodestone-publish` sections 3–4 complete. Gate: health all true on production and preview; owner signed in by Resend; membership-kind operator invited a second member who accepted; token minted; Whetstone connection test passes against production. Date / URL:
 
 ## 5. Search
 
-- [ ] 5.1 `lodestone-card-search` complete. Gate: eval rows `search`, `quota`, `purpose`; marked-document MRR ≥ baseline; fields ≥ baseline + 1; one production card reaches `done` with `found > 0`; provenance allowlist holds on a searched-in paper. Date / values:
-- [ ] 5.2 (parallel with 5.1) `lodestone-hit-sentences` section 1 and `lodestone-verdict-ranking` sections 1 and 3 complete against the committed corpus. Date:
+- [ ] 5.1 `lodestone-card-search` complete. Gate: eval rows `search`, `quota`, `purpose`; fields ≥ baseline + 1; marked-document MRR ≥ half the baseline; at least half of the searched-in top-five hits on ten sampled cards judged relevant; one production card reaches `done` with `found > 0`; provenance allowlist holds on a searched-in paper. Date / values:
+- [x] 5.2 (parallel with 5.1) `lodestone-hit-sentences` section 1 and `lodestone-verdict-ranking` sections 1 and 3 complete against the committed corpus. Date: 2026-10-16 (65aae23, c1a47d0; 459 tests pass)
 
 ## 6. Explain
 

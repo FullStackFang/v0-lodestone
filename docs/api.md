@@ -3,8 +3,8 @@
 What Whetstone, or any client a member runs, may do against Lodestone. The
 server stores, embeds once, ranks and serves. It calls no model, and nothing
 here returns another member's thread, evidence sentences or contact details.
-The contract between the two apps is this page plus the `forge-idea/4`
-export format Whetstone writes (`/3`, `/2` and `/1` are still accepted).
+The contract between the two apps is this page plus the `forge-idea/5`
+export format Whetstone writes (`/4`, `/3`, `/2` and `/1` are still accepted).
 
 ## Authentication
 
@@ -40,8 +40,8 @@ The connection test. Who the token is and what the network holds.
 
 ### `POST /api/lodestone/cards`
 
-The import form as an API. The body is a `forge-idea/1`, `/2`, `/3` or `/4`
-export, whole. The card is filed under the token's person and embedded; the
+The import form as an API. The body is a `forge-idea/1`, `/2`, `/3`, `/4` or
+`/5` export, whole. The card is filed under the token's person and embedded; the
 ledger rows beneath it supersede, so sending the same idea again updates
 rather than duplicates. An idea id that belongs to someone else is refused
 with `400`.
@@ -59,18 +59,34 @@ Whetstone's author weighed from a paper's abstract against a block, as
 document but not yet projected, embedded or ranked, and never become an
 entry's evidence.
 
+A `/5` document is `/4` with an optional top-level `purpose: { "l1", "l2" }`:
+two sentences on what the idea does for whom, at two levels of generality,
+with no product or market nouns. Other keys under `purpose` are dropped.
+Lodestone reads it only to build search queries; it is never projected,
+embedded, or returned to anyone but the owner.
+
 `201` on first import, `200` on update:
 
 ```json
 {
   "card": { "ideaId": "…", "title": "fang-nest", "line": "…", "visibility": "private",
             "publishedAt": null, "updatedAt": "…", "confirmed": 7 },
-  "created": true, "filed": 11, "superseded": 0, "embedded": 10
+  "created": true, "filed": 11, "superseded": 0, "embedded": 10,
+  "search": "queued"
 }
 ```
 
 `embedded` is `0` when the server has no embedding key; the card is stored
 and every match list is empty until one exists.
+
+`search: "queued"`: once the response is sent, each block whose text changed
+since its last search is searched in OpenAlex (semantic and keyword) and
+Semantic Scholar, and what comes back is ingested and embedded, typically
+within one to three minutes. **The block entries and `purpose.l2` are sent to
+OpenAlex and Semantic Scholar as search strings**; nothing else about the card
+leaves the server, and nothing of the card is stored with the papers found.
+OpenAlex data is CC0; Semantic Scholar data is ODC-BY, so a client that shows
+a Semantic Scholar TLDR attributes it to Semantic Scholar.
 
 ### `GET /api/lodestone/cards`
 
@@ -89,8 +105,14 @@ One card and what the network found for it. For the owner:
   "segments": [],
   "member": true,
   "corpus": 15,
+  "search": { "state": "done", "finishedAt": "…", "found": 37, "abstracted": true,
+              "sources": { "openalex_semantic": { "new": 20, "existing": 30 },
+                           "openalex_keyword": { "new": 9, "existing": 16 },
+                           "s2": { "new": 8, "existing": 12, "skipped_no_doi": 5, "error": "…" } } },
   "priorArt": [ { "documentId": "…", "kind": "paper", "querySet": "food-waste", "title": "…",
-                  "score": 0.81, "blocks": ["Value proposition"], "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…" }, … ],
+                  "score": 0.81, "blocks": ["Value proposition"], "blockKeys": ["value_proposition"], "year": 2025, "venue": "…", "field": "…", "url": null, "yours": false, "addedAt": "…" }, … ],
+  "changes": { "since": "4", "blocks": ["customer_segments"],
+               "added": [ { …hit }, … ], "dropped": [ { …hit, "verdict": "useful" }, … ] },
   "peers": [ { "ideaId": "…", "title": "…", "line": "…", "owner": { "id": "…", "name": "…" },
                "publishedAt": "…", "score": 0.78,
                "shared": [ { "mine": "channels", "theirs": "channels", "similarity": 0.83 } ] }, … ],
@@ -98,16 +120,56 @@ One card and what the network found for it. For the owner:
 }
 ```
 
+`search` is the card's search so far. `state` is `running` while any block
+is searching, `stale` when one has run past five minutes (the next import
+searches it again), else `done`; poll while it is not `done`. `found` counts
+documents the searches added to the corpus; `sources` sums each source over
+the blocks and keeps the last error, which the next import retries.
+`abstracted` is whether the card carried a `purpose`. A card imported before
+search existed reads `done` with `found: 0`.
+
 Prior art is the ten closest papers and patents, ranked in one list by the
-same cosine. `kind` is `paper` or `patent`; a patent's `url` is its Google
+same cosine, with at most three from any one `field` so the list is not the
+founder's own field ten times over (a shorter list means the closest
+candidates ran out). `blocks` are labels for display; `blockKeys` are the
+same blocks as keys, in the same order — key on those. `kind` is `paper` or `patent`; a patent's `url` is its Google
 Patents page and its `field` is the CPC section. `querySet` names the ingest
-set the document came from, or is `null` for a seeded abstract. `yours` is
+set the document came from, `card-search` for one a card search brought in,
+or `null` for a seeded abstract. `yours` is
 true for one the author listed
 in `already_have` (matched by DOI or OpenAlex id — still returned, so they
 see the corpus holds it). Peers are the ten closest published cards, present only
 when the owner is an active member. For a cohort card the token
 may view but does not own, the response is `card`, `owner`, `blocks` and
 `segments` alone.
+
+The owner's verdicts on the card shape their own list. A document they
+marked `not_relevant` is left out, and the list is still ten long when the
+corpus allows. A document within 0.85 of one they marked `useful` joins the
+candidates, is ranked as if its score were 0.05 higher, and carries
+`"via": { "useful": "<documentId>" }`, naming the useful one — say "because
+you found <title> useful". Its `score` is still its own cosine; only its
+place moved. A hit with no `via` has no such key. `known` changes nothing.
+Verdicts never leave the server: no verdict is sent to OpenAlex, Semantic
+Scholar or any other service. And they shape no one else's view: a member
+who is not the owner never sees `via`, nor anything else a verdict
+produced, on any route or page.
+
+`changes` is what the last send did to the list. When a send's search is
+done, the owner's top ten is kept; `changes` compares the list now with the
+one kept for the newest earlier send. `since` is the send it is for, as a
+string — it changes only when the card is sent again, so a client that
+dismissed the note keeps it dismissed by that value. `blocks` are the keys
+of the blocks whose entries changed. `added` are hits in the list now that
+were not then; `dropped` are hits that were then and are not now, as they
+were then, each with `verdict`: the owner's on it for this card, or `null`.
+A dropped hit the owner found `useful` is not put back; say so — "since you
+changed your customer segment, three new papers, and <title>, which you
+found useful, dropped out". `changes` is `null` while `search.state` is
+`running`, after a send whose search has not started, and for a card with no
+earlier list (its first send, or the first read of a card not sent since
+lists were kept). When all three arrays are empty there is nothing to say.
+Only the owner sees `changes`; another member's response has no such key.
 
 ### `PATCH /api/lodestone/cards/<ideaId>`
 
@@ -120,7 +182,7 @@ What the owner thought of one match the client showed them.
 
 ```json
 { "kind": "paper", "targetId": "<documentId>", "verdict": "useful",
-  "context": { "score": 0.81, "blocks": ["Value proposition"] } }
+  "context": { "score": 0.81, "blockKeys": ["value_proposition"] } }
 ```
 
 `kind` is `paper` (target a `documentId` from `priorArt`) or `peer` (target an
@@ -128,6 +190,11 @@ What the owner thought of one match the client showed them.
 but the author already knew it) or `not_relevant`. One verdict per owner,
 card and target; a second replaces the first. `context` is kept as sent, so a
 later threshold retune can be judged against what the person actually saw.
+Send the hit's `blockKeys` in it, not its labels: verdicts are keyed on them.
+A paper verdict is also recorded against the first block named (a label is
+mapped to its key), with that block's vector as it stands at that moment; a
+context naming no block, or a block with no vector yet, records the verdict
+alone. No ranking reads that record yet.
 
 `GET` on the same path lists the owner's verdicts for the card.
 
@@ -154,7 +221,10 @@ is no full text to return. Paper metadata comes from OpenAlex (CC0), so
 nothing is withheld. A patent's provenance carries `patent_number`,
 `assignees`, `inventors` and `cpc` instead of `doi`, `venue` and `authors`,
 and its citation names the inventors and the patent number. An id that is
-not a paper or patent, a card's idea id included, answers `404`.
+not a paper or patent, a card's idea id included, answers `404`. A paper a
+card search brought in has `query_set: "card-search"` and may carry `tldr`
+(Semantic Scholar's, ODC-BY); its provenance never names the card, the
+query, or the purpose.
 
 `abstractHash` is the stored hash of that abstract. Two reads with no
 re-ingest between them return the same one. Keep it beside anything anchored

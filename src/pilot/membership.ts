@@ -47,12 +47,27 @@ export function isPilotOperatorEmail(email: string) {
   return allowed.includes(normalizePilotEmail(email));
 }
 
-export async function assertPilotOperator(actor: VerifiedPilotActor) {
+/** `isOperator` over a membership read here, for a caller with no cached
+ *  row: the membership actions. Pages read the row once and pass it. */
+export async function isOperatorMember(db: Db, who: { id: string; email: string }) {
+  return isOperator(who, await membershipFor(db, who.id));
+}
+
+export async function assertPilotOperator(db: Db, actor: VerifiedPilotActor) {
   const value = Actor.parse(actor);
-  if (!value.emailVerified || !isPilotOperatorEmail(value.email)) {
+  if (!value.emailVerified || !(await isOperatorMember(db, { id: value.personId, email: value.email }))) {
     throw new Error("Pilot operator access required.");
   }
   return actor;
+}
+
+/** Record how an invitation's email went, for the roster to show. */
+export async function recordInvitationDelivery(db: Db, invitationId: string, error: unknown | null, now = new Date()) {
+  await db.update(pilotInvitation).set({
+    deliveryStatus: error ? "failed" : "sent",
+    deliveryAttemptedAt: now,
+    deliveryErrorCode: error ? (error instanceof Error ? error.message : String(error)).slice(0, 200) : null,
+  }).where(eq(pilotInvitation.id, z.uuid().parse(invitationId)));
 }
 
 function invitationTokenHash(token: string) {
@@ -89,7 +104,7 @@ export async function createInvitation(
   input: InvitationInput,
   options: InvitationOptions = {},
 ): Promise<{ invitation: PilotInvitation; token: string }> {
-  await assertPilotOperator(actor);
+  await assertPilotOperator(db, actor);
   const email = normalizePilotEmail(input.email);
   return db.transaction(async (tx) => {
     const [pending] = await tx.select({ id: pilotInvitation.id }).from(pilotInvitation)
@@ -105,7 +120,7 @@ export async function renewInvitation(
   input: InvitationInput,
   options: InvitationOptions = {},
 ) {
-  await assertPilotOperator(actor);
+  await assertPilotOperator(db, actor);
   const email = normalizePilotEmail(input.email);
   const now = options.now ?? new Date();
   return db.transaction(async (tx) => {
@@ -118,7 +133,7 @@ export async function renewInvitation(
 }
 
 export async function revokeInvitation(db: Db, actor: VerifiedPilotActor, invitationId: string, now = new Date()) {
-  await assertPilotOperator(actor);
+  await assertPilotOperator(db, actor);
   const [row] = await db.update(pilotInvitation).set({ status: "revoked", revokedAt: now })
     .where(and(eq(pilotInvitation.id, z.uuid().parse(invitationId)), eq(pilotInvitation.status, "pending"))).returning();
   if (!row) throw new Error("Pending invitation unavailable.");
@@ -215,7 +230,7 @@ export async function invitationAcceptanceState(
 }
 
 export async function listPilotRoster(db: Db, actor: VerifiedPilotActor) {
-  await assertPilotOperator(actor);
+  await assertPilotOperator(db, actor);
   const [invitations, memberships] = await Promise.all([
     db.select({
       id: pilotInvitation.id,
@@ -329,7 +344,7 @@ export async function revokeMembership(
   personId: string,
   now = new Date(),
 ) {
-  await assertPilotOperator(actor);
+  await assertPilotOperator(db, actor);
   const targetId = z.uuid().parse(personId);
   return db.transaction(async (tx) => {
     const [membership] = await tx.select().from(pilotMembership)

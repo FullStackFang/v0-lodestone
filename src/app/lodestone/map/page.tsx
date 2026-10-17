@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { getDb } from "@/db/client";
 import { currentMembership, requirePerson } from "@/lib/session";
-import { cohortMap, corpusSummary } from "@/lodestone/map";
+import { cohortMap, corpusSummary, verdictGraph } from "@/lodestone/map";
 import { isOperator } from "@/pilot/membership";
-import { Chip, Pill, SectionHead } from "../ui";
+import { OperatorsOnly } from "../OperatorsOnly";
+import { Chip, SectionHead } from "../ui";
 
 export const dynamic = "force-dynamic";
 
@@ -14,23 +14,9 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 export default async function MapPage() {
   const db = await getDb();
   const person = await requirePerson(db);
-  const director = isOperator(person, await currentMembership());
-  if (!director) {
-    return <div className="wrap stack">
-      <section className="panel paper split">
-        <div className="sec">
-          <Link className="back dark" href="/lodestone"><ArrowLeft size={14} />Your cards</Link>
-          <h1 className="h1 title" style={{ color: "var(--ink)" }}>Directors only</h1>
-        </div>
-        <div className="sec">
-          <p className="lede" style={{ maxWidth: "52ch" }}>The map is the program&apos;s view. It counts and names regions; it never opens a private card. Ask an operator for the operator role to see it.</p>
-          <Pill href="/lodestone" variant="line" arrow="left" className="self-start">Back to your cards</Pill>
-        </div>
-      </section>
-    </div>;
-  }
+  if (!isOperator(person, await currentMembership())) return <OperatorsOnly page="cohort map" />;
   const now = new Date();
-  const [map, corpus] = await Promise.all([cohortMap(db), corpusSummary(db)]);
+  const [map, corpus, graph] = await Promise.all([cohortMap(db), corpusSummary(db), verdictGraph(db)]);
   const biggest = Math.max(1, ...map.regions.map((r) => r.cards.length));
   const tallest = Math.max(1, ...map.profile.rows.map((r) => r.count));
   const above = map.profile.rows.filter((r) => r.close).reduce((n, r) => n + r.count, 0);
@@ -58,6 +44,7 @@ export default async function MapPage() {
       <div className="fig"><b className="accent">{map.counts.published}</b><span>cards published to the cohort</span></div>
       <div className="fig"><b>{map.regions.length}</b><span>regions the cards form</span></div>
       <div className="fig"><b>{map.papersTouched}</b><span>papers within {map.close.toFixed(2)} of a card</span></div>
+      <div className="fig"><b>{graph.ideas}</b><span>idea{graph.ideas === 1 ? "" : "s"} the verdicts come from; prior off</span></div>
     </section>
 
     <section className="panel plum split">

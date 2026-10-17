@@ -14,6 +14,8 @@ import { importForgeCard } from "./actions";
 import { Chip, Go, Leader, Pill, SectionHead } from "./ui";
 
 export const dynamic = "force-dynamic";
+/** The import action's card search runs after it responds, inside this limit. */
+export const maxDuration = 300;
 
 const README = "https://github.com/fullstackfang/v0-lodestone#readme";
 const day = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -115,7 +117,8 @@ export default async function LodestonePage() {
         <div className="leaders">
           <Leader n="02" href="#cohort">The cohort&apos;s published cards</Leader>
           {operator ? <Leader n="03" href="/lodestone/map">Cohort map</Leader> : null}
-          <Leader n="04" href="/lodestone/tokens">API tokens for Whetstone</Leader>
+          {operator ? <Leader n="04" href="/lodestone/roster">Roster</Leader> : null}
+          <Leader n={operator ? "05" : "03"} href="/lodestone/tokens">API tokens for Whetstone</Leader>
         </div>
       </aside>
       <div className="insights">

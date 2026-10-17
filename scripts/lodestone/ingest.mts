@@ -18,9 +18,11 @@
  * On a rate limit or a network failure the run stops, embeds what it wrote,
  * prints the cursor to resume from, and exits 2.
  *
- * `OPENALEX_MAILTO` buys OpenAlex's polite pool and `OPENALEX_API_KEY` lets a
- * query page past its first 200 (OpenAlex refuses cursor paging without one);
- * `PATENTSVIEW_API_KEY` is required for patents. Honours `DATABASE_URL`;
+ * `OPENALEX_API_KEY` rides on every OpenAlex request: it buys the key's own
+ * daily budget and 25 requests a second, and lets a query page past its first
+ * 200 (OpenAlex refuses cursor paging without one). Without it the run draws
+ * on the shared keyless budget at 10 a second. `OPENALEX_MAILTO` rides beside
+ * it. `PATENTSVIEW_API_KEY` is required for patents. Honours `DATABASE_URL`;
  * without it opens the local PGlite directory, which `next dev` must not hold
  * at the same time. */
 import "../harness/env.mts";
@@ -32,7 +34,7 @@ import { embed } from "../../src/harness/embed";
 import { fetchWork, type OpenAlexWork } from "../../src/harness/papers/openalex";
 import { ingestLine, ingestWork, MIN_ABSTRACT_WORDS, parseList, type IngestResult } from "../../src/harness/papers/ingest";
 import { fetchPatent, ingestPatent, searchPatents, type PatentIngestResult, type PatentsViewPatent } from "../../src/harness/papers/patentsview";
-import { limiter, OPENALEX_PER_SECOND, PATENTSVIEW_PER_MINUTE } from "../../src/harness/papers/rate";
+import { limiter, openalexLimiter, openalexPerSecond, PATENTSVIEW_PER_MINUTE } from "../../src/harness/papers/rate";
 import { searchWorks, type SearchResult } from "../../src/harness/papers/search";
 import { CORPUS_SOURCES, corpusOrphans, embedPaperAbstracts } from "../../src/lodestone/priorArt";
 
@@ -62,6 +64,21 @@ const provenance = { ...(set ? { query_set: set } : {}), ...(query ? { query } :
 
 if (source === "patents" && !process.env.PATENTSVIEW_API_KEY?.trim()) usage("PATENTSVIEW_API_KEY is not set; PatentsView answers nothing without a key.");
 if (!process.env.VOYAGE_API_KEY?.trim()) console.log("VOYAGE_API_KEY is not set: works are written without vectors and nothing will match until a run with a key.");
+if (source === "openalex") {
+  console.log(
+    process.env.OPENALEX_API_KEY?.trim()
+      ? `# OpenAlex under OPENALEX_API_KEY: ${openalexPerSecond()} requests a second`
+      : `# OPENALEX_API_KEY is not set: OpenAlex runs on the shared keyless budget ($0.10 a day), ${openalexPerSecond()} requests a second, and a query stops after its first page`,
+  );
+}
+
+// OpenAlex says in `meta.notice` when a run is drawing on a budget; say it once.
+let noticed = false;
+const onNotice = (notice: string) => {
+  if (noticed || !/budget/i.test(notice)) return;
+  noticed = true;
+  console.log(`# OpenAlex: ${notice}`);
+};
 
 const db = await getDb();
 const tally = { new: 0, existing: 0, no_abstract: 0, short_abstract: 0, not_found: 0 };
@@ -88,7 +105,7 @@ if (query) {
   try {
     const result =
       source === "openalex"
-        ? await searchWorks({ query, since, limit, cursor, onPage }, async (work: OpenAlexWork) => {
+        ? await searchWorks({ query, since, limit, cursor, onPage, onNotice }, async (work: OpenAlexWork) => {
             report(await ingestWork(db, work.id ?? work.doi ?? "unknown", { fetchWork: async () => work, provenance, minWords: MIN_ABSTRACT_WORDS }));
             seen += 1;
           })
@@ -104,7 +121,7 @@ if (query) {
   }
 } else {
   const ids = parseList(readFileSync(list!, "utf8"));
-  const wait = source === "openalex" ? limiter(OPENALEX_PER_SECOND, 1000) : limiter(PATENTSVIEW_PER_MINUTE, 60_000);
+  const wait = source === "openalex" ? openalexLimiter() : limiter(PATENTSVIEW_PER_MINUTE, 60_000);
   const throttled =
     <T,>(fetcher: (id: string) => Promise<T>) =>
     async (id: string) => {

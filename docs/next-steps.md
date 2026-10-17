@@ -302,3 +302,31 @@ abstract. `priorArtFor` flags a corpus hit whose DOI or OpenAlex id matches as
 is still accepted and holds none. Pairing back into the canvas — a paper's
 sentence set beside a block — waits for real abstracts (Phase 4) and will be a
 separate `support` relation, never `evidence`, which is the author's own words.
+
+## After the MVP
+
+### The verdict prior
+
+`paper_block_verdict` (migration `0017_verdict_graph`) fills from the first
+paper verdict: one row per verdict, keyed by document, block key, idea and
+person, carrying the unit mean of the judged block's vectors at that moment.
+No ranking reads it; `/lodestone/map` shows operators how many ideas it holds
+and that the prior is off. Its first reader is the prior, designed in
+`openspec/changes/lodestone-verdict-ranking/design.md` §6 and built in its own
+change when the count is within reach:
+
+- For a candidate document and one block of the card being ranked, each row
+  on that document contributes `sign · max(0, cos − CLOSE)`, where `cos` is
+  between the row's `block_embedding` and the card's block vector, and `sign`
+  is positive for `useful` and negative for `not_relevant`. The sum, scaled
+  by `PRIOR_WEIGHT`, moves the candidate's place, never its `score`, as
+  `USEFUL_BOOST` does.
+- It is on only when `PRIOR_MIN_CARDS` (100) distinct ideas have rows in the
+  cohort; below that the table fills and every ranking ignores it.
+- Rows are read joined to active membership, so a revoked member's verdicts
+  count for nothing; no row is deleted.
+- It is a count weighted by closeness, in SQL: no learned model, no
+  cross-cohort sharing, and it exposes no card, person or verdict to anyone.
+
+`PRIOR_MIN_CARDS` and `PRIOR_WEIGHT` are named here and nowhere in code until
+that change.

@@ -29,7 +29,9 @@ checks (or `PILOT_OPERATOR_EMAILS`). Import any `forge-idea` export on `/lodesto
 Both scripts open `data/pglite` directly and must not run while `next dev` has it open.
 
 Without `VOYAGE_API_KEY` cards are filed with no vectors and every match list is empty
-and says so.
+and says so. `npm run lodestone:ingest` grows the paper corpus from OpenAlex; beside
+`VOYAGE_API_KEY` it wants `OPENALEX_API_KEY`, without which a query stops after one
+page of 200 and runs on OpenAlex's shared keyless budget.
 
 ## What is here
 
@@ -70,6 +72,14 @@ The canonical-text rules every stored offset depends on are in `NORMALIZATION.md
 in-memory ledger with a hashed bag-of-words embedder (`test-embed.ts`). The thresholds
 (`CLOSE` 0.75, `PAPER_FLOOR` 0.6) are tuned for Voyage and lowered explicitly in the
 test; what is under test is the mechanism.
+
+`npm run lodestone:eval -- --label <name> --no-search` scores the real ranking against a
+fixed set: the cards in `evals/lodestone/eval-set/cards.ts`, the papers marked relevant to
+each in `marks.ts`, and about 950 distractors in `distractors.txt`. It needs
+`VOYAGE_API_KEY` and `OPENALEX_API_KEY`, works in its own `data/pglite-eval`, prints
+precision at 5, recall at 10, MRR and distinct fields in the top ten, and writes the
+per-card table to `eval-set/results/<date>-<label>.md`. Only the first run fetches the
+corpus; later runs reuse it.
 
 ## Not built, on purpose
 

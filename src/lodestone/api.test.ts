@@ -1,6 +1,8 @@
+import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { COHORT, forgeDocument } from "../../evals/lodestone/cohort";
 import { createPgliteDb, type Db } from "@/db/client";
+import { document, paperBlockVerdict } from "@/db/schema";
 import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
 import {
@@ -16,7 +18,9 @@ import {
   revokeToken,
 } from "./api";
 import { importCard } from "./cards";
+import { verdictGraph } from "./map";
 import { testEmbed } from "./test-embed";
+import { blockVector, ideaVectors } from "./vectors";
 
 let db: Db;
 let sam: string;
@@ -97,6 +101,58 @@ describe("feedback", () => {
   it("rejects unknown kinds and verdicts", async () => {
     await expect(recordFeedback(db, sam, { ideaId: samCard.ideaId, kind: "book" as never, targetId: "x", verdict: "useful" })).rejects.toThrow(/kind/);
     await expect(recordFeedback(db, sam, { ideaId: samCard.ideaId, kind: "paper", targetId: "x", verdict: "meh" as never })).rejects.toThrow(/verdict/);
+  });
+});
+
+describe("the verdict graph", () => {
+  let paper: string;
+  const graph = () => db.select().from(paperBlockVerdict).where(eq(paperBlockVerdict.documentId, paper));
+  const verdict = (v: "useful" | "known" | "not_relevant", context?: Record<string, unknown>, kind: "paper" | "peer" = "paper", targetId = paper) =>
+    recordFeedback(db, sam, { ideaId: samCard.ideaId, kind, targetId, verdict: v, context });
+
+  beforeAll(async () => {
+    [{ id: paper }] = await db.insert(document).values({ sessionId: null, source: "paper", title: "Graph paper", text: null }).returning();
+  });
+
+  it("writes one row per verdict, carrying the unit mean of the block it judged", async () => {
+    await verdict("useful", { score: 0.8, blockKeys: ["value_proposition", "channels"] });
+    const rows = await graph();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ block: "value_proposition", ideaId: samCard.ideaId, personId: sam, verdict: "useful" });
+    const want = blockVector((await ideaVectors(db, [samCard.ideaId])).get(samCard.ideaId)!, "value_proposition")!;
+    expect(rows[0].blockEmbedding).toHaveLength(want.length);
+    for (const [i, x] of want.entries()) expect(rows[0].blockEmbedding[i]).toBeCloseTo(x, 3);
+    expect(await verdictGraph(db)).toEqual({ ideas: 1 });
+  });
+
+  it("replaces the row on a second verdict about the same block", async () => {
+    await verdict("not_relevant", { blockKeys: ["value_proposition"] });
+    const rows = await graph();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].verdict).toBe("not_relevant");
+  });
+
+  it("maps a context that names only labels to the key", async () => {
+    await verdict("known", { blocks: ["Customer segments"] });
+    expect((await graph()).map((r) => r.block).sort()).toEqual(["customer_segments", "value_proposition"]);
+  });
+
+  it("writes no row with no block or no embedded rows, and still stores the verdict", async () => {
+    const before = (await graph()).length;
+    await verdict("useful", { score: 0.5 });
+    expect((await feedbackFor(db, sam, samCard.ideaId)).find((f) => f.targetId === paper)?.verdict).toBe("useful");
+    // Revenue streams holds only an open question, which has no vector.
+    await verdict("useful", { blockKeys: ["revenue_streams"] });
+    expect(await graph()).toHaveLength(before);
+  });
+
+  it("writes none for a peer verdict, or for a target that is not a document", async () => {
+    const all = async () => (await db.select().from(paperBlockVerdict)).length;
+    const before = await all();
+    await verdict("useful", { blockKeys: ["value_proposition"] }, "peer", COHORT[1].ideaId);
+    await verdict("useful", { blockKeys: ["value_proposition"] }, "paper", "doc-2");
+    await verdict("useful", { blockKeys: ["value_proposition"] }, "paper", "00000000-0000-0000-0000-000000000000");
+    expect(await all()).toBe(before);
   });
 });
 

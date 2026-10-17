@@ -1,5 +1,5 @@
 {
-  "id": "e8eba9c5-fdb8-4438-a75c-0edfb86153aa",
+  "id": "2522d828-2080-4f1a-9fe8-c24a6867ca35",
   "prevId": "395cde63-f584-45a9-b3d1-46f3cff8af32",
   "version": "7",
   "dialect": "postgresql",
@@ -662,27 +662,6 @@
           "columns": [
             {
               "expression": "session_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "document_source_created_idx": {
-          "name": "document_source_created_idx",
-          "columns": [
-            {
-              "expression": "source",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4646,6 +4625,97 @@
         "card_feedback_verdict_valid": {
           "name": "card_feedback_verdict_valid",
           "value": "\"card_feedback\".\"verdict\" in ('useful', 'known', 'not_relevant')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.card_search": {
+      "name": "card_search",
+      "schema": "",
+      "columns": {
+        "idea_id": {
+          "name": "idea_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "block": {
+          "name": "block",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text_hash": {
+          "name": "text_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sources": {
+          "name": "sources",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "found": {
+          "name": "found",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "card_search_idea_id_forge_card_idea_id_fk": {
+          "name": "card_search_idea_id_forge_card_idea_id_fk",
+          "tableFrom": "card_search",
+          "tableTo": "forge_card",
+          "columnsFrom": [
+            "idea_id"
+          ],
+          "columnsTo": [
+            "idea_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "card_search_idea_id_block_pk": {
+          "name": "card_search_idea_id_block_pk",
+          "columns": [
+            "idea_id",
+            "block"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "card_search_state_valid": {
+          "name": "card_search_state_valid",
+          "value": "\"card_search\".\"state\" in ('running', 'done')"
         }
       },
       "isRLSEnabled": false

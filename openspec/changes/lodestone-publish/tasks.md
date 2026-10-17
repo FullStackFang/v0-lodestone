@@ -1,17 +1,17 @@
 ## 1. Membership routes
 
-- [ ] 1.0 `isOperator(db, person)` in `src/pilot/membership.ts` with the map's predicate; `assertPilotOperator` and the map page use it; test a membership-kind operator passes
-- [ ] 1.1 Failing route tests: `/lodestone/roster` denies a non-operator like `/lodestone/map`; invite by a membership-kind operator writes one roster row (`noticeVersion = "lodestone-pilot-v1"`, expiry fourteen days) and one outbox email with a `/lodestone/join/` link and sets `deliveryStatus`; revoke leaves the `forge_card` row and drops the card from `peersFor`, `cohortMap` and `digestFor` (by the active-membership join every list already makes; `revokeMembership` itself touches `card_revision`, not `forge_card`)
-- [ ] 1.2 `src/app/lodestone/roster/page.tsx` + server actions `invite`, `renew`, `revoke` over `src/pilot/membership.ts`
-- [ ] 1.3 Failing tests for `/lodestone/join/[token]`: addressee accepts and is active; another email sees "sent to someone else"; expired token sees "expired"
-- [ ] 1.4 `src/app/lodestone/join/[token]/page.tsx`
-- [ ] 1.5 Header: "Roster" beside "Cohort map" for operators only
+- [x] 1.0 `isOperator(db, person)` in `src/pilot/membership.ts` with the map's predicate; `assertPilotOperator` and the map page use it; test a membership-kind operator passes (2026-10-15: `assertPilotOperator(db, actor)` now takes the database; `recordInvitationDelivery` sets `deliveryStatus`)
+- [x] 1.1 Failing route tests: `/lodestone/roster` denies a non-operator like `/lodestone/map`; invite by a membership-kind operator writes one roster row (`noticeVersion = "lodestone-pilot-v1"`, expiry fourteen days) and one outbox email with a `/lodestone/join/` link and sets `deliveryStatus`; revoke leaves the `forge_card` row and drops the card from `peersFor`, `cohortMap` and `digestFor` (by the active-membership join every list already makes; `revokeMembership` itself touches `card_revision`, not `forge_card`) (2026-10-15: `src/pilot/roster.test.ts`, `src/app/lodestone/roster/pages.test.tsx`; the denial is a shared `OperatorsOnly`)
+- [x] 1.2 `src/app/lodestone/roster/page.tsx` + server actions `invite`, `renew`, `revoke` over `src/pilot/membership.ts` (2026-10-15: invite and renew in `src/pilot/roster.ts`; revoke takes a member or a pending invitation)
+- [x] 1.3 Failing tests for `/lodestone/join/[token]`: addressee accepts and is active; another email sees "sent to someone else"; expired token sees "expired" (2026-10-15: plus a signed-out visitor is sent to sign in and back)
+- [x] 1.4 `src/app/lodestone/join/[token]/page.tsx`
+- [x] 1.5 Header: "Roster" beside "Cohort map" for operators only
 
 ## 2. Health and guards
 
-- [ ] 2.1 `GET /api/lodestone/health`: five booleans, 200 or 503; `migrations` from `_journal.json`'s last `when` vs the migrations table (confirm the column name first); test with migrations current and with one missing
-- [ ] 2.2 `scripts/migrate.mts`: prefer `DATABASE_URL_UNPOOLED`; print which URL's host it used
-- [ ] 2.3 `scripts/lodestone/seed.mts`: refuse on `NODE_ENV=production` or a non-local host; test the predicate
+- [x] 2.1 `GET /api/lodestone/health`: five booleans, 200 or 503; `migrations` from `_journal.json`'s last `when` vs the migrations table (confirm the column name first); test with migrations current and with one missing (2026-10-15: column is `created_at`; the check lives in `src/lodestone/health.ts`)
+- [x] 2.2 `scripts/migrate.mts`: prefer `DATABASE_URL_UNPOOLED`; print which URL's host it used
+- [x] 2.3 `scripts/lodestone/seed.mts`: refuse on `NODE_ENV=production` or a non-local host; test the predicate (2026-10-15: `src/lodestone/seed-guard.ts`; a Neon URL exits 1 naming the host)
 
 ## 3. The deployment
 
