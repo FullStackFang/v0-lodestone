@@ -157,78 +157,103 @@ const corpusSources = sql.join(CORPUS_SOURCES.map((s) => sql`${s}`), sql`, `);
 /** The k closest papers to this card, or an empty list when the card has no
  *  vectors yet. `since` narrows to papers added after a date, for the digest.
  *  A paper the author listed as already held is ranked like any other and
- *  flagged `yours`.
- *
- *  Ranked in the database; only the k hits' per-block cosines come back.
- *  Candidates are the union of each card row's k nearest chunks by the HNSW
- *  index. The union is exact: a paper in the true top k is in its own best
- *  row's top k, since anything nearer that row also scores above it. The
- *  candidates are then scored exactly, the corpus side cast up from half
- *  precision. `since` skips the index and scores every document added since,
- *  a week of ingest, which a filtered index scan could under-return. */
+ *  flagged `yours`. One card's call of `priorArtForMany`. */
 export async function priorArtFor(db: Db, ideaId: string, k = 5, since?: Date): Promise<PaperHit[]> {
-  const rows = (await ideaVectors(db, [ideaId])).get(ideaId) ?? [];
-  if (rows.length === 0) return [];
-  const [card] = await db.select({ doc: forgeCard.doc }).from(forgeCard).where(eq(forgeCard.ideaId, ideaId)).limit(1);
-  const held = card ? heldPapers(card.doc) : new Set<string>();
+  return (await priorArtForMany(db, [ideaId], k, since)).get(ideaId) ?? [];
+}
 
+/** Prior art for every card in one ranking statement, each card's hits as
+ *  `priorArtFor` gives them. Every requested id is a key; a card with no
+ *  vectors maps to `[]`.
+ *
+ *  Ranked in the database; only the hits' per-block cosines come back.
+ *  Candidates are, per card, the union of each of its rows' k nearest chunks
+ *  by the HNSW index. The union is exact: a paper in the card's true top k is
+ *  in its own best row's top k, since anything nearer that row also scores
+ *  above it. Keyed by card, so no card is scored against another's
+ *  candidates. The candidates are then scored exactly, the corpus side cast
+ *  up from half precision. `since` skips the index and scores every document
+ *  added since, a week of ingest, which a filtered index scan could
+ *  under-return; that set is the same for every card and is scanned once.
+ *  The order is best cosine, then newest, then document id: total, so a tie
+ *  at the cut is never arbitrary. */
+export async function priorArtForMany(db: Db, ideaIds: string[], k = 5, since?: Date): Promise<Map<string, PaperHit[]>> {
+  const out = new Map<string, PaperHit[]>(ideaIds.map((id) => [id, []]));
+  const vectors = await ideaVectors(db, ideaIds);
+  const cards = ideaIds.filter((id) => (vectors.get(id) ?? []).length > 0);
+  // An empty `values` list is a syntax error, and there is nothing to rank.
+  if (cards.length === 0) return out;
+  const docs = await db.select({ ideaId: forgeCard.ideaId, doc: forgeCard.doc }).from(forgeCard).where(inArray(forgeCard.ideaId, cards));
+  const held = new Map(docs.map((c) => [c.ideaId, heldPapers(c.doc)]));
+
+  const dims = sql.raw(String(EMBEDDING_DIMENSIONS));
   const q = sql.join(
-    rows.map((r) => sql`(${r.block}, ${JSON.stringify(r.embedding)}::vector(${sql.raw(String(EMBEDDING_DIMENSIONS))}))`),
+    cards.flatMap((id) => vectors.get(id)!.map((r) => sql`(${id}, ${r.block}, ${JSON.stringify(r.embedding)}::vector(${dims}))`)),
     sql`, `,
   );
-  const candidates = since
-    ? sql`select d.id as document_id from document d
-          where d.source in (${corpusSources}) and d.created_at >= ${since.toISOString()}`
-    : sql`select distinct n.document_id from q cross join lateral (
-            select c.document_id from document_chunk c join document d on d.id = c.document_id
-            where d.source in (${corpusSources}) and c.embedding is not null
-            order by c.embedding <=> q.v::halfvec(${sql.raw(String(EMBEDDING_DIMENSIONS))})
-            limit ${k}
-          ) n`;
+  const perBlock = since
+    ? sql`select q.card, c.document_id, q.block, max(1 - (c.embedding::vector <=> q.v)) as cos
+          from (select d.id as document_id from document d
+                where d.source in (${corpusSources}) and d.created_at >= ${since.toISOString()}) candidates
+          join document_chunk c on c.document_id = candidates.document_id cross join q
+          where c.embedding is not null
+          group by q.card, c.document_id, q.block`
+    : sql`select q.card, c.document_id, q.block, max(1 - (c.embedding::vector <=> q.v)) as cos
+          from (select distinct q.card, n.document_id from q cross join lateral (
+                  select c.document_id from document_chunk c join document d on d.id = c.document_id
+                  where d.source in (${corpusSources}) and c.embedding is not null
+                  order by c.embedding <=> q.v::halfvec(${dims})
+                  limit ${k}
+                ) n) candidates
+          join document_chunk c on c.document_id = candidates.document_id
+          join q on q.card = candidates.card
+          where c.embedding is not null
+          group by q.card, c.document_id, q.block`;
   const result = await db.execute(sql`
-    with q(block, v) as (values ${q}),
-    candidates as (${candidates}),
-    per_block as (
-      select c.document_id, q.block, max(1 - (c.embedding::vector <=> q.v)) as cos
-      from candidates join document_chunk c on c.document_id = candidates.document_id cross join q
-      where c.embedding is not null
-      group by c.document_id, q.block
-    ),
-    best as (
-      select p.document_id, row_number() over (order by max(p.cos) desc, d.created_at desc, p.document_id) as rank
+    with q(card, block, v) as (values ${q}),
+    per_block as (${perBlock}),
+    ranked as (
+      select p.card, p.document_id,
+        row_number() over (partition by p.card order by max(p.cos) desc, d.created_at desc, p.document_id) as rank
       from per_block p join document d on d.id = p.document_id
-      group by p.document_id, d.created_at
-      order by rank
-      limit ${k}
-    )
-    select p.document_id, p.block, p.cos, best.rank from per_block p join best using (document_id)`);
-  const scored = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { document_id: string; block: string; cos: number | string; rank: number | string }[];
-  if (scored.length === 0) return [];
+      group by p.card, p.document_id, d.created_at
+    ),
+    best as (select card, document_id, rank from ranked where rank <= ${k})
+    select p.card, p.document_id, p.block, p.cos, best.rank from per_block p join best using (card, document_id)`);
+  const scored = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as { card: string; document_id: string; block: string; cos: number | string; rank: number | string }[];
+  if (scored.length === 0) return out;
 
-  // Each map is seeded in the card's row order, as `scorePaper` fills it, so
-  // blocks that tie are named in the same order.
-  const byDocument = new Map<string, Map<string, number>>();
-  const rank = new Map<string, number>();
+  // Per card, each document's block map is seeded in the card's row order,
+  // as `scorePaper` fills it, so blocks that tie are named in the same order.
+  const byCard = new Map<string, Map<string, { rank: number; blocks: Map<string, number> }>>();
   for (const s of scored) {
-    rank.set(s.document_id, Number(s.rank));
-    const blocks = byDocument.get(s.document_id) ?? new Map(rows.map((r) => [r.block, -Infinity]));
-    blocks.set(s.block, Number(s.cos));
-    byDocument.set(s.document_id, blocks);
+    const docsOf = byCard.get(s.card) ?? new Map();
+    const hit = docsOf.get(s.document_id) ?? { rank: Number(s.rank), blocks: new Map(vectors.get(s.card)!.map((r) => [r.block, -Infinity])) };
+    hit.blocks.set(s.block, Number(s.cos));
+    docsOf.set(s.document_id, hit);
+    byCard.set(s.card, docsOf);
   }
   const meta = await db
     .select({ documentId: document.id, kind: document.source, title: document.title, provenance: artifactTexts.provenance, addedAt: document.createdAt })
     .from(document)
     .leftJoin(artifactTexts, eq(artifactTexts.artifactId, document.id))
-    .where(inArray(document.id, [...byDocument.keys()]))
+    .where(inArray(document.id, [...new Set(scored.map((s) => s.document_id))]))
     .orderBy(desc(document.createdAt), desc(artifactTexts.version));
-  const seen = new Set<string>();
-  return meta
-    .filter((m) => (seen.has(m.documentId) ? false : (seen.add(m.documentId), true)))
-    .map((m) => hitFrom({ ...m, kind: m.kind as CorpusKind }, byDocument.get(m.documentId)!, held))
-    // The database's order: best cosine, then newest, then document id, total
-    // so a tie at the cut is never arbitrary. Not re-derived here: a `Date`
-    // holds milliseconds and `created_at` microseconds.
-    .sort((a, b) => rank.get(a.documentId)! - rank.get(b.documentId)!);
+  // The newest text's provenance per document, as the single form read it.
+  const metaById = new Map<string, (typeof meta)[number]>();
+  for (const m of meta) if (!metaById.has(m.documentId)) metaById.set(m.documentId, m);
+
+  for (const [card, docsOf] of byCard) {
+    out.set(card, [...docsOf.entries()]
+      // The database's order, not re-derived here: a `Date` holds
+      // milliseconds and `created_at` microseconds.
+      .sort((a, b) => a[1].rank - b[1].rank)
+      .map(([id, hit]) => {
+        const m = metaById.get(id)!;
+        return hitFrom({ ...m, kind: m.kind as CorpusKind }, hit.blocks, held.get(card) ?? new Set());
+      }));
+  }
+  return out;
 }
 
 /** How many papers the corpus holds with a vector. */

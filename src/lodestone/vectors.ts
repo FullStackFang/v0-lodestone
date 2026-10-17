@@ -41,7 +41,10 @@ export async function ideaVectors(db: Db, ideaIds: string[]): Promise<Map<string
         inArray(assertions.subjectId, ideaIds.map(forgeSubject)),
         sql`${assertions.provenance} ->> 'kind' = 'forge'`,
       ),
-    );
+    )
+    // Filing order, then id: a card's rows come back in one order however
+    // many cards are asked for, which is the order tied blocks are named in.
+    .orderBy(assertions.createdAt, assertions.id);
   for (const row of rows) {
     const p = row.provenance as { idea_id?: string; block?: string };
     const ideaId = p.idea_id ?? row.subjectId.replace(/^forge:/, "");
