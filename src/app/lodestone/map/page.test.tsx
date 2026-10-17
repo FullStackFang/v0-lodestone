@@ -7,7 +7,12 @@ import { ensurePerson } from "@/harness/ledger";
 import { enrollTestMember } from "@/pilot/test-fixtures";
 
 const who = vi.hoisted(() => ({ person: { id: "", name: "", email: "" } }));
-vi.mock("@/lib/session", () => ({ requirePerson: async () => who.person }));
+// The memo needs a request; the row itself is read as the page would.
+vi.mock("@/lib/session", async () => {
+  const { getDb } = await import("@/db/client");
+  const { membershipFor } = await import("@/pilot/membership");
+  return { requirePerson: async () => who.person, currentMembership: async () => membershipFor(await getDb(), who.person.id) };
+});
 import MapPage from "./page";
 
 const member = { name: "Plain Member", email: "member@map.test" };

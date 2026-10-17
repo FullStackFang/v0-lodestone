@@ -131,9 +131,20 @@ export async function membershipFor(db: Db, personId: string) {
   return membership ?? null;
 }
 
-export async function isActiveMember(db: Db, personId: string) {
-  const membership = await membershipFor(db, personId);
+/** Active and not revoked, on a row already read. */
+export function isActive(membership: Pick<PilotMembership, "status" | "revokedAt"> | null): boolean {
   return membership?.status === "active" && membership.revokedAt === null;
+}
+
+/** Who may open the cohort map: an address on the operator list, or an
+ *  operator membership. Takes the row so a page that already read it does
+ *  not read it again. */
+export function isOperator(person: { email: string }, membership: Pick<PilotMembership, "memberKind"> | null): boolean {
+  return isPilotOperatorEmail(person.email) || membership?.memberKind === "operator";
+}
+
+export async function isActiveMember(db: Db, personId: string) {
+  return isActive(await membershipFor(db, personId));
 }
 
 export async function isActiveSessionMember(db: Db, sessionId: string) {

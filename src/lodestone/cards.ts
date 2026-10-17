@@ -19,7 +19,8 @@ import {
   projectForgeIdea,
   type ForgeImportReport,
 } from "@/harness/founder/forge";
-import { assertActiveMember, isActiveMember } from "@/pilot/membership";
+import type { PilotMembership } from "@/db/pilot-schema";
+import { assertActiveMember, isActive, isActiveMember } from "@/pilot/membership";
 
 export type Embedder = (texts: string[], inputType?: "document" | "query") => Promise<EmbedResult>;
 
@@ -168,11 +169,14 @@ export async function cardById(db: Db, ideaId: string): Promise<CohortCard | nul
   return row ?? null;
 }
 
-/** The owner always; a cohort card to an active member whose owner is one too. */
-export async function canView(db: Db, viewerId: string, card: ForgeCardRow): Promise<boolean> {
+/** The owner always; a cohort card to an active member whose owner is one too.
+ *  A caller that already holds the viewer's membership row passes it, and
+ *  only the owner's is read. */
+export async function canView(db: Db, viewerId: string, card: ForgeCardRow, viewerMembership?: PilotMembership | null): Promise<boolean> {
   if (card.ownerId === viewerId) return true;
   if (card.visibility !== "cohort") return false;
-  return (await isActiveMember(db, viewerId)) && (await isActiveMember(db, card.ownerId));
+  const viewer = viewerMembership === undefined ? await isActiveMember(db, viewerId) : isActive(viewerMembership);
+  return viewer && (await isActiveMember(db, card.ownerId));
 }
 
 /** Members, members with any card, and cards the cohort can see. */

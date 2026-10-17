@@ -5,12 +5,12 @@
 
 ## 1. One session per request
 
-- [ ] 1.1 Failing test on `verifiedContext` against a counting handle: second call for the same auth session issues one select and no `INSERT` into `session` or `person`; a changed auth email throws
-- [ ] 1.2 `src/lib/session.ts`: `resolve = cache(async () => …)`; `context(db?)` calls it; add `currentMembership()` wrapped in `cache`; `redirect()` stays in `requirePerson`
-- [ ] 1.3 `src/auth/identity.ts`: select-join first; on a hit compare the row's email to `authEmail.trim().toLowerCase()`; on a miss `ensurePerson` + `onConflictDoNothing` insert + select, as today
-- [ ] 1.4 Layout and every page under `src/app/lodestone` read `currentMembership()`; `canView(db, viewerId, card, viewerMembership?)` with the row passed only from the card page (the token route and `field.ts` keep calling it without); delete the duplicate `isActiveMember`/`membershipFor` calls at the call sites. Grow the `@/lib/session` mocks in `src/app/layout.test.tsx`, `src/app/lodestone/page.test.tsx`, `cards/[ideaId]/page.test.tsx`, `cards/[ideaId]/field/page.test.tsx`, `map/page.test.tsx` (and `login/page.test.tsx` if it imports anything new) with `currentMembership`; drop the `@/pilot/membership` mock in `layout.test.tsx` once the layout stops calling it
-- [ ] 1.5 `next.config.ts` `redirects()` for `/`; delete `src/app/page.tsx`; wordmark in `layout.tsx` links to `/lodestone`; test the redirect status and that no session query runs
-- [ ] 1.6 Note in `openspec/changes/lodestone-publish/design.md` 1a: `isOperator` takes the membership row, so the map page's cached read and the roster's predicate are one function
+- [x] 1.1 Failing test on `verifiedContext` against a counting handle: second call for the same auth session issues one select and no `INSERT` into `session` or `person`; a changed auth email throws
+- [x] 1.2 `src/lib/session.ts`: `resolve = cache(async () => …)`; `context(db?)` calls it; add `currentMembership()` wrapped in `cache`; `redirect()` stays in `requirePerson`
+- [x] 1.3 `src/auth/identity.ts`: select-join first; on a hit compare the row's email to `authEmail.trim().toLowerCase()`; on a miss `ensurePerson` + `onConflictDoNothing` insert + select, as today
+- [x] 1.4 Layout and every page under `src/app/lodestone` read `currentMembership()`; `canView(db, viewerId, card, viewerMembership?)` with the row passed only from the card page (the token route and `field.ts` keep calling it without); delete the duplicate `isActiveMember`/`membershipFor` calls at the call sites. Grow the `@/lib/session` mocks in `src/app/layout.test.tsx`, `src/app/lodestone/page.test.tsx`, `cards/[ideaId]/page.test.tsx`, `cards/[ideaId]/field/page.test.tsx`, `map/page.test.tsx` (and `login/page.test.tsx` if it imports anything new) with `currentMembership`; drop the `@/pilot/membership` mock in `layout.test.tsx` once the layout stops calling it
+- [x] 1.5 `next.config.ts` `redirects()` for `/`; delete `src/app/page.tsx`; wordmark in `layout.tsx` links to `/lodestone`; test the redirect status and that no session query runs
+- [x] 1.6 Note in `openspec/changes/lodestone-publish/design.md` 1a: `isOperator` takes the membership row, so the map page's cached read and the roster's predicate are one function
 
 ## 2. Cohort once, prior art in one statement
 

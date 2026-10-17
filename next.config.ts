@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   // `new URL(..., import.meta.url)`; bundling rewrites those to static media
   // that does not exist. Same for postgres-js's optional native bits.
   serverExternalPackages: ["@electric-sql/pglite", "@electric-sql/pglite-pgvector", "postgres"],
+  // The app is the network. Answered before any layout renders, so the bare
+  // origin costs no session read.
+  redirects: async () => [{ source: "/", destination: "/lodestone", permanent: false }],
 };
 
 export default nextConfig;

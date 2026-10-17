@@ -5,9 +5,8 @@ import Link from "next/link";
 import "./globals.css";
 import "./lodestone/lodestone.css";
 import { Search } from "lucide-react";
-import { getDb } from "@/db/client";
-import { currentVerifiedPerson } from "@/lib/session";
-import { isPilotOperatorEmail, membershipFor } from "@/pilot/membership";
+import { currentMembership, currentVerifiedPerson } from "@/lib/session";
+import { isOperator } from "@/pilot/membership";
 import { SignOut } from "./SignOut";
 import { WorkspaceTabs } from "./lodestone/WorkspaceTabs";
 import { Chip, Pill } from "./lodestone/ui";
@@ -34,16 +33,16 @@ function shortName(name: string): string {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   // The session reads the request headers before it opens the database, which
-  // keeps every page dynamic and lets the build run without one.
+  // keeps every page dynamic and lets the build run without one. Both reads
+  // are memoised for the request, so the page beneath reuses them.
   const person = await currentVerifiedPerson();
-  const membership = person ? await membershipFor(await getDb(), person.id) : null;
-  const operator = !!person && (isPilotOperatorEmail(person.email) || membership?.memberKind === "operator");
+  const operator = !!person && isOperator(person, await currentMembership());
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
       <body>
         <header className="chrome">
           <div className="chrome-row">
-            <Link className="wordmark" href="/">
+            <Link className="wordmark" href="/lodestone">
               Lodestone
               <span className="kicker">The campus idea network</span>
             </Link>

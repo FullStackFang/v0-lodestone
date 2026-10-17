@@ -31,6 +31,15 @@ roster passes `"lodestone-pilot-v1"` and fourteen days. After `deliverEmail`
 resolves, the invitation's `deliveryStatus` is set to `sent`, or `failed`
 with the error, so the roster can show it.
 
+**Reconciled with `lodestone-performance`**, which landed first:
+`isOperator(person, membership)` already exists in `src/pilot/membership.ts`
+and takes the membership row, not the handle. The layout, the home page and
+the map read the row once per request through `currentMembership()` in
+`src/lib/session.ts` and pass it in; the roster page does the same, and
+`assertPilotOperator` reads the row with `membershipFor` (it runs inside
+actions, outside the memo) and calls the same predicate. One predicate, one
+read per request.
+
 ### 2. The accept link is the token, nothing more
 
 `<BETTER_AUTH_URL>/lodestone/join/<token>`. The invitation row already binds

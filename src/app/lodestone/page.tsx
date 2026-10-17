@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { getDb } from "@/db/client";
-import { requirePerson } from "@/lib/session";
+import { currentMembership, requirePerson } from "@/lib/session";
 import { blockLabel, cardBlocks, cardsForOwner, cohortCards, cohortCounts } from "@/lodestone/cards";
 import { digestFor, weekAgo } from "@/lodestone/digest";
 import { CLOSE } from "@/lodestone/geometry";
 import { peersFor, type PeerHit } from "@/lodestone/peers";
 import { corpusSize, type PaperHit } from "@/lodestone/priorArt";
-import { isActiveMember, isPilotOperatorEmail, membershipFor } from "@/pilot/membership";
+import { isActive, isOperator } from "@/pilot/membership";
 import { ActionForm, SubmitButton } from "@/review/ActionForm";
 import { importForgeCard } from "./actions";
 import { Chip, Go, Leader, Pill, SectionHead } from "./ui";
@@ -42,15 +42,15 @@ export default async function LodestonePage() {
   const db = await getDb();
   const person = await requirePerson(db);
   const now = new Date();
-  const [cards, member, membership, counts, corpus, digest] = await Promise.all([
+  const [cards, membership, counts, corpus, digest] = await Promise.all([
     cardsForOwner(db, person.id),
-    isActiveMember(db, person.id),
-    membershipFor(db, person.id),
+    currentMembership(),
     cohortCounts(db),
     corpusSize(db),
     digestFor(db, person.id, weekAgo(now), now),
   ]);
-  const operator = isPilotOperatorEmail(person.email) || membership?.memberKind === "operator";
+  const member = isActive(membership);
+  const operator = isOperator(person, membership);
   // The cohort's published cards, for members only: nine blocks and an
   // owner name, the same rule the card page enforces.
   const cohort = member ? (await cohortCards(db)).filter((c) => c.owner.id !== person.id) : [];

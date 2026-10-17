@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getDb } from "@/db/client";
-import { requirePerson } from "@/lib/session";
+import { currentMembership, requirePerson } from "@/lib/session";
 import { cohortMap, corpusSummary } from "@/lodestone/map";
-import { isPilotOperatorEmail, membershipFor } from "@/pilot/membership";
+import { isOperator } from "@/pilot/membership";
 import { Chip, Pill, SectionHead } from "../ui";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +14,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 export default async function MapPage() {
   const db = await getDb();
   const person = await requirePerson(db);
-  const membership = await membershipFor(db, person.id);
-  const director = isPilotOperatorEmail(person.email) || membership?.memberKind === "operator";
+  const director = isOperator(person, await currentMembership());
   if (!director) {
     return <div className="wrap stack">
       <section className="panel paper split">

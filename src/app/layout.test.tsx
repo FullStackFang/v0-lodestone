@@ -4,9 +4,7 @@ import RootLayout from "./layout";
 
 const state = vi.hoisted(() => ({ person: null as null | { id: string; name: string; email: string } }));
 vi.mock("next/font/google", () => ({ Geist: () => ({ variable: "font-sans" }), Source_Serif_4: () => ({ variable: "font-serif" }) }));
-vi.mock("@/lib/session", () => ({ currentVerifiedPerson: async () => state.person }));
-vi.mock("@/db/client", () => ({ getDb: async () => ({}) }));
-vi.mock("@/pilot/membership", () => ({ membershipFor: async () => null, isPilotOperatorEmail: () => false }));
+vi.mock("@/lib/session", () => ({ currentVerifiedPerson: async () => state.person, currentMembership: async () => null }));
 vi.mock("./SignOut", () => ({ SignOut: () => <button>Sign out</button> }));
 vi.mock("./lodestone/WorkspaceTabs", () => ({ WorkspaceTabs: () => <nav data-tabs /> }));
 
