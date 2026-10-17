@@ -249,3 +249,23 @@ therefore cannot be simulated from it. What can be done:
 - Should `known` verdicts count toward co-usefulness?
 - Should a surprise be allowed into the digest, or only the card read? (As
   designed: card read only.)
+
+## Asks from Whetstone (2026-10-17, `forge-idea/5`)
+
+Whetstone's `forge-idea/5` export carries the papers an author brought and
+confirmed through an OpenAlex look-up: `already_have` lists them all (seed
+paper first), and each workspace gains `paper_links: [{ paper_id, entry_key,
+block, evidence }]`, spread only when non-empty. Lodestone already accepts
+`/5` and ignores the new keys. Two asks, both for this change, neither in the
+MVP:
+
+- **Author-brought pairs count toward `together`.** Two papers both in one
+  idea's `paper_links` (or `already_have`) are a pair the author put side by
+  side. Decide whether such a pair counts as one member's co-mark, like two
+  `useful` verdicts on one card, and whether it is gated the same way.
+- **A reason of the form "used with a similar segment".** When paper P
+  appears in another idea's `paper_links` on a `customer_segments` or
+  `value_proposition` entry whose vector is near this idea's, the hit can
+  say so. This needs `paper_links` stored per card (paper id, block, entry
+  key; never the evidence sentence, which is the other author's canvas) and
+  a block-vector comparison, which `paper_block_verdict` already shapes.
