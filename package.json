@@ -13,7 +13,8 @@
     "db:migrate": "tsx scripts/migrate.mts",
     "lodestone:seed": "tsx scripts/lodestone/seed.mts",
     "lodestone:digest": "tsx scripts/lodestone/digest.mts",
-    "lodestone:ingest": "tsx scripts/lodestone/ingest.mts"
+    "lodestone:ingest": "tsx scripts/lodestone/ingest.mts",
+    "lodestone:measure": "tsx scripts/lodestone/measure.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
