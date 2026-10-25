@@ -74,6 +74,7 @@ export interface SourceKeys {
   openalex_id?: string | null;
   doi?: string | null;
   patent_number?: string | null;
+  neurips_id?: string | null;
 }
 
 /** The stored row any of these ids already names, or null. Checked before a
@@ -88,6 +89,7 @@ export async function storedBySourceId(
   if (keys.openalex_id) match.push(sql`${p}->>'openalex_id' = ${keys.openalex_id}`);
   if (keys.doi) match.push(sql`lower(${p}->>'doi') = ${keys.doi.toLowerCase()}`);
   if (keys.patent_number) match.push(sql`${p}->>'patent_number' = ${keys.patent_number}`);
+  if (keys.neurips_id) match.push(sql`${p}->>'neurips_id' = ${keys.neurips_id}`);
   if (match.length === 0) return null;
   const [row] = await db
     .select({ artifactId: artifactTexts.artifactId, textHash: artifactTexts.textHash, thin: sql<boolean>`coalesce((${p}->>'thin')::boolean, false)` })
@@ -223,7 +225,7 @@ export async function ingestWork(
 }
 
 /** `<identifier> <artifact_id> <text_hash>`, or `<identifier> no_abstract`. */
-export function ingestLine(result: Pick<IngestResult, "identifier" | "status" | "artifactId" | "textHash">): string {
+export function ingestLine(result: Pick<IngestResult, "identifier" | "artifactId" | "textHash"> & { status: string }): string {
   if (result.status !== "ok") return `${result.identifier} ${result.status}`;
   return `${result.identifier} ${result.artifactId} ${result.textHash}`;
 }

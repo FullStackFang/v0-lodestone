@@ -1,0 +1,232 @@
+{
+  "items": [
+    {
+      "text": "The frequency prior has a mechanism.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "1d46239d-5247-4f59-9f0c-9fea750546ae",
+          "relation": "supports",
+          "quote": "an early phase where the LM selects entities by frequency"
+        }
+      ]
+    },
+    {
+      "text": "What a model saw rarely, it under-expresses.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "6c970d32-0723-4514-b89f-858e56247e46",
+          "relation": "supports",
+          "quote": "models internally encode rare facts with high separability (84%) yet fail to express them behaviorally (54%)"
+        }
+      ]
+    },
+    {
+      "text": "Strong priors resist being overridden.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "517dfe9b-bae0-48c7-a5b9-bde50a0b1c48",
+          "relation": "supports",
+          "quote": "baseline accuracy falls from 68% on weak-prior questions to 16% on strong-prior questions"
+        }
+      ]
+    },
+    {
+      "text": "LLMs weight popularity over reliability when they read outside sources.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "d7872398-086b-461d-aee8-d762ad7b767d",
+          "relation": "supports",
+          "quote": "rely on source popularity twice as much as source reliability"
+        }
+      ]
+    },
+    {
+      "text": "Generated recommenders inherit popularity bias.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "6221c932-c407-4974-ac91-a28fd922d895",
+          "relation": "supports",
+          "quote": "GRs are still susceptible to the long-standing issue of popularity bias"
+        },
+        {
+          "id": "ecdd903d-15e7-4c62-afaa-db8b7670115f",
+          "relation": "supports",
+          "quote": "head items dominate exposure while many long-tail items are underrepresented"
+        }
+      ]
+    },
+    {
+      "text": "\"No one has shown whether agents defer to a better source\" overstates the gap.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "d7872398-086b-461d-aee8-d762ad7b767d",
+          "relation": "taken_by",
+          "quote": "updating more for reliable sources (source discernment)"
+        }
+      ]
+    },
+    {
+      "text": "\"Popular ≠ best\" is regime-dependent, not universal.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "1374eb0f-a0f2-409b-99da-37b2073bdc3b",
+          "relation": "contradicts",
+          "quote": "Below and above a critical exploration cost, popularity bias is more likely to hinder quality.",
+          "from": "W2732691751"
+        }
+      ]
+    },
+    {
+      "text": "Calibrated quality gaps are not new.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "e83a6efb-78b5-45c1-bca9-fc9c5675baaa",
+          "relation": "taken_by",
+          "quote": "controlling the quality gap between optimal and sub-optimal options"
+        }
+      ]
+    },
+    {
+      "text": "Generative engine optimization, single-page and competitive",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "1c3f7004-bb5f-49ec-9949-c03b82b34a38",
+          "relation": "taken_by",
+          "quote": "the first benchmark designed to evaluate C-SEO methods across multiple tasks, domains, and number of actors"
+        },
+        {
+          "id": "1f86b5cc-4445-4b59-b40e-058eccd15564",
+          "relation": "taken_by",
+          "quote": "the first dataset built specifically for e-commerce GEO"
+        },
+        {
+          "id": "79797812-8e24-4325-b101-99248051d52b",
+          "relation": "taken_by",
+          "quote": "asks why a document fails to be cited and intervenes accordingly"
+        },
+        {
+          "id": "30c8fb34-4d34-45e0-b897-77e165c8901f",
+          "relation": "taken_by",
+          "quote": "treats GEO as an environment-level influence problem for web-enabled LLM agents"
+        },
+        {
+          "id": "a350860e-4e42-4d15-b03e-013e6f3cb593",
+          "relation": "taken_by",
+          "quote": "By injecting a single high-plausibility misinformation article at a specified rank"
+        }
+      ]
+    },
+    {
+      "text": "Audits of generative search sources.",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "71c069f1-972d-46e9-8fbd-2aac07d4e9cc",
+          "relation": "taken_by",
+          "quote": "commercial and geographic biases in sources",
+          "from": "W4403433286"
+        }
+      ]
+    },
+    {
+      "text": "Homogenization and monoculture",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "e96a9871-e55e-4183-867c-926c177eded3",
+          "relation": "taken_by",
+          "quote": "revealing a pronounced Artificial Hivemind effect in open-ended generation of LMs"
+        },
+        {
+          "id": "bffd2f5b-2767-4cf7-abc5-71b38184be86",
+          "relation": "taken_by",
+          "quote": "Evaluating both new and old quantitative measures of monoculture and multiplicity"
+        },
+        {
+          "id": "7cdddfab-7a74-4b10-af7e-a864e66718bd",
+          "relation": "taken_by",
+          "quote": "increased data-sharing reliably exacerbates homogenization"
+        },
+        {
+          "id": "ccfe9a5c-4ae0-4893-a0aa-f3a17f0de819",
+          "relation": "contradicts",
+          "quote": "monoculture virtually disappears in one dataset when we include item difficulty"
+        }
+      ]
+    },
+    {
+      "text": "Feedback-loop theory, which was study #4 in the hand-made review, is largely taken",
+      "kind": "claim",
+      "links": [
+        {
+          "id": "f0f81f62-d45c-4bce-bd5a-2655ae540aea",
+          "relation": "taken_by",
+          "quote": "iterative curation amplifies initial biases"
+        },
+        {
+          "id": "211eef46-3e11-4c5e-b58b-cb090b8f1278",
+          "relation": "taken_by",
+          "quote": "stronger selection increases concentration"
+        },
+        {
+          "id": "5f41e04d-c87e-4689-b4f4-4b8460914300",
+          "relation": "taken_by",
+          "quote": "if the market is unable to observe acquired signals, search technologies can degrade market outcomes"
+        }
+      ]
+    },
+    {
+      "text": "No paper in the hits measures the following directly. Take items that have an independent quality signal and a popularity signal that disagree.",
+      "kind": "gap",
+      "links": [
+        {
+          "id": "d7872398-086b-461d-aee8-d762ad7b767d",
+          "relation": "supports",
+          "quote": "updating more for reliable sources (source discernment)"
+        },
+        {
+          "id": "e83a6efb-78b5-45c1-bca9-fc9c5675baaa",
+          "relation": "supports",
+          "quote": "injects contextual biases that are logical and suitable for option contexts"
+        }
+      ]
+    },
+    {
+      "text": "Popularity–quality decoupling audit: does an LLM recommend the popular paper over the better one?",
+      "kind": "smoke_test",
+      "links": [
+        {
+          "id": "d7872398-086b-461d-aee8-d762ad7b767d",
+          "relation": "supports",
+          "quote": "rely on source popularity twice as much as source reliability"
+        }
+      ]
+    },
+    {
+      "text": "Specialist deference: does an agent take the specialist's pick when it disagrees?",
+      "kind": "smoke_test",
+      "links": [
+        {
+          "id": "d7872398-086b-461d-aee8-d762ad7b767d",
+          "relation": "supports",
+          "quote": "models perform near chance on source and truth discernment"
+        },
+        {
+          "id": "517dfe9b-bae0-48c7-a5b9-bde50a0b1c48",
+          "relation": "supports",
+          "quote": "as the pretrained margin grows, deep conflicts lose the override competition"
+        }
+      ]
+    }
+  ],
+  "unresolved": []
+}
