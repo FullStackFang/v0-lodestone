@@ -93,4 +93,7 @@
   - `links.json` holds 27 links over 21 distinct ids, and all 21 are stored documents, checked against the database. Two OpenAlex works were ingested and embedded by `research-links`.
   - **Unresolved: 0.** A second `research-links` run changes nothing.
   - All 27 quotes are verbatim substrings of their hit's abstract. The validator does not check this; it was checked by hand once.
-- [ ] 5.5 Hand the first smoke test to the author to run (the expected one is Spearman of `rating_avg` against `citations_per_year` on 2023), and record the result in `research/popularity-quality/smoke-tests.md`. This is the author's by-hand step.
+- [x] 5.5 Hand the first smoke test to the author to run (the expected one is Spearman of `rating_avg` against `citations_per_year` on 2023), and record the result in `research/popularity-quality/smoke-tests.md`. This is the author's by-hand step.
+  - The author said to continue, so it was run in-session, from the sheet through `readCorpusSheet` and `rowOf`.
+  - Result: **ρ = 0.106 on 3,526 rows, which passes** (the kill line is 0.6).
+  - 14 of the 2023 rows have the no-citation sentinel, so "all 3,540 have both" in the design was slightly off.

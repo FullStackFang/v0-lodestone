@@ -15,7 +15,9 @@ One per top-3 study in `review.md`. Each threshold is fixed here, before anythin
 - **Data**: The corpus spreadsheet (`NeurIPS_Corpus_2021-2026 (1).xlsx`, sheet `Corpus`,
   year = 2023), already on hand.
 - **Time**: 1 hour. Cost $0.
-- **Result**: (not yet run)
+- **Result**: Ran 2026-10-25. ρ = 0.106 over 3,526 rows, **pass, keep**. Of the 3,540 rows from 2023,
+  14 carry the sheet's no-citation sentinel and were left out. Reviewer rating and later
+  citations barely move together in this domain, so it can carry study 1. Next: smoke test 2.
 
 ## 2. Popularity–quality decoupling audit: does an LLM recommend the popular paper over the better one?
 
