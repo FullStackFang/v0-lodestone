@@ -1,12 +1,18 @@
 /** `npm run lodestone:ingest -- --source openalex|patents --query "<text>"
  *    [--since 2018] [--limit 500] [--set <name>] [--cursor <value>]`
  *  `npm run lodestone:ingest -- --source openalex|patents --list <file> [--set <name>]`
+ *  `npm run lodestone:ingest -- --source xlsx --file <path> --set <name>`
  *
  * Grow the prior-art corpus. A query pages OpenAlex works (with an abstract)
  * or granted US patents from Google Patents on BigQuery; a list file names
- * one DOI, OpenAlex id or patent number per line. Each work prints one line — identifier, artifact,
+ * one DOI, OpenAlex id or patent number per line. `xlsx` reads the `Corpus`
+ * sheet of the NeurIPS spreadsheet, one paper a row keyed on its `id`
+ * column (`src/harness/papers/xlsx.ts`); it needs `--set`, and refuses to
+ * start without `VOYAGE_API_KEY`, since a corpus that size is loaded to be
+ * searched. Each work prints one line — identifier, artifact,
  * text hash, and whether it was new; or why nothing was written (`no_abstract`,
- * `short_abstract` under thirty words, `not_found`). Nothing is buffered, so a run that
+ * `short_abstract` under thirty words, `not_found`, and for a sheet row with
+ * neither abstract nor tldr `no_text`). Nothing is buffered, so a run that
  * dies keeps what it wrote. `--set` names the query set (default: the query
  * itself) and rides in provenance so a hit can say where it came from.
  *
@@ -39,6 +45,7 @@ import { ingestLine, ingestWork, MIN_ABSTRACT_WORDS, parseList, type IngestResul
 import { BIGQUERY_ENV, bigqueryClient, bigqueryMaxBytes, ingestPatent, patentFetcher, searchPatents, type PatentIngestResult, type PatentRow } from "../../src/harness/papers/bigquery-patents";
 import { openalexLimiter, openalexPerSecond } from "../../src/harness/papers/rate";
 import { searchWorks, type SearchResult } from "../../src/harness/papers/search";
+import { ingestNeuripsRow, readCorpusSheet, rowOf, type NeuripsIngestResult } from "../../src/harness/papers/xlsx";
 import { CORPUS_SOURCES, corpusOrphans, embedPaperAbstracts } from "../../src/lodestone/priorArt";
 
 const args = process.argv.slice(2);
@@ -49,15 +56,23 @@ const flag = (name: string): string | null => {
   return value ?? null;
 };
 const usage = (message: string): never => {
-  console.error(`${message}\nusage: lodestone:ingest --source openalex|patents (--query "<text>" [--since <year>] [--limit <n>] [--cursor <c>] | --list <file>) [--set <name>]`);
+  console.error(
+    `${message}\nusage: lodestone:ingest --source openalex|patents (--query "<text>" [--since <year>] [--limit <n>] [--cursor <c>] | --list <file>) [--set <name>]\n` +
+      `       lodestone:ingest --source xlsx --file <path> --set <name>`,
+  );
   process.exit(1);
 };
 
 const source = flag("--source");
-if (source !== "openalex" && source !== "patents") usage(`Unknown --source ${source ?? "(none)"}.`);
+if (source !== "openalex" && source !== "patents" && source !== "xlsx") usage(`Unknown --source ${source ?? "(none)"}.`);
 const query = flag("--query");
 const list = flag("--list");
-if (!query === !list) usage("Give exactly one of --query and --list.");
+const file = flag("--file");
+if (source === "xlsx") {
+  if (!file) usage("--source xlsx needs --file.");
+  if (!flag("--set")) usage("--source xlsx needs --set.");
+  if (!process.env.VOYAGE_API_KEY?.trim()) usage("VOYAGE_API_KEY is required for --source xlsx: the corpus is loaded to be searched, and nothing matches without a vector.");
+} else if (!query === !list) usage("Give exactly one of --query and --list.");
 const since = flag("--since") === null ? null : Number(flag("--since"));
 if (since !== null && !Number.isInteger(since)) usage("--since is a year.");
 const limit = flag("--limit") === null ? undefined : Number(flag("--limit"));
@@ -91,9 +106,9 @@ const onJob = (job: { jobId: string; totalBytesProcessed: number | null }) =>
   console.log(`# BigQuery job ${job.jobId}: ${job.totalBytesProcessed ?? "unknown"} bytes processed`);
 
 const db = await getDb();
-const tally = { new: 0, existing: 0, thin: 0, no_abstract: 0, short_abstract: 0, not_found: 0 };
+const tally = { new: 0, existing: 0, thin: 0, no_abstract: 0, short_abstract: 0, not_found: 0, no_text: 0 };
 
-function report(result: IngestResult | PatentIngestResult) {
+function report(result: IngestResult | PatentIngestResult | NeuripsIngestResult) {
   if (result.status === "ok") tally[result.created ? "new" : "existing"] += 1;
   else tally[result.status] += 1;
   // A TLDR-only row a card search stored earlier; this command never writes one.
@@ -104,7 +119,23 @@ function report(result: IngestResult | PatentIngestResult) {
 
 let stop: SearchResult | null = null;
 
-if (query) {
+if (source === "xlsx") {
+  let at = 0;
+  try {
+    for await (const cells of readCorpusSheet(file!)) {
+      at += 1;
+      const row = rowOf(cells);
+      if (!row) {
+        console.log(`# row ${at + 1} has no id; skipped`);
+        continue;
+      }
+      report(await ingestNeuripsRow(db, row, { set: set! }));
+    }
+  } catch (error) {
+    // Every row already held is skipped by id on the re-read.
+    stop = { seen: at, stopped: true, cursor: null, reason: `row ${at + 1}: ${error instanceof Error ? error.message : String(error)}` };
+  }
+} else if (query) {
   // The page being written, so a failure inside it can resume there: the
   // works it already wrote are skipped by id on the re-read.
   let page: string | null = flag("--cursor");
@@ -170,7 +201,7 @@ const unembedded = await db.select({ id: document.id }).from(document)
   .leftJoin(documentChunk, eq(documentChunk.documentId, document.id))
   .where(and(inArray(document.source, [...CORPUS_SOURCES]), isNull(documentChunk.id)));
 console.log(
-  `# ${tally.new} new, ${tally.existing} existing (${tally.thin} thin), ${tally.no_abstract} no_abstract, ${tally.short_abstract} short_abstract, ${tally.not_found} not_found; ${embedded} embedded, ${unembedded.length} without a vector, ${await corpusOrphans(db)} without a canonical text`,
+  `# ${tally.new} new, ${tally.existing} existing (${tally.thin} thin), ${tally.no_abstract} no_abstract, ${tally.short_abstract} short_abstract, ${tally.not_found} not_found, ${tally.no_text} no_text; ${embedded} embedded, ${unembedded.length} without a vector, ${await corpusOrphans(db)} without a canonical text`,
 );
 
 if (stop) {

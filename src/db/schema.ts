@@ -271,6 +271,10 @@ export const artifactTexts = pgTable(
     uniqueIndex("artifact_texts_patent_number_unique")
       .on(sql`(${t.provenance}->>'patent_number')`)
       .where(sql`${t.provenance}->>'patent_number' is not null`),
+    // The NeurIPS sheet's own id: a third of its rows have no OpenReview id.
+    uniqueIndex("artifact_texts_neurips_id_unique")
+      .on(sql`(${t.provenance}->>'neurips_id')`)
+      .where(sql`${t.provenance}->>'neurips_id' is not null`),
   ],
 );
 

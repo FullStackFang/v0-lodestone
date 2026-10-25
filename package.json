@@ -15,7 +15,9 @@
     "lodestone:digest": "tsx scripts/lodestone/digest.mts",
     "lodestone:ingest": "tsx scripts/lodestone/ingest.mts",
     "lodestone:measure": "tsx scripts/lodestone/measure.mts",
-    "lodestone:eval": "tsx scripts/lodestone/eval.mts"
+    "lodestone:eval": "tsx scripts/lodestone/eval.mts",
+    "lodestone:search": "tsx scripts/lodestone/search.mts",
+    "lodestone:research-links": "tsx scripts/lodestone/research-links.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
@@ -24,6 +26,7 @@
     "@google-cloud/bigquery": "^9.3.0",
     "better-auth": "^1.7.3",
     "drizzle-orm": "^0.45.2",
+    "exceljs": "^4.4.0",
     "lucide-react": "^1.41.0",
     "next": "16.3.4",
     "postgres": "^3.4.9",

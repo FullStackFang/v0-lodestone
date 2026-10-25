@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "artifact_texts_neurips_id_unique" ON "artifact_texts" USING btree (("provenance"->>'neurips_id')) WHERE "artifact_texts"."provenance"->>'neurips_id' is not null;
