@@ -43,28 +43,42 @@
   Voyage call, and an open endpoint invites a bill.
 
 ### The body: several questions, one list
-- The body is `{ q: string | string[] (1–4, each 1–2000 chars), k?: 1–50 (default 20),
-  set?: string, openalex?: boolean }`.
-- Several questions run in parallel and are merged with `mergeHits`. Week 1 found that one
-  long question drifts, and that a question should be searched as its sub-claims.
+- The body is `{ q: string | string[] (1–4, each 1–2000 chars), k?: 1–50 (default 30, the
+  CLI's default), set?: string, openalex?: boolean }`.
+- `q` is normalised to an array before validation, so an error names `q` usefully.
+- Several questions are searched in parallel and merged with `mergeHits`. Week 1 found that
+  one long question drifts, and that a question should be searched as its sub-claims.
+- The OpenAlex leg shares one `openalexSemanticLimiter()` across the request's questions,
+  passed as `wait`. `searchWorks` otherwise builds a limiter per call, and four parallel
+  calls against a 1 req/s endpoint would mostly stop early.
+- `k` applies per question. A response can therefore hold up to 4 × k stored hits plus
+  4 × k live hits, each with its abstract: about 600 KB at k = 50. The spec states this so
+  that clients expect it.
 - The ceiling of 4 matches the `research-review` skill's 2–4 sub-claims, and caps the
   Voyage and OpenAlex fan-out per request.
 - *Alternative:* one question per request, with the client merging. It was rejected
   because every client would re-implement `mergeHits`.
 
 ### The response
-- The response is `{ hits: PaperSearchHit[], openalex: { stopped: string | null } | null }`.
+- The response is `{ hits: PaperSearchHit[], openalex: { stopped: string[] } | null }`.
+  `stopped` holds one reason per question that stopped early, and is empty when none did.
+  Changing a single value into a list later would break clients, so it is a list now.
 - The hit shape is exactly what `search.json` holds today, so the `research-review` skill
   and Whetstone read one format.
 - Absent metrics are `null`, because unknown is not zero.
 - `openalex` is null when it was not asked for. When asked, `stopped` carries the reason
   OpenAlex stopped early. A partial live list must say it is partial.
 
-### No key is 503, not an empty list
-- `searchPapers` throws without a query vector, and the route maps that throw to 503.
-  An empty 200 would read as "nothing relevant".
-- This is the one error not routed through `withToken`'s 400 mapping, so the route catches
-  it first.
+### Embedding failures are the server's fault, never the client's
+- `searchPapers` throws without a query vector. The route answers 503 naming
+  `VOYAGE_API_KEY`, because an empty 200 would read as "nothing relevant".
+- Any other embedder throw also stays out of `withToken`'s 400 mapping: a Voyage 401 or
+  5xx, a 20 s timeout, or a 429 after retries. That mapping would blame the client for a
+  provider fault, so the route answers 502 for these.
+- The route catches embedding failures itself. Body errors still go through `withToken` as
+  400.
+- `maxDuration = 300`, as on the other long routes. The worst case is several 20 s Voyage
+  timeouts with retries, plus waits on the OpenAlex limiter.
 
 ### Abstracts are returned in full, to token holders only
 - Whetstone's `support` rows must be substrings of the abstract a run read, so a client
@@ -83,8 +97,14 @@
 - Running `lodestone:ingest --source xlsx` with production's `DATABASE_URL` reuses the code
   that loaded PGlite, including dedupe by `neurips_id` and by hash.
 - `process.loadEnvFile` does not override a variable already set, so a shell-provided
-  `DATABASE_URL` wins over `.env.local`. This is verified before the run, and the run
-  prints the host.
+  `DATABASE_URL` wins over `.env.local`.
+- Today `ingest.mts` prints nothing about the database, and `getDb()` silently falls back to
+  PGlite when `DATABASE_URL` is empty. The ingest therefore gains one line printing the
+  host, or `PGlite <dir>`, before it opens the database. That is the guard against loading
+  into the wrong place.
+- Run from a laptop, `NODE_ENV` is unset, so `createPostgresDb` runs the migrator on
+  connect through the pooled URL. After step 2 that is a no-op. "Production does not
+  migrate on connect" holds only for the Vercel process.
 - *Alternative:* copy the vectors from local PGlite and skip re-embedding. That saves about
   $0.40 but needs a new copy script, and it would carry the local database's history along
   with it.
@@ -95,9 +115,11 @@
   limit. The estimate is 200–300 MB. PGlite grew by 425 MB, but that includes WAL.
   - If it doesn't fit, stop and ask: either upgrade the plan or load a subset by year.
     Do not trim text, since the one-copy layout is already minimal.
-- **[A long load against a remote database]** → Each row is one transaction over the
-  network, so the run may take an hour or more. The ingest is idempotent, so an
-  interrupted run is resumed by running it again.
+- **[A long load against a remote database]** → Each row takes about 5 round trips, and
+  `embedPaperAbstracts` inserts chunks one at a time. That is about 56k or more round trips
+  from a laptop, so 1–2 hours is expected, not a hang. The per-row output shows progress.
+  - The ingest is idempotent, so an interrupted run is resumed by running it again.
+  - A resumed run first re-checks every row by `neurips_id` before it embeds.
 - **[Function duration]** → A request does at most 4 Voyage calls and 4 OpenAlex searches.
   `openalexHits` already obeys the OpenAlex limiter and stops early with a reason, rather
   than hanging.
@@ -122,8 +144,11 @@
 - Take the set's document ids: those whose latest `artifact_texts.provenance->>'query_set'`
   is `neurips-2021-2026`.
 - In one transaction, delete their `document_chunk` rows first, then their
-  `artifact_texts`, then the `document` rows. Only `document_sentence` cascades, and
-  `artifact_texts.artifact_id` has no foreign key.
+  `artifact_texts`, then the `document` rows.
+- `document_sentence` and `paper_block_verdict` cascade. Before deleting, count the
+  verdicts filed on the set and record the count, because those verdicts go with it.
+- `artifact_texts.artifact_id` has no foreign key.
+- `card_feedback.target_id` is plain text and would be left dangling. Count it the same way.
 - Revert the route commit if needed.
 
 ## Open Questions
