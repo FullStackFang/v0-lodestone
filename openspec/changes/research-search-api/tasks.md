@@ -49,5 +49,5 @@
 - [ ] 2.6 Smoke check on the live URL with the author's token: POST
   `{ q: "LLM recommendations popularity bias", k: 10, set: "neurips-2021-2026" }`. Record
   the status, the hit count and the time. Expect 200 and 10 hits.
-- [ ] 2.7 Update the `research-review` skill to say the search is also at
+- [x] 2.7 Update the `research-review` skill to say the search is also at
   `POST /api/lodestone/papers/search`, with the same hit shape.

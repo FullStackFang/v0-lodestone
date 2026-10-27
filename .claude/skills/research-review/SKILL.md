@@ -45,6 +45,11 @@ You do the reasoning. The scripts do everything that touches data.
    npm run lodestone:search -- --q "<sub-claim 1>" --q "<sub-claim 2>" --set neurips-2021-2026 --k 20 --openalex --json research/<slug>/search.json
    ```
 
+   The same search is also at `POST /api/lodestone/papers/search` with an `lst_` bearer
+   token: `{ "q": ["<sub-claim 1>", "<sub-claim 2>"], "k": 20, "set": "neurips-2021-2026",
+   "openalex": true }`. Its `hits` have the same shape as `search.json`, so writing the
+   `hits` array to `search.json` gives the same file.
+
    - Read the printed list and the abstracts in `search.json`.
    - If the hits are off-topic, re-run with tighter queries and overwrite the file. The
      review may cite only the final `search.json`.
