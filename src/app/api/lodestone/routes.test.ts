@@ -20,16 +20,23 @@ vi.mock("next/server", async (original) => ({
   after: (task: () => unknown) => void queued.push(task),
 }));
 /** The routes embed with the hashed bag of words, never Voyage. Imported at
- *  call time: `test-embed` itself imports this module. */
+ *  call time: `test-embed` itself imports this module. A test can switch it
+ *  to a deployment with no key, or to a provider that throws. */
+const embedding = vi.hoisted(() => ({ mode: "ok" as "ok" | "keyless" | "throws" }));
 vi.mock("@/harness/embed", async (original) => ({
   ...(await original<typeof import("@/harness/embed")>()),
-  embed: async (texts: string[]) => (await import("@/lodestone/test-embed")).testEmbed(texts),
+  embed: async (texts: string[]) => {
+    if (embedding.mode === "keyless") return { vectors: texts.map(() => null), embedded: false, model: null, tokens: null };
+    if (embedding.mode === "throws") throw new Error("voyage 500: upstream fault");
+    return (await import("@/lodestone/test-embed")).testEmbed(texts);
+  },
 }));
 import { GET as me } from "./me/route";
 import { GET as listCards, POST as sendCard } from "./cards/route";
 import { GET as readCard, PATCH as patchCard } from "./cards/[ideaId]/route";
 import { GET as readFeedback, POST as sendFeedback } from "./cards/[ideaId]/feedback/route";
 import { GET as readPaper } from "./papers/[documentId]/route";
+import { POST as searchPapersRoute } from "./papers/search/route";
 import { eq, sql } from "drizzle-orm";
 import { artifactTexts, cardRank, document, forgeCard } from "@/db/schema";
 import { putArtifactText } from "@/harness/canonical";
@@ -326,5 +333,129 @@ describe("client routes", () => {
     );
     expect(vote.status).toBe(200);
     expect((await readFeedback(req(`/api/lodestone/cards/${ideaId}/feedback`), params(ideaId))).status).toBe(200);
+  });
+});
+
+describe("paper search", () => {
+  const SET = "search-route-test";
+  const Q = "popularity bias recommendations";
+  const search = (body: unknown, auth = token) =>
+    searchPapersRoute(req("/api/lodestone/papers/search", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) }, auth));
+  const documents = async () => (await (await getDb()).select({ id: document.id }).from(document)).length;
+
+  beforeAll(async () => {
+    const db = await getDb();
+    const add = async (title: string, abstract: string, provenance: Record<string, unknown>) => {
+      const [row] = await db.insert(document).values({ sessionId: null, source: "paper", title, text: null }).returning({ id: document.id });
+      await putArtifactText(db, { artifactId: row.id, sourceFormat: "abstract", parser: "test", text: abstract, provenance: { query_set: SET, ...provenance } });
+    };
+    await add("Near", `${Q} alpha beta gamma delta`, { rating_avg: 6.5, citations_per_year: 3, year: 2023 });
+    await add("Nearer", `${Q} alpha beta`, { year: 2026 });
+    await add("Cold start", "cold start items for new users", { year: 2024 });
+    await embedPaperAbstracts(db, testEmbed);
+  }, 60_000);
+
+  it("answers 401 without a token, naming it", async () => {
+    const res = await search({ q: Q }, "");
+    expect(res.status).toBe(401);
+    expect((await res.json()).error).toMatch(/token/);
+  });
+
+  it("answers 400 on a body that is empty, not JSON, or out of range, naming the field", async () => {
+    expect((await search("")).status).toBe(400);
+    expect((await search("not json")).status).toBe(400);
+    const five = await search({ q: ["a", "b", "c", "d", "e"] });
+    expect(five.status).toBe(400);
+    expect((await five.json()).error).toMatch(/^q/);
+    for (const k of [0, 51]) {
+      const res = await search({ q: Q, k });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/^k/);
+    }
+  });
+
+  it("returns a set's hits nearest first, with absent metrics as null", async () => {
+    const res = await search({ q: Q, k: 2, set: SET });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.openalex).toBeNull();
+    expect(body.hits.map((h: { title: string }) => h.title)).toEqual(["Nearer", "Near"]);
+    expect(body.hits[0]).toMatchObject({ source: "corpus", query_set: SET, year: 2026, rating_avg: null, citations_per_year: null, link: null, abstract: `${Q} alpha beta` });
+    expect(body.hits[1]).toMatchObject({ rating_avg: 6.5, citations_per_year: 3 });
+    expect(body.hits[0].similarity).toBeGreaterThanOrEqual(body.hits[1].similarity);
+  });
+
+  it("gives every token the same hits: the corpus is shared", async () => {
+    const db = await getDb();
+    const other = await ensurePerson(db, { name: "Second Reader", email: "second.reader@lodestone.invalid" });
+    const otherToken = (await mintToken(db, other, "test client")).token;
+    const mine = await (await search({ q: Q, k: 3, set: SET })).json();
+    const theirs = await (await search({ q: Q, k: 3, set: SET }, otherToken)).json();
+    expect(theirs).toEqual(mine);
+  });
+
+  it("answers an unknown set with no hits, not 404", async () => {
+    const res = await search({ q: Q, set: "no-such-set" });
+    expect(res.status).toBe(200);
+    expect((await res.json()).hits).toEqual([]);
+  });
+
+  it("merges sub-claims, each paper once at its best similarity", async () => {
+    const one = await (await search({ q: Q, k: 3, set: SET })).json();
+    const both = await (await search({ q: [Q, "cold start items"], k: 3, set: SET })).json();
+    const ids = both.hits.map((h: { id: string }) => h.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toHaveLength(3);
+    const near = (hits: { title: string; similarity: number }[]) => hits.find((h) => h.title === "Nearer")!.similarity;
+    expect(near(both.hits)).toBe(near(one.hits));
+  });
+
+  it("adds live OpenAlex hits when asked, spaced by one limiter, writing nothing", async () => {
+    const starts: number[] = [];
+    vi.stubGlobal("fetch", async () => {
+      starts.push(Date.now());
+      return new Response(JSON.stringify({ results: [{ id: "https://openalex.org/W77", title: "Live work", publication_year: 2025, abstract_inverted_index: { Live: [0] } }], meta: { next_cursor: null } }), { status: 200 });
+    });
+    try {
+      const before = await documents();
+      const res = await search({ q: [Q, "cold start items", "alpha"], k: 2, set: SET, openalex: true });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.openalex).toEqual({ stopped: [] });
+      expect(body.hits.filter((h: { source: string }) => h.source === "openalex")).toEqual([
+        expect.objectContaining({ id: "W77", source: "openalex", similarity: null, abstract: "Live" }),
+      ]);
+      expect(starts).toHaveLength(3);
+      const sorted = [...starts].sort((a, b) => a - b);
+      for (let at = 1; at < sorted.length; at += 1) expect(sorted[at] - sorted[at - 1]).toBeGreaterThanOrEqual(950);
+      expect(await documents()).toBe(before);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }, 15_000);
+
+  it("lists each question OpenAlex stopped on", async () => {
+    vi.stubGlobal("fetch", async () => new Response("down", { status: 503 }));
+    try {
+      const body = await (await search({ q: Q, k: 1, openalex: true })).json();
+      expect(body.openalex.stopped).toEqual([expect.stringMatching(/openalex 503/)]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("answers 503 naming VOYAGE_API_KEY when nothing can embed, and 502 when the provider throws", async () => {
+    try {
+      embedding.mode = "keyless";
+      const keyless = await search({ q: Q });
+      expect(keyless.status).toBe(503);
+      expect((await keyless.json()).error).toMatch(/VOYAGE_API_KEY/);
+      embedding.mode = "throws";
+      const fault = await search({ q: Q });
+      expect(fault.status).toBe(502);
+      expect((await fault.json()).error).toMatch(/voyage 500/);
+    } finally {
+      embedding.mode = "ok";
+    }
   });
 });

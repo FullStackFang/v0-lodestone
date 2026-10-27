@@ -53,6 +53,16 @@ describe("limiter", () => {
     await wait();
     expect(clock.now()).toBe(before);
   });
+
+  it("spaces callers that wait at the same time, not only one after another", async () => {
+    const clock = fakeClock();
+    const wait = limiter(1, 1000, clock);
+    const starts = await Promise.all([0, 1, 2].map(async () => {
+      await wait();
+      return clock.now();
+    }));
+    expect(starts.sort((a, b) => a - b)).toEqual([0, 1000, 2000]);
+  });
 });
 
 describe("openalexLimiter", () => {

@@ -1,6 +1,8 @@
 /** One paper or patent from the corpus: its abstract, provenance and a
- *  citation line, to any valid token. The abstract and metadata are CC0 or
- *  public domain and never touch a card, so there is nothing to withhold;
+ *  citation line, to any valid token. OpenAlex metadata is CC0 and patents
+ *  are public domain, but the NeurIPS set's abstracts belong to their
+ *  authors: tokens go only to the pilot until those are cleared or cut to
+ *  excerpts (see `papers/search/route.ts`). Nothing here touches a card;
  *  the token keeps the abuse story the same as every other route. */
 import { NextResponse } from "next/server";
 import { corpusDocument } from "@/lodestone/priorArt";
