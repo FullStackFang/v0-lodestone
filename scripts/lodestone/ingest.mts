@@ -33,9 +33,11 @@
  * list), capped by `BIGQUERY_MAX_BYTES`, its pages read by token; the
  * printed cursor is `<job id>:<page token>` and resumes without a second
  * scan. Honours `DATABASE_URL`; without it opens the local PGlite directory,
- * which `next dev` must not hold at the same time. */
+ * which `next dev` must not hold at the same time. Prints which one before
+ * opening it: the guard against loading into the wrong database. */
 import "../harness/env.mts";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { and, inArray, isNull, eq } from "drizzle-orm";
 import { getDb } from "../../src/db/client";
 import { document, documentChunk } from "../../src/db/schema";
@@ -105,8 +107,13 @@ const onNotice = (notice: string) => {
 const onJob = (job: { jobId: string; totalBytesProcessed: number | null }) =>
   console.log(`# BigQuery job ${job.jobId}: ${job.totalBytesProcessed ?? "unknown"} bytes processed`);
 
+console.log(
+  process.env.DATABASE_URL
+    ? `# database: ${new URL(process.env.DATABASE_URL).host}`
+    : `# database: PGlite ${path.resolve(process.cwd(), process.env.THESIS_DATA_DIR || "data/pglite")}`,
+);
 const db = await getDb();
-const tally = { new: 0, existing: 0, thin: 0, no_abstract: 0, short_abstract: 0, not_found: 0, no_text: 0 };
+const tally ={ new: 0, existing: 0, thin: 0, no_abstract: 0, short_abstract: 0, not_found: 0, no_text: 0 };
 
 function report(result: IngestResult | PatentIngestResult | NeuripsIngestResult) {
   if (result.status === "ok") tally[result.created ? "new" : "existing"] += 1;

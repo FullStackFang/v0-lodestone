@@ -1,6 +1,6 @@
 ## 1. The route
 
-- [ ] 1.1 Write failing tests in `src/app/api/lodestone/routes.test.ts` for the spec's scenarios:
+- [x] 1.1 Write failing tests in `src/app/api/lodestone/routes.test.ts` for the spec's scenarios:
   - 401 without a token
   - 400 on an empty body, on `q` with 5 strings, and on `k` of 0 and of 51
   - set-filtered hits nearest first; an unknown set gives `hits: []`
@@ -13,7 +13,7 @@
   The file's `embed` mock always embeds, so give it a switch the tests set (keyless,
   throwing). The route has no injection seam for OpenAlex, so stub `fetch` with
   `vi.stubGlobal`, or mock `@/harness/research/search`'s `openalexHits`.
-- [ ] 1.2 Add `src/app/api/lodestone/papers/search/route.ts`:
+- [x] 1.2 Add `src/app/api/lodestone/papers/search/route.ts`:
   - `POST` behind `withToken`, with a zod body schema; `q` normalised to an array first
   - questions searched in parallel through `searchPapers`
   - when asked, `openalexHits` for each question, sharing one `openalexSemanticLimiter()`
@@ -21,16 +21,19 @@
   - lists merged with `mergeHits`
   - embedding failures caught in the route: no key → 503, any other throw → 502
   - `dynamic = "force-dynamic"`, `maxDuration = 300`
-- [ ] 1.3 Correct the "CC0 or public domain" comment in `papers/[documentId]/route.ts`, and
+  - *Found while building:* `limiter()` released callers that waited at the same time
+    together, so a shared limiter did not space parallel questions. It now queues callers;
+    `rate.test.ts` covers it.
+- [x] 1.3 Correct the "CC0 or public domain" comment in `papers/[documentId]/route.ts`, and
   write the licensing gate into the search route's header comment: no key outside the pilot
   until the NeurIPS abstracts are cleared or cut to excerpts.
-- [ ] 1.4 Run `npm test` and `npm run typecheck`: everything green.
+- [x] 1.4 Run `npm test` and `npm run typecheck`: everything green.
 
 ## 2. Release
 
 - [ ] 2.1 Merge to master and push. Confirm the Vercel deployment for the merge commit
   succeeds.
-- [ ] 2.2 Make `scripts/lodestone/ingest.mts` print the database host, or `PGlite <dir>`,
+- [x] 2.2 Make `scripts/lodestone/ingest.mts` print the database host, or `PGlite <dir>`,
   before it opens the database. Confirm that a shell-set `DATABASE_URL` wins over
   `.env.local` by checking that print.
 - [ ] 2.3 Run `npm run db:migrate` against production's unpooled URL. Record the host it

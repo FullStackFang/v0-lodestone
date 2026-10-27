@@ -29,10 +29,17 @@ export type Limiter = () => Promise<void>;
 export function limiter(count: number, windowMs: number, clock: Clock = realClock): Limiter {
   const interval = Math.ceil(windowMs / count);
   let last = -Infinity;
-  return async () => {
-    const wait = last + interval - clock.now();
-    if (wait > 0) await clock.sleep(wait);
-    last = clock.now();
+  // Callers take turns, so callers that wait at the same time are spaced
+  // from each one's actual start, not released together.
+  let queue = Promise.resolve();
+  return () => {
+    const turn = queue.then(async () => {
+      const wait = last + interval - clock.now();
+      if (wait > 0) await clock.sleep(wait);
+      last = clock.now();
+    });
+    queue = turn;
+    return turn;
   };
 }
 
